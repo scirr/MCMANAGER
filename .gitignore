@@ -30,3 +30,6 @@ Linux/mc
 
 # Generated release packages
 dist/
+
+# Maintainer-only release script (not part of the distributed product)
+create_release.ps1
