@@ -1,0 +1,24 @@
+{
+    "start_automod": {
+        "title": "🟢 {nom} is now open!",
+        "color": 3066993,
+        "description": "**No need to install the modpack manually!**\n\n**1.** Simply add the [AutoModpack](https://modrinth.com/mod/automodpack/versions) mod to your game.\n**2.** Connect to the server.\n**3.** You will be asked once for a security fingerprint (anti-impersonation check) — confirm with this one:\n`{cle}`\n**4.** Let the installation complete, then restart your game!\n\n*The server is starting up and will be ready in a few moments.*",
+        "show_ip": true
+    },
+    "start_normal": {
+        "title": "🟢 {nom} is now open!",
+        "color": 3066993,
+        "description": "The server is starting up and will be ready to welcome you in a few moments!",
+        "show_ip": true
+    },
+    "stop": {
+        "title": "🔴 Manual shutdown: {nom}",
+        "color": 15158332,
+        "description": "The server has been stopped manually. It is currently suspended."
+    },
+    "fermeture_nuit": {
+        "title": "🔴 {nom} is now closed",
+        "color": 16711680,
+        "description": "Time to sleep. The final backup has been archived successfully. The server is offline until the next scheduled opening."
+    }
+}

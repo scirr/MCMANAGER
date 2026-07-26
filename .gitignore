@@ -1,0 +1,30 @@
+# Sensitive per-server config (tokens, passwords)
+config.json
+webhooks.json
+
+# Logs
+logs/
+daemon.log
+daemon_error*.log
+*.log
+
+# Runtime files
+server.pid
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Windows - generated files
+mc.bat
+nssm/
+servers.json
+Windows/servers/
+
+# Linux - generated files
+*.service
+Linux/mc
+
+# Generated release packages
+dist/

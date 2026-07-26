@@ -1,0 +1,24 @@
+{
+    "start_automod": {
+        "title": "🟢 Le serveur {nom} est ouvert !",
+        "color": 3066993,
+        "description": "**Plus besoin de télécharger le modpack manuellement !**\n\n**1.** Ajoutez simplement le mod [AutoModpack](https://modrinth.com/mod/automodpack/versions) à votre jeu.\n**2.** Connectez-vous au serveur.\n**3.** Une empreinte de sécurité vous sera demandée une seule fois (vérification anti-usurpation), confirmez avec celle-ci :\n`{cle}`\n**4.** Laissez l'installation se faire, puis relancez votre jeu !\n\n*Le serveur est en cours de démarrage et sera prêt dans quelques instants.*",
+        "show_ip": true
+    },
+    "start_normal": {
+        "title": "🟢 Le serveur {nom} est ouvert !",
+        "color": 3066993,
+        "description": "Le serveur est en cours de démarrage et sera prêt à vous accueillir dans quelques instants !",
+        "show_ip": true
+    },
+    "stop": {
+        "title": "🔴 Fermeture Manuelle : {nom}",
+        "color": 15158332,
+        "description": "Le serveur a été arrêté manuellement. Il est actuellement suspendu."
+    },
+    "fermeture_nuit": {
+        "title": "🔴 Le serveur {nom} est fermé",
+        "color": 16711680,
+        "description": "C'est l'heure de dormir. La sauvegarde finale a été archivée avec succès. Le serveur est hors ligne jusqu'à la prochaine ouverture."
+    }
+}
