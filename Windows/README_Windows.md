@@ -246,6 +246,7 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc` | Dashboard (all servers) + command summary |
 | `mc help` | Full command list |
 | `mc version` | Show the installed MC Manager version |
+| `mc language [fr\|en]` | Show or change the interface language |
 | `mc deploy` | Deploy a new server (Vanilla/Paper/Fabric/Forge/NeoForge) |
 | `mc add [path]` | Register an existing server without downloading anything |
 | `mc status [target]` | Dashboard; filtered to a single server if `target` is given |
@@ -464,6 +465,16 @@ The daemon service propagates the variable automatically: `install.bat` / `mc co
 
 - A server whose folder is **outside** the shared partition stores an absolute Windows path (`C:\...`), which Linux sees as "folder not found". Only servers inside the shared partition are visible cross-OS.
 - A server created on Linux with a POSIX path (`/home/...`) outside the shared partition shows as "folder not found" on Windows — this is expected.
+
+## Language (FR / EN)
+
+MC Manager ships as a **single bilingual build**. On the **first `mc` command** it asks you to choose French or English; the choice is saved (in `language.txt`, next to the app) and used from then on. Change it anytime:
+
+```
+mc language        # show the current language
+mc language en     # switch to English
+mc language fr     # switch to French
+```
 
 ## Live Console (`mc console`)
 

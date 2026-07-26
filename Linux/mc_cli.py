@@ -15,6 +15,7 @@ import mc_deploy
 import mc_image
 import mc_servers
 import mc_doctor
+import mc_lang
 from mc_lang import T, VERSION
 
 def print_res(success, msg):
@@ -255,12 +256,93 @@ def print_logs(target=None):
     print("".join(lines[-30:]) or T["logs_nothing"])
 
 # ==========================================
+# LANGUAGE / HELP
+# ==========================================
+
+def prompt_language_if_unset():
+    """On first launch (no language chosen yet), ask FR/EN interactively."""
+    if mc_lang.is_language_set():
+        return
+    # Never prompt for the background service or in non-interactive contexts.
+    if len(sys.argv) > 1 and sys.argv[1] == "daemon":
+        return
+    try:
+        if not sys.stdin.isatty():
+            return
+    except Exception:
+        return
+    print(f"\033[96m{T['language_choose']}\033[0m")
+    print("  1. Français")
+    print("  2. English")
+    while True:
+        try:
+            choice = input("> ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            return
+        if choice in ("1", "fr", "français", "francais"):
+            mc_lang.set_language("fr")
+            break
+        if choice in ("2", "en", "english", "anglais"):
+            mc_lang.set_language("en")
+            break
+    print()
+
+def print_categorized_help():
+    tgt, pth, val = T["arg_target"], T["arg_path"], T["arg_value"]
+    categories = [
+        (T["help_cat_lifecycle"], [
+            (f"start [{tgt}]", T["help_start"]),
+            (f"stop [{tgt}] [--force]", T["help_stop"]),
+            (f"console [{tgt}]", T["help_console"]),
+            (f"backup [{tgt}]", T["help_backup"]),
+            (f"announce [{tgt}]", T["help_announce"]),
+            (f"fingerprint [{tgt}]", T["help_fingerprint"]),
+        ]),
+        (T["help_cat_multi"], [
+            (f"status [{tgt}]", T["help_status"]),
+            (f"use <{tgt}>", T["help_use"]),
+            (f"remove <{tgt}>", T["help_remove"]),
+            (f"open [{tgt}]", T["help_open"]),
+        ]),
+        (T["help_cat_config"], [
+            ("deploy", T["help_deploy"]),
+            (f"add [{pth}]", T["help_add"]),
+            (f"configure [{tgt}]", T["help_configure"]),
+            (f"edit config|webhooks [{tgt}]", T["help_edit"]),
+            (f"image add|rm [{tgt}]", T["help_image"]),
+            (f"schedule H M H M [{tgt}]", T["help_schedule"]),
+            (f"mode <{val}> [{tgt}]", T["help_mode"]),
+            (f"resume [{tgt}]", T["help_resume"]),
+        ]),
+        (T["help_cat_diag"], [
+            (f"doctor [{tgt}]", T["help_doctor"]),
+            (f"logs [{tgt}]", T["help_logs"]),
+            ("daemon <run|start|stop|restart>", T["help_daemon"]),
+        ]),
+        (T["help_cat_general"], [
+            ("version", T["help_version"]),
+            ("language [fr|en]", T["help_language"]),
+            ("help", T["help_help"]),
+        ]),
+    ]
+    width = max(len(cmd) for _, cmds in categories for cmd, _ in cmds) + 2
+    print(f"\033[1m\033[96mMC Manager\033[0m \033[90mv{VERSION}\033[0m")
+    print(f"\033[90m{T['help_intro'].format(tgt=tgt)}\033[0m")
+    for title, cmds in categories:
+        print(f"\n\033[93m{title}\033[0m")
+        for cmd, desc in cmds:
+            print(f"  \033[96mmc {cmd.ljust(width)}\033[0m {desc}")
+    print(f"\n\033[90m{T['help_footer']}\033[0m")
+
+# ==========================================
 # MAIN
 # ==========================================
 
 NEEDS_ACTIVE_RESOLUTION = {"configure", "start", "stop", "console", "backup", "mode", "schedule", "edit", "resume", "open", "announce", "fingerprint"}
 
 def main():
+    prompt_language_if_unset()
+
     # Only commands that actually launch the JVM need Java; verifying it for
     # everything (status, doctor, logs, image, mode…) would block them and even
     # make `doctor` — the tool meant to diagnose this — unusable when Java is missing.
@@ -278,6 +360,8 @@ def main():
 
     subparsers.add_parser("help", help=T["help_help"])
     subparsers.add_parser("version", help=T["help_version"])
+    p_lang = subparsers.add_parser("language", help=T["help_language"])
+    p_lang.add_argument("lang", nargs="?", choices=["fr", "en"], default=None)
     subparsers.add_parser("deploy", help=T["help_deploy"])
     p_add = subparsers.add_parser("add", help=T["help_add"])
     p_add.add_argument("path", nargs="?", default=None, help=T["help_add_path"])
@@ -337,11 +421,20 @@ def main():
         return
 
     if args.action == "help":
-        parser.print_help()
+        print_categorized_help()
         return
 
     if args.action == "version":
         print(f"MC Manager v{VERSION} (Linux)")
+        return
+
+    if args.action == "language":
+        if args.lang is None:
+            print_res(True, T["language_current"].format(lang=mc_lang.current_language()))
+            print(f"\033[90m{T['language_usage']}\033[0m")
+        else:
+            mc_lang.set_language(args.lang)
+            print_res(True, T["language_set"].format(lang=args.lang))
         return
 
     if args.action == "deploy":

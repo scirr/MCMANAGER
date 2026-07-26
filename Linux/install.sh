@@ -1,59 +1,59 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 echo "========================================"
-echo "  Deploiement de MC Manager (Linux)"
+echo "  MC Manager (Linux) — Setup"
 echo "========================================"
 echo ""
 
-# Verifie que ce script est lance en root (necessaire pour installer
-# la commande globale dans /usr/local/bin et le service systemd)
+# Check this script is run as root (required to install the global
+# command in /usr/local/bin and the systemd service)
 if [ "$(id -u)" -ne 0 ]; then
-    echo "[ERREUR] Ce script doit etre execute avec sudo."
-    echo "Relancez : sudo ./install.sh"
+    echo "[ERROR] This script must be run with sudo."
+    echo "Re-run: sudo ./install.sh"
     exit 1
 fi
-echo "[OK] Droits root confirmes."
+echo "[OK] Root rights confirmed."
 echo ""
 
-# Verifie que Python est installe
+# Check Python is installed
 if ! command -v python3 >/dev/null 2>&1; then
-    echo "[ERREUR] Python 3 n'est pas installe."
-    echo "Installez-le : sudo dnf install python3   (Fedora)"
+    echo "[ERROR] Python 3 is not installed."
+    echo "Install it: sudo dnf install python3   (Fedora)"
     exit 1
 fi
 
-# Java n'est requis que pour demarrer un serveur (mc start), pas pour
-# l'installation elle-meme - simple avertissement, jamais bloquant. Une
-# detection plus large (hors PATH) est faite par MC Manager lui-meme au
-# moment de mc start (mc_core.find_java).
+# Java is only required to start a server (mc start), not for the
+# installation itself - simple warning, never blocking. A broader
+# detection (outside PATH) is done by MC Manager itself at mc start
+# time (mc_core.find_java).
 if ! command -v java >/dev/null 2>&1; then
-    echo "[ATTENTION] Java n'a pas ete detecte dans le PATH."
-    echo "MC Manager fonctionnera, mais vous ne pourrez pas demarrer de serveur sans Java 21+."
-    echo "Installez-le : sudo dnf install java-21-openjdk-headless (ou https://adoptium.net/)"
+    echo "[WARNING] Java was not detected in PATH."
+    echo "MC Manager will work, but you won't be able to start a server without Java 21+."
+    echo "Install it: sudo dnf install java-21-openjdk-headless (or https://adoptium.net/)"
     echo ""
 else
-    echo "[OK] Java detecte."
+    echo "[OK] Java detected."
     echo ""
 fi
 
-echo "[1/4] Installation des dependances Python (Pillow, optionnel)..."
+echo "[1/4] Installing Python dependencies (Pillow, optional)..."
 python3 -m pip install --quiet Pillow 2>/dev/null \
     || dnf install -y -q python3-pillow 2>/dev/null \
-    || echo "[!] Pillow non installe (optionnel, requis uniquement pour 'mc image')."
+    || echo "[!] Pillow not installed (optional, only required for 'mc image')."
 echo ""
 
-echo "[2/4] Installation de la commande globale 'mc'..."
+echo "[2/4] Installing global 'mc' command..."
 python3 mc_config.py --install-only
 echo ""
 
-echo "[3/4] Installation du daemon (service systemd)..."
+echo "[3/4] Installing daemon (systemd service)..."
 python3 mc_config.py --install-daemon
 echo ""
 
-echo "[4/4] Termine."
+echo "[4/4] Done."
 echo "========================================"
-echo "  Installation terminee !"
+echo "  Installation complete!"
 echo "========================================"
 echo ""
-echo "Tapez 'mc deploy' dans un NOUVEAU terminal pour creer votre premier serveur."
+echo "Type 'mc deploy' in a NEW terminal to create your first server."
 echo ""

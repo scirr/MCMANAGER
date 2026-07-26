@@ -2,64 +2,62 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 echo ========================================
-echo   Deploiement de MC Manager (Windows)
+echo   MC Manager (Windows) — Setup
 echo ========================================
 echo.
 
-REM Verifie que ce terminal est lance en administrateur (necessaire pour copier
-REM la commande globale dans System32 et installer le service Windows)
+REM Requires administrator rights to copy the global command to System32
+REM and install the Windows service.
 net session >nul 2>&1
 if errorlevel 1 (
-    echo [ERREUR] Ce script doit etre execute en tant qu'administrateur.
-    echo Clic droit sur install.bat, puis "Executer en tant qu'administrateur".
+    echo [ERROR] This script must be run as administrator.
+    echo Right-click install.bat and select "Run as administrator".
     pause
     exit /b 1
 )
-echo [OK] Droits administrateur confirmes.
+echo [OK] Administrator rights confirmed.
 echo.
 
-REM Verifie que Python est installe
+REM Check Python is installed
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo [ERREUR] Python n'est pas installe ou pas dans le PATH.
-    echo Telechargez Python 3.11+ sur https://python.org
+    echo [ERROR] Python is not installed or not in PATH.
+    echo Download Python 3.11+ from https://python.org
     pause
     exit /b 1
 )
 
-REM Java n'est requis que pour demarrer un serveur (mc start), pas pour
-REM l'installation elle-meme - simple avertissement, jamais bloquant. Une
-REM detection plus large (hors PATH) est faite par MC Manager lui-meme au
-REM moment de mc start (mc_core.find_java).
+REM Java is only required to start a server (mc start), not for the installer itself.
+REM MC Manager performs a broader Java search (outside PATH) at mc start time (mc_core.find_java).
 java -version >nul 2>&1
 if errorlevel 1 (
-    echo [ATTENTION] Java n'a pas ete detecte dans le PATH.
-    echo MC Manager fonctionnera, mais vous ne pourrez pas demarrer de serveur sans Java 21+.
-    echo Telechargez-le sur https://adoptium.net/
+    echo [WARNING] Java was not detected in PATH.
+    echo MC Manager will work, but you won't be able to start a server without Java 21+.
+    echo Download it from https://adoptium.net/
     echo.
 ) else (
-    echo [OK] Java detecte.
+    echo [OK] Java detected.
     echo.
 )
 
-echo [1/4] Installation des dependances Python (Pillow)...
+echo [1/4] Installing Python dependencies (Pillow)...
 python -m pip install --quiet Pillow
 echo.
 
-echo [2/4] Installation de la commande globale 'mc'...
+echo [2/4] Installing global 'mc' command...
 python mc_config.py --install-only
 echo.
 
-echo [3/4] Installation du daemon (service Windows via NSSM)...
-echo       Telechargement de NSSM si necessaire, puis creation du service.
+echo [3/4] Installing daemon (Windows service via NSSM)...
+echo       Downloading NSSM if needed, then creating the service.
 python -c "import mc_config; mc_config.install_daemon_task()"
 echo.
 
-echo [4/4] Termine.
+echo [4/4] Done.
 echo ========================================
-echo   Installation terminee !
+echo   Setup complete!
 echo ========================================
 echo.
-echo Tapez 'mc deploy' dans un NOUVEAU terminal pour creer votre premier serveur.
+echo Open a NEW terminal and type 'mc deploy' to create your first server.
 echo.
 pause

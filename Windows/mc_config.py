@@ -6,7 +6,8 @@ import sys
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 import mc_servers
-from mc_lang import T, _LANG
+import mc_lang
+from mc_lang import T
 from mc_validate import valid_port, valid_ram, valid_cpu, valid_bool
 
 WEBHOOK_TEMPLATES_FILE = os.path.join(BASE_DIR, "webhook_templates.json")
@@ -67,7 +68,8 @@ _FALLBACK_WEBHOOKS = {
 }
 
 def get_fallback_webhook(key):
-    return _FALLBACK_WEBHOOKS.get(_LANG, _FALLBACK_WEBHOOKS["fr"]).get(key, {})
+    lang = mc_lang.current_language()
+    return _FALLBACK_WEBHOOKS.get(lang, _FALLBACK_WEBHOOKS["fr"]).get(key, {})
 
 def config_path(dossier_serveur):
     return os.path.join(dossier_serveur, "config.json")
@@ -92,10 +94,15 @@ def save_config(config):
     mc_servers.update_cached_ports(dossier_serveur, port=config.get("port"), rcon_port=config.get("rcon_port"))
 
 def _load_templates():
+    lang = mc_lang.current_language()
     if os.path.exists(WEBHOOK_TEMPLATES_FILE):
         with open(WEBHOOK_TEMPLATES_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return _FALLBACK_WEBHOOKS.get(_LANG, _FALLBACK_WEBHOOKS["fr"])
+            data = json.load(f)
+        # Bilingual file: {"fr": {...}, "en": {...}}
+        if isinstance(data, dict) and ("fr" in data or "en" in data):
+            return data.get(lang) or data.get("fr") or {}
+        return data  # legacy single-language file
+    return _FALLBACK_WEBHOOKS.get(lang, _FALLBACK_WEBHOOKS["fr"])
 
 def load_webhooks(dossier_serveur):
     templates = _load_templates()

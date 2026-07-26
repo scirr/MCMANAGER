@@ -2,32 +2,32 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 echo ========================================
-echo   Desinstallation de MC Manager (Windows)
+echo   MC Manager (Windows) — Uninstall
 echo ========================================
 echo.
-echo Ce script supprime les integrations systeme :
-echo   - Service Windows MCManagerDaemon (NSSM)
-echo   - Tache planifiee residuelle (si presente)
-echo   - Commande globale 'mc' (C:\Windows\System32\mc.bat)
-echo   - Fichiers generes (logs, server.pid, nssm\, __pycache__)
+echo This script removes the system integrations:
+echo   - MCManagerDaemon Windows service (NSSM)
+echo   - Residual scheduled task (if any)
+echo   - Global 'mc' command (C:\Windows\System32\mc.bat)
+echo   - Generated files (logs, server.pid, nssm\, __pycache__)
 echo.
-echo Les scripts .py de ce dossier ne seront PAS supprimes.
+echo The .py scripts in this folder will NOT be deleted.
 echo.
 
-set /p CONFIRM="Continuer la desinstallation ? (O/N) : "
-if /i not "%CONFIRM%"=="O" (
-    echo Annule.
+set /p CONFIRM="Continue with uninstall? (Y/N) : "
+if /i not "%CONFIRM%"=="Y" (
+    echo Cancelled.
     pause
     exit /b 0
 )
 echo.
 
-echo [1/5] Arret des serveurs Minecraft actifs...
+echo [1/5] Stopping running Minecraft servers...
 python -c "import mc_servers; mc_servers.stop_all_running()"
 timeout /t 5 /nobreak >nul
 echo.
 
-echo [2/5] Suppression du service Windows MCManagerDaemon...
+echo [2/5] Removing MCManagerDaemon Windows service...
 if exist "nssm\nssm.exe" (
     "nssm\nssm.exe" stop MCManagerDaemon >nul 2>&1
     "nssm\nssm.exe" remove MCManagerDaemon confirm >nul 2>&1
@@ -36,37 +36,37 @@ sc query MCManagerDaemon >nul 2>&1
 if not errorlevel 1 (
     sc stop MCManagerDaemon >nul 2>&1
     sc delete MCManagerDaemon >nul 2>&1
-    echo [OK] Service MCManagerDaemon supprime.
+    echo [OK] MCManagerDaemon service removed.
 ) else (
-    echo [OK] Aucun service MCManagerDaemon installe.
+    echo [OK] No MCManagerDaemon service found.
 )
 echo.
 
-echo [3/5] Nettoyage d'une eventuelle tache planifiee residuelle...
+echo [3/5] Cleaning up any residual scheduled task...
 schtasks /query /tn "MCManagerDaemon" >nul 2>&1
 if not errorlevel 1 (
     schtasks /delete /tn "MCManagerDaemon" /f >nul 2>&1
-    echo [OK] Tache planifiee supprimee.
+    echo [OK] Scheduled task removed.
 ) else (
-    echo [OK] Aucune tache planifiee residuelle.
+    echo [OK] No residual scheduled task found.
 )
 echo.
 
-echo [4/5] Suppression de la commande globale 'mc'...
+echo [4/5] Removing global 'mc' command...
 if exist "C:\Windows\System32\mc.bat" (
     del /f /q "C:\Windows\System32\mc.bat" >nul 2>&1
     if exist "C:\Windows\System32\mc.bat" (
-        echo [!] Droits admin requis pour supprimer C:\Windows\System32\mc.bat
-        echo     Relancez ce script en tant qu'administrateur, ou supprimez-le manuellement.
+        echo [!] Admin rights required to delete C:\Windows\System32\mc.bat
+        echo     Re-run this script as administrator, or delete it manually.
     ) else (
-        echo [OK] Commande 'mc' globale supprimee.
+        echo [OK] Global 'mc' command removed.
     )
 ) else (
-    echo [OK] Commande 'mc' globale deja absente.
+    echo [OK] Global 'mc' command not found.
 )
 echo.
 
-echo [5/5] Nettoyage des fichiers generes...
+echo [5/5] Cleaning generated files...
 if exist "logs" rmdir /s /q "logs" >nul 2>&1
 del /f /q "daemon.log" >nul 2>&1
 del /f /q "daemon_error*.log" >nul 2>&1
@@ -74,36 +74,36 @@ del /f /q "server.pid" >nul 2>&1
 del /f /q "mc.bat" >nul 2>&1
 if exist "nssm" rmdir /s /q "nssm" >nul 2>&1
 if exist "__pycache__" rmdir /s /q "__pycache__" >nul 2>&1
-echo [OK] Fichiers generes nettoyes.
+echo [OK] Generated files cleaned.
 echo.
 
 if exist "config.json" (
-    set /p DELCONF="Supprimer aussi config.json et webhooks.json (tokens RCON/Discord) ? (O/N) : "
-    if /i "%DELCONF%"=="O" (
+    set /p DELCONF="Also delete config.json and webhooks.json (RCON/Discord tokens)? (Y/N) : "
+    if /i "%DELCONF%"=="Y" (
         del /f /q "config.json" >nul 2>&1
         del /f /q "webhooks.json" >nul 2>&1
-        echo [OK] Configuration supprimee.
+        echo [OK] Configuration deleted.
     ) else (
-        echo [OK] Configuration conservee.
+        echo [OK] Configuration kept.
     )
     echo.
 )
 
 echo ========================================
-echo   IMPORTANT : vos serveurs Minecraft ne sont PAS supprimes
+echo   IMPORTANT: your Minecraft server files are NOT deleted
 echo ========================================
 echo.
-echo Ce script ne touche jamais aux fichiers de vos serveurs (mondes, mods,
-echo backups). Si vous voulez vraiment tout effacer, supprimez vous-meme :
+echo This script never touches your server files (worlds, mods, backups).
+echo If you want to fully delete everything, remove these folders manually:
 python -c "import mc_servers; mc_servers.print_data_locations()" 2>nul
 echo.
 
 echo ========================================
-echo   Desinstallation terminee.
+echo   Uninstall complete.
 echo ========================================
 echo.
-echo MC Manager n'est plus integre au systeme (service, commande, tache).
-echo Les fichiers du dossier restent disponibles si vous souhaitez reinstaller
-echo plus tard avec install.bat.
+echo MC Manager is no longer integrated into the system (service, command, task).
+echo The files in this folder remain available if you want to reinstall later
+echo using install.bat.
 echo.
 pause

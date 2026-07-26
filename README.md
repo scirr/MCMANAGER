@@ -23,6 +23,7 @@ This README is a high-level overview only. For installation steps and the comple
 - **AutoModpack integration** — Sends the connection key directly in the Discord embed
 - **CPU affinity** — Pins the server process to specific CPU cores
 - **Shared registry (dual-boot)** — Point Windows and Linux at one shared disk (`MCMANAGER_DATA_DIR`) and the same servers appear on both, no re-registering
+- **Bilingual (FR/EN)** — A single build; the language is chosen on first launch and switchable anytime with `mc language`
 - **Cross-platform** — Same logic, adapted natively for Linux and Windows
 
 ---
@@ -116,6 +117,7 @@ mc deploy
 | `mc mode <schedule\|always\|maintenance>` | Switch the daemon operating mode |
 | `mc schedule H M H M` | Set opening and closing time |
 | `mc doctor` | Run non-destructive diagnostics |
+| `mc language [fr\|en]` | Show or change the interface language |
 | `mc edit` | Edit `config.json` in `$EDITOR` |
 | `mc image add\|rm` | Set or remove the server icon |
 | `mc daemon <run\|start\|stop\|restart>` | Control the background service |

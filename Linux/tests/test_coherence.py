@@ -13,13 +13,8 @@ from mc_validate import valid_port
 
 
 def _switch_lang(lang):
-    mc_lang._LANG = lang
-    new_T = mc_lang._FR if lang == "fr" else mc_lang._EN
-    mc_lang.T = new_T
-    for mod_name in ("mc_config", "mc_deploy", "mc_cli"):
-        mod = sys.modules.get(mod_name)
-        if mod:
-            mod.T = new_T
+    # T is mutated in place, so every module that imported it sees the change.
+    mc_lang._apply_language(lang)
 
 
 # ─── Validate schedule open == close ─────────────────────────────────────────

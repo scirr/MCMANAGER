@@ -271,6 +271,7 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc` | Dashboard (all servers) + command summary |
 | `mc help` | Full command list |
 | `mc version` | Show the installed MC Manager version |
+| `mc language [fr\|en]` | Show or change the interface language |
 | `mc deploy` | Deploy a new server (Vanilla/Paper/Fabric/Forge/NeoForge) |
 | `mc add [path]` | Register an existing server without downloading anything |
 | `mc status [target]` | Dashboard; filtered to a single server if `target` is given |
@@ -461,6 +462,16 @@ The world is safely frozen with `save-off` during the backup (with a 10 s flush 
 **Retention:** set `backup_retention_days` in `config.json` (also asked by `mc configure`) to automatically delete daily backup folders older than N days after each backup. `0` (default) keeps everything forever.
 
 ---
+
+## Language (FR / EN)
+
+MC Manager ships as a **single bilingual build**. On the **first `mc` command** it asks you to choose French or English; the choice is saved (in `language.txt`, next to the app) and used from then on. Change it anytime:
+
+```
+mc language        # show the current language
+mc language en     # switch to English
+mc language fr     # switch to French
+```
 
 ## RCON Console (`mc console`)
 

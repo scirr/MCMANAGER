@@ -1,89 +1,89 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 echo "========================================"
-echo "  Desinstallation de MC Manager (Linux)"
+echo "  MC Manager (Linux) — Uninstall"
 echo "========================================"
 echo ""
-echo "Ce script supprime les integrations systeme :"
-echo "  - Service systemd mc_manager"
-echo "  - Commande globale 'mc' (/usr/local/bin/mc)"
-echo "  - Fichiers generes (logs, mc, __pycache__)"
+echo "This script removes system integrations:"
+echo "  - mc_manager systemd service"
+echo "  - Global 'mc' command (/usr/local/bin/mc)"
+echo "  - Generated files (logs, mc, __pycache__)"
 echo ""
-echo "Les scripts .py de ce dossier ne seront PAS supprimes."
+echo "The .py scripts in this folder will NOT be removed."
 echo ""
 
-read -r -p "Continuer la desinstallation ? (O/N) : " CONFIRM
+read -r -p "Continue uninstallation? (Y/N): " CONFIRM
 case "$CONFIRM" in
-    [oO]*) ;;
-    *) echo "Annule." ; exit 0 ;;
+    [yY]*) ;;
+    *) echo "Cancelled." ; exit 0 ;;
 esac
 echo ""
 
 if [ "$(id -u)" -ne 0 ]; then
-    echo "[!] Droits root requis pour supprimer le service et /usr/local/bin/mc."
-    echo "    Relancez : sudo ./uninstall.sh"
+    echo "[!] Root rights required to remove the service and /usr/local/bin/mc."
+    echo "    Re-run: sudo ./uninstall.sh"
     exit 1
 fi
 
-echo "[1/4] Arret des serveurs Minecraft actifs..."
+echo "[1/4] Stopping active Minecraft servers..."
 python3 -c "import mc_servers; mc_servers.stop_all_running()" 2>/dev/null
 sleep 5
 echo ""
 
-echo "[2/4] Suppression du service systemd mc_manager..."
+echo "[2/4] Removing mc_manager systemd service..."
 if systemctl list-unit-files mc_manager.service >/dev/null 2>&1 \
    && [ -f /etc/systemd/system/mc_manager.service ]; then
     systemctl stop mc_manager.service >/dev/null 2>&1
     systemctl disable mc_manager.service >/dev/null 2>&1
     rm -f /etc/systemd/system/mc_manager.service
     systemctl daemon-reload
-    echo "[OK] Service mc_manager supprime."
+    echo "[OK] mc_manager service removed."
 else
-    echo "[OK] Aucun service mc_manager installe."
+    echo "[OK] No mc_manager service installed."
 fi
 echo ""
 
-echo "[3/4] Suppression de la commande globale 'mc'..."
+echo "[3/4] Removing global 'mc' command..."
 if [ -f /usr/local/bin/mc ]; then
     rm -f /usr/local/bin/mc
-    echo "[OK] Commande 'mc' globale supprimee."
+    echo "[OK] Global 'mc' command removed."
 else
-    echo "[OK] Commande 'mc' globale deja absente."
+    echo "[OK] Global 'mc' command already absent."
 fi
 echo ""
 
-echo "[4/4] Nettoyage des fichiers generes..."
+echo "[4/4] Cleaning generated files..."
 rm -rf logs __pycache__
 rm -f daemon.log daemon_error*.log server.pid mc
-echo "[OK] Fichiers generes nettoyes."
+echo "[OK] Generated files cleaned."
 echo ""
 
 if [ -f "servers.json" ]; then
-    read -r -p "Supprimer aussi servers.json (registre des serveurs) ? (O/N) : " DELCONF
+    read -r -p "Also delete servers.json (server registry)? (Y/N): " DELCONF
     case "$DELCONF" in
-        [oO]*)
+        [yY]*)
             rm -f servers.json
-            echo "[OK] Registre supprime."
+            echo "[OK] Registry deleted."
             ;;
-        *) echo "[OK] Registre conserve." ;;
+        *) echo "[OK] Registry kept." ;;
     esac
     echo ""
 fi
 
 echo "========================================"
-echo "  IMPORTANT : vos serveurs Minecraft ne sont PAS supprimes"
+echo "  IMPORTANT: your Minecraft servers are NOT deleted"
 echo "========================================"
 echo ""
-echo "Ce script ne touche jamais aux fichiers de vos serveurs (mondes, mods,"
-echo "backups). Si vous voulez vraiment tout effacer, supprimez vous-meme :"
+echo "This script never touches your server files (worlds, mods, backups)."
+echo "If you really want to erase everything, delete these yourself:"
 python3 -c "import mc_servers; mc_servers.print_data_locations()" 2>/dev/null
 echo ""
 
 echo "========================================"
-echo "  Desinstallation terminee."
+echo "  Uninstallation complete."
 echo "========================================"
 echo ""
-echo "MC Manager n'est plus integre au systeme (service, commande)."
-echo "Les fichiers du dossier restent disponibles si vous souhaitez reinstaller"
-echo "plus tard avec install.sh."
+echo "MC Manager is no longer integrated with the system (service, command)."
+echo "The files in this folder remain available if you want to reinstall"
+echo "later with install.sh."
 echo ""

@@ -1,24 +1,54 @@
 {
-    "start_automod": {
-        "title": "🟢 Le serveur {nom} est ouvert !",
-        "color": 3066993,
-        "description": "**Plus besoin de télécharger le modpack manuellement !**\n\n**1.** Ajoutez simplement le mod [AutoModpack](https://modrinth.com/mod/automodpack/versions) à votre jeu.\n**2.** Connectez-vous au serveur.\n**3.** Une empreinte de sécurité vous sera demandée une seule fois (vérification anti-usurpation), confirmez avec celle-ci :\n`{cle}`\n**4.** Laissez l'installation se faire, puis relancez votre jeu !\n\n*Le serveur est en cours de démarrage et sera prêt dans quelques instants.*",
-        "show_ip": true
+    "fr": {
+        "start_automod": {
+            "title": "🟢 Le serveur {nom} est ouvert !",
+            "color": 3066993,
+            "description": "**Plus besoin de télécharger le modpack manuellement !**\n\n**1.** Ajoutez simplement le mod [AutoModpack](https://modrinth.com/mod/automodpack/versions) à votre jeu.\n**2.** Connectez-vous au serveur.\n**3.** Une empreinte de sécurité vous sera demandée une seule fois (vérification anti-usurpation), confirmez avec celle-ci :\n`{cle}`\n**4.** Laissez l'installation se faire, puis relancez votre jeu !\n\n*Le serveur est en cours de démarrage et sera prêt dans quelques instants.*",
+            "show_ip": true,
+            "show_version": true
+        },
+        "start_normal": {
+            "title": "🟢 Le serveur {nom} est ouvert !",
+            "color": 3066993,
+            "description": "Le serveur est en cours de démarrage et sera prêt à vous accueillir dans quelques instants !",
+            "show_ip": true,
+            "show_version": true
+        },
+        "stop": {
+            "title": "🔴 Fermeture Manuelle : {nom}",
+            "color": 15158332,
+            "description": "Le serveur a été arrêté manuellement. Il est actuellement suspendu."
+        },
+        "fermeture_nuit": {
+            "title": "🔴 Le serveur {nom} est fermé",
+            "color": 16711680,
+            "description": "C'est l'heure de dormir. La sauvegarde finale a été archivée avec succès. Le serveur est hors ligne jusqu'à la prochaine ouverture."
+        }
     },
-    "start_normal": {
-        "title": "🟢 Le serveur {nom} est ouvert !",
-        "color": 3066993,
-        "description": "Le serveur est en cours de démarrage et sera prêt à vous accueillir dans quelques instants !",
-        "show_ip": true
-    },
-    "stop": {
-        "title": "🔴 Fermeture Manuelle : {nom}",
-        "color": 15158332,
-        "description": "Le serveur a été arrêté manuellement. Il est actuellement suspendu."
-    },
-    "fermeture_nuit": {
-        "title": "🔴 Le serveur {nom} est fermé",
-        "color": 16711680,
-        "description": "C'est l'heure de dormir. La sauvegarde finale a été archivée avec succès. Le serveur est hors ligne jusqu'à la prochaine ouverture."
+    "en": {
+        "start_automod": {
+            "title": "🟢 {nom} is now open!",
+            "color": 3066993,
+            "description": "**No need to install the modpack manually!**\n\n**1.** Simply add the [AutoModpack](https://modrinth.com/mod/automodpack/versions) mod to your game.\n**2.** Connect to the server.\n**3.** You will be asked once for a security fingerprint (anti-impersonation check) — confirm with this one:\n`{cle}`\n**4.** Let the installation complete, then restart your game!\n\n*The server is starting up and will be ready in a few moments.*",
+            "show_ip": true,
+            "show_version": true
+        },
+        "start_normal": {
+            "title": "🟢 {nom} is now open!",
+            "color": 3066993,
+            "description": "The server is starting up and will be ready to welcome you in a few moments!",
+            "show_ip": true,
+            "show_version": true
+        },
+        "stop": {
+            "title": "🔴 Manual shutdown: {nom}",
+            "color": 15158332,
+            "description": "The server has been stopped manually. It is currently suspended."
+        },
+        "fermeture_nuit": {
+            "title": "🔴 {nom} is now closed",
+            "color": 16711680,
+            "description": "Time to sleep. The final backup has been archived successfully. The server is offline until the next scheduled opening."
+        }
     }
 }

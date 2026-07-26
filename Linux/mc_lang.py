@@ -1,10 +1,32 @@
-# mc_lang.py — All user-facing strings for MC Manager Linux (FR / EN)
-# Set _LANG to "en" for the English build, "fr" for French.
-_LANG = "fr"
+# mc_lang.py — All user-facing strings for MC Manager (FR / EN)
+# The active language is chosen at runtime (persisted in language.txt next to
+# the app) and can be changed with `mc language fr|en`. A single build ships
+# both languages.
+import os
 
 # Single source of truth for the tool version (shown by `mc version`).
 # Keep identical to Windows/mc_lang.py.
-VERSION = "2.1.6"
+VERSION = "2.2.0"
+
+_LANG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "language.txt")
+
+
+def _read_saved_language():
+    """Return the persisted language ('fr'/'en') or None if not chosen yet."""
+    try:
+        with open(_LANG_FILE, "r", encoding="utf-8") as f:
+            value = f.read().strip().lower()
+        return value if value in ("fr", "en") else None
+    except Exception:
+        return None
+
+
+def is_language_set():
+    return _read_saved_language() is not None
+
+
+def current_language():
+    return _LANG
 
 _FR = {
     # ── icons (mc_deploy.pr, reused by mc_doctor) ────────────────────────────
@@ -332,6 +354,21 @@ _FR = {
     "cli_target_help":        "Nom ou numéro du serveur (défaut : serveur actif)",
     "help_help":              "Liste complète des commandes",
     "help_version":           "Afficher la version de MC Manager",
+    "help_language":          "Changer la langue (fr/en)",
+    "help_intro":             "Gestion de serveurs Minecraft. [{tgt}] = nom ou numéro (défaut : serveur actif).",
+    "help_cat_lifecycle":     "Serveur — cycle de vie",
+    "help_cat_multi":         "Multi-serveurs",
+    "help_cat_config":        "Installation & configuration",
+    "help_cat_diag":          "Diagnostic & maintenance",
+    "help_cat_general":       "Général",
+    "help_footer":            "Astuce : 'mc' seul affiche le tableau de bord de tous les serveurs.",
+    "arg_target":             "cible",
+    "arg_path":               "chemin",
+    "arg_value":              "valeur",
+    "language_current":       "Langue actuelle : {lang}",
+    "language_usage":         "Changez-la avec : mc language fr  |  mc language en",
+    "language_set":           "Langue définie sur : {lang}",
+    "language_choose":        "Choisissez votre langue / Choose your language :",
     "help_deploy":            "Déployer un serveur (Vanilla/Paper/Fabric/Forge/NeoForge)",
     "help_add":               "Enregistrer un serveur existant (sans téléchargement)",
     "help_add_path":          "Dossier du serveur existant (demandé si omis)",
@@ -707,6 +744,21 @@ _EN = {
     "cli_target_help":        "Server name or number (default: active server)",
     "help_help":              "Full command list",
     "help_version":           "Show the MC Manager version",
+    "help_language":          "Change the language (fr/en)",
+    "help_intro":             "Minecraft server management. [{tgt}] = name or number (default: active server).",
+    "help_cat_lifecycle":     "Server — lifecycle",
+    "help_cat_multi":         "Multi-server",
+    "help_cat_config":        "Setup & configuration",
+    "help_cat_diag":          "Diagnostics & maintenance",
+    "help_cat_general":       "General",
+    "help_footer":            "Tip: 'mc' alone shows the dashboard of all servers.",
+    "arg_target":             "target",
+    "arg_path":               "path",
+    "arg_value":              "value",
+    "language_current":       "Current language: {lang}",
+    "language_usage":         "Change it with: mc language fr  |  mc language en",
+    "language_set":           "Language set to: {lang}",
+    "language_choose":        "Choisissez votre langue / Choose your language:",
     "help_deploy":            "Deploy a server (Vanilla/Paper/Fabric/Forge/NeoForge)",
     "help_add":               "Register an existing server (no download)",
     "help_add_path":          "Existing server folder (prompted if omitted)",
@@ -756,4 +808,29 @@ _EN = {
     "ingame_stopping":        "Server shutting down...",
 }
 
-T = _FR if _LANG == "fr" else _EN
+# T is mutated in place (never reassigned) so that `from mc_lang import T` in
+# other modules keeps pointing at the live dictionary after a language switch.
+T = {}
+_LANG = "fr"
+
+
+def _apply_language(lang):
+    global _LANG
+    _LANG = lang if lang in ("fr", "en") else "fr"
+    T.clear()
+    T.update(_FR if _LANG == "fr" else _EN)
+
+
+def set_language(lang):
+    """Persist the chosen language and apply it to the current process."""
+    lang = "en" if str(lang).strip().lower() == "en" else "fr"
+    try:
+        with open(_LANG_FILE, "w", encoding="utf-8") as f:
+            f.write(lang)
+    except Exception:
+        pass
+    _apply_language(lang)
+    return lang
+
+
+_apply_language(_read_saved_language() or "fr")

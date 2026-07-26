@@ -10,6 +10,7 @@ daemon_error*.log
 
 # Runtime files
 server.pid
+language.txt
 
 # Python
 __pycache__/

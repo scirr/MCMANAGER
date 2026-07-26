@@ -13,14 +13,8 @@ sys.path.insert(0, WINDOWS_DIR)
 
 def _switch_lang(lang):
     import mc_lang
-    mc_lang._LANG = lang
-    new_T = mc_lang._FR if lang == "fr" else mc_lang._EN
-    mc_lang.T = new_T
-    # Propagate to all modules that imported T already
-    for mod_name in ("mc_config", "mc_deploy"):
-        mod = sys.modules.get(mod_name)
-        if mod:
-            mod.T = new_T
+    # T is mutated in place, so every module that imported it sees the change.
+    mc_lang._apply_language(lang)
 
 
 # ─── Helpers ────────────────────────────────────────────────────────────────
