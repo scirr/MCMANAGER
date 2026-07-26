@@ -6,7 +6,7 @@ import os
 
 # Single source of truth for the tool version (shown by `mc version`).
 # Keep identical to Windows/mc_lang.py.
-VERSION = "2.3.0"
+VERSION = "2.4.0"
 
 _LANG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "language.txt")
 
@@ -166,8 +166,7 @@ _FR = {
     "prompt_cpu":            "Assignation CPU (ex: 8-15)",
     "prompt_ram":            "RAM allouée (ex: 4G, 8G, 4096M)",
     "prompt_jar":            "Fichier JAR exécutable",
-    "prompt_duckdns_domain": "Domaine DuckDNS",
-    "prompt_duckdns_token":  "Token DuckDNS",
+    "prompt_domain":         "Domaine / lien du serveur (optionnel)",
     "prompt_webhook_url":    "URL Webhook Discord",
     "prompt_automodpack":    "Activer AutoModpack (0=Non, 1=Oui)",
 
@@ -223,7 +222,7 @@ _FR = {
     "jar_main":               "JAR principal : {jar}",
     "deploy_success":         "Serveur {stype} {ver} déployé avec succès !",
     "deploy_dir_info":        "Dossier serveur : {path}",
-    "advanced_prompt":        "Configurer les options avancées maintenant (horaires, CPU/RAM, DuckDNS, Discord) ?",
+    "advanced_prompt":        "Configurer les options avancées maintenant (horaires, CPU/RAM, domaine, Discord) ?",
     "advanced_saved":         "Configuration avancée enregistrée.",
     "later_hint":             "Vous pourrez les régler plus tard avec : mc configure",
     "start_hint":             "Lancez le serveur : mc start",
@@ -337,7 +336,6 @@ _FR = {
     "invalid_bool":           "Valeur invalide ({val}) : entrez 0 ou 1.",
     "name_empty":             "Le nom du serveur ne peut pas être vide.",
     "rcon_same_as_game_port": "Le port RCON ({rcon}) est identique au port de jeu ({game}). Choisissez un port différent.",
-    "duckdns_incomplete":     "Attention : domaine DuckDNS renseigné sans token, ou inversement — la mise à jour DNS ne fonctionnera pas.",
     "schedule_same_time":     "Ouverture et fermeture à la même heure — le serveur ne serait jamais ouvert.",
     "rcon_auth_failed":       "authentification refusée (mauvais mot de passe ?)",
     "rcon_conn_refused":      "connexion refusée (RCON désactivé ? activez enable-rcon=true dans server.properties)",
@@ -565,8 +563,7 @@ _EN = {
     "prompt_cpu":            "CPU affinity (e.g. 8-15)",
     "prompt_ram":            "RAM allocation (e.g. 4G, 8G, 4096M)",
     "prompt_jar":            "Executable JAR file",
-    "prompt_duckdns_domain": "DuckDNS domain",
-    "prompt_duckdns_token":  "DuckDNS token",
+    "prompt_domain":         "Server domain / link (optional)",
     "prompt_webhook_url":    "Discord webhook URL",
     "prompt_automodpack":    "Enable AutoModpack (0=No, 1=Yes)",
 
@@ -622,7 +619,7 @@ _EN = {
     "jar_main":               "Main JAR: {jar}",
     "deploy_success":         "Server {stype} {ver} deployed successfully!",
     "deploy_dir_info":        "Server folder: {path}",
-    "advanced_prompt":        "Configure advanced options now (schedule, CPU/RAM, DuckDNS, Discord)?",
+    "advanced_prompt":        "Configure advanced options now (schedule, CPU/RAM, domain, Discord)?",
     "advanced_saved":         "Advanced configuration saved.",
     "later_hint":             "You can configure them later with: mc configure",
     "start_hint":             "Start the server: mc start",
@@ -736,7 +733,6 @@ _EN = {
     "invalid_bool":           "Invalid value ({val}): enter 0 or 1.",
     "name_empty":             "Server name cannot be empty.",
     "rcon_same_as_game_port": "RCON port ({rcon}) is the same as the game port ({game}). Choose a different port.",
-    "duckdns_incomplete":     "Warning: DuckDNS domain set without token, or vice versa — DNS update will not work.",
     "schedule_same_time":     "Open and close times are identical — the server would never be open.",
     "rcon_auth_failed":       "authentication refused (wrong password?)",
     "rcon_conn_refused":      "connection refused (RCON disabled? set enable-rcon=true in server.properties)",

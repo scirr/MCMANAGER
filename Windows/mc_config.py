@@ -335,12 +335,7 @@ _AUTOMOD_LOADERS = {"Fabric", "Forge", "NeoForge"}
 
 def run_setup_integrations(config):
     print(f"\n\033[93m--- {T['section_integrations']} ---\033[0m")
-    config["duckdns_domain"] = smart_ask(T["prompt_duckdns_domain"], "duckdns_domain", config, "")
-    config["duckdns_token"] = smart_ask(T["prompt_duckdns_token"], "duckdns_token", config, "")
-    _domain = config.get("duckdns_domain", "")
-    _token  = config.get("duckdns_token", "")
-    if bool(_domain) != bool(_token):
-        print(f"\033[93m[{T['icon_warn']}]\033[0m {T['duckdns_incomplete']}")
+    config["domaine"] = smart_ask(T["prompt_domain"], "domaine", config, "")
     config["webhook_url"] = smart_ask(T["prompt_webhook_url"], "webhook_url", config, "")
 
     loader = config.get("loader", "")

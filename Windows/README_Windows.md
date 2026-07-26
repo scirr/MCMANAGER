@@ -124,7 +124,7 @@ Two extra steps beyond the Windows firewall, on your **router** side — MC Mana
 1. Open your router's admin page (often `192.168.1.1` or `192.168.0.1`) and look for a "Port forwarding" section.
 2. Forward the configured TCP port (e.g. `25565`) to this PC's local IP address.
 
-Your friends connect using your **public IP address** (visible on your router's home page). For an address that survives IP changes, see `duckdns_domain`/`duckdns_token` in [Configuration](#configuration-configjson).
+Your friends connect using your **public IP address** (visible on your router's home page). For a stable address, use any free dynamic-DNS provider (DuckDNS, No-IP, …), point it to your public IP on their site, and set it as `domaine` (see [Configuration](#configuration-configjson)).
 
 ### Still not working?
 
@@ -183,7 +183,7 @@ Steps:
 9. **AutoModpack (optional, if available)** — see [AutoModpack availability](#automodpack-availability) below.
 10. **Backup folder**.
 11. **Registration** — the server is added to the registry and becomes the active server.
-12. **Flow into advanced options** — directly offers the schedule / CPU·RAM / DuckDNS·Discord sections of `mc configure`, without repeating already-answered questions. Saying no leaves those settings at defaults, adjustable later with `mc configure`.
+12. **Flow into advanced options** — directly offers the schedule / CPU·RAM / domain·Discord sections of `mc configure`, without repeating already-answered questions. Saying no leaves those settings at defaults, adjustable later with `mc configure`.
 
 ---
 
@@ -219,7 +219,7 @@ Goes through **all** configuration sections of an already registered server:
 2. **RCON + AutoModpack** — re-runs the same check as `deploy`/`add`; asks nothing if already configured, useful to repair a server that never had RCON.
 3. **Schedule & backups**.
 4. **Performance** (CPU, RAM, JAR).
-5. **Integrations** (DuckDNS, Discord webhook, AutoModpack on/off).
+5. **Integrations** (domain, Discord webhook, AutoModpack on/off).
 
 ### AutoModpack availability
 
@@ -365,8 +365,7 @@ Each server has its own `config.json` in its server folder. `mc edit config [tar
 | `jar_name` | JAR file name | `"fabric-server-launch.jar"` |
 | `rcon_port` | RCON port | `25575` |
 | `mcrcon_pass` | RCON password | `"password"` |
-| `duckdns_domain` | DuckDNS subdomain | `"myserver"` |
-| `duckdns_token` | DuckDNS token | `"xxxx-xxxx"` |
+| `domaine` | Server domain/link shown to players (optional) | `"play.myserver.com"` |
 | `webhook_url` | Discord Webhook URL | `"https://discord.com/api/webhooks/..."` |
 | `backup_retention_days` | Days to keep daily backup folders (0 = unlimited) | `30` |
 | `activer_automodpack` | AutoModpack enabled (1) or not (0) | `1` |

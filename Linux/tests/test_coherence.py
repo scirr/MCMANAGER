@@ -165,37 +165,6 @@ class TestAutomodpackDeclineMarking(unittest.TestCase):
             "setup_automodpack should NOT be called for Vanilla")
 
 
-# ─── DuckDNS coherence ───────────────────────────────────────────────────────
-
-class TestDuckDNSCoherence(unittest.TestCase):
-    """Domain without token (or vice versa) → inconsistent."""
-
-    def _is_incomplete(self, domain, token):
-        return bool(domain) != bool(token)
-
-    def test_both_empty_is_ok(self):
-        self.assertFalse(self._is_incomplete("", ""))
-
-    def test_both_filled_is_ok(self):
-        self.assertFalse(self._is_incomplete("mon-domaine", "abc123"))
-
-    def test_domain_without_token_is_incomplete(self):
-        self.assertTrue(self._is_incomplete("mon-domaine", ""))
-
-    def test_token_without_domain_is_incomplete(self):
-        self.assertTrue(self._is_incomplete("", "abc123"))
-
-    def test_incomplete_message_exists_fr(self):
-        T = mc_lang._FR
-        msg = T["duckdns_incomplete"]
-        self.assertTrue(len(msg) > 10)
-
-    def test_incomplete_message_exists_en(self):
-        T = mc_lang._EN
-        msg = T["duckdns_incomplete"]
-        self.assertTrue(len(msg) > 10)
-
-
 # ─── Coherence AUTOMODPACK_LOADER_MAP vs _AUTOMOD_LOADERS ────────────────────
 
 class TestAutomodpackConsistency(unittest.TestCase):

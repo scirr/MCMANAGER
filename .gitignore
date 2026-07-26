@@ -1,4 +1,4 @@
-# Sensitive per-server config (tokens, passwords)
+# Config
 config.json
 webhooks.json
 
@@ -8,7 +8,7 @@ daemon.log
 daemon_error*.log
 *.log
 
-# Runtime files
+# Runtime
 server.pid
 language.txt
 update_check.json
@@ -18,18 +18,16 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Windows - generated files
+# Windows
 mc.bat
 nssm/
 servers.json
 Windows/servers/
 
-# Linux - generated files
+# Linux
 *.service
 Linux/mc
 
-# Generated release packages
+# Releases
 dist/
-
-# Maintainer-only release script (not part of the distributed product)
 create_release.ps1

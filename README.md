@@ -19,7 +19,7 @@ This README is a high-level overview only. For installation steps and the comple
 - **Automatic backups** — Mid-session, nightly and manual ZIP backups with `save-off` / `save-on` safety
 - **Discord webhooks** — Notifies players on server open, close, and shutdown events
 - **Maintenance mode** — Instantly pauses the daemon without stopping it
-- **DuckDNS support** — Automatically updates your dynamic DNS on server start
+- **Custom domain** — Show players a friendly domain/link (from any DNS provider) instead of a bare IP
 - **AutoModpack integration** — Sends the connection key directly in the Discord embed
 - **CPU affinity** — Pins the server process to specific CPU cores
 - **Shared registry (dual-boot)** — Point Windows and Linux at one shared disk (`MCMANAGER_DATA_DIR`) and the same servers appear on both, no re-registering
@@ -136,7 +136,7 @@ A background **daemon** runs continuously and checks the current time every 30 s
 │  ┌──────────────┐     ┌──────────────────────┐   │
 │  │ Scheduled?   │─YES─▶ Start server         │   │
 │  └──────────────┘     │ Send Discord webhook  │   │
-│         │             │ Update DuckDNS        │   │
+│         │             │                       │   │
 │         NO            └──────────────────────┘   │
 │         │                                         │
 │  ┌──────▼───────┐     ┌──────────────────────┐   │

@@ -332,6 +332,16 @@ def check_java():
     except Exception:
         return False, "error"
 
+def _display_address(config):
+    """Address shown to players in webhooks: the configured domain/link if set,
+    otherwise a port hint. IP<->DNS linking is done on the DNS provider's site,
+    so MC Manager only displays the address, it never updates any DNS."""
+    domaine = (config.get("domaine") or "").strip()
+    port = str(config.get("port", "25565"))
+    if domaine:
+        return f"{domaine}:{port}" if port != "25565" else domaine
+    return f"Port {port} (Local/Public IP)"
+
 def start_server(config, send_webhook=True):
     import logging
     dossier = config.get("dossier_serveur", "")
@@ -405,24 +415,7 @@ def start_server(config, send_webhook=True):
         f.write(str(proc.pid))
     logging.info(f"Server started PID={proc.pid}")
 
-    domain_full = config.get("duckdns_domain", "")
-    token = config.get("duckdns_token", "")
-    if domain_full and token:
-        prefix = domain_full.split('.')[0]
-        try:
-            urllib.request.urlopen(
-                f"https://www.duckdns.org/update?domains={prefix}&token={token}&ip=",
-                timeout=10
-            )
-        except Exception:
-            pass
-
-    port = str(config.get("port", "25565"))
-    if domain_full:
-        display_domain = domain_full if ".duckdns.org" in domain_full else f"{domain_full}.duckdns.org"
-        display_ip = f"{display_domain}:{port}" if port != "25565" else display_domain
-    else:
-        display_ip = f"Port {port} (Local/Public IP)"
+    display_ip = _display_address(config)
 
     if send_webhook:
         try:
@@ -486,13 +479,7 @@ def stop_server(config, manual=True):
 def send_start_webhook(config):
     """Send the server startup announcement to Discord, bypassing maintenance mode."""
     dossier = config.get("dossier_serveur", "")
-    domain_full = config.get("duckdns_domain", "")
-    port = str(config.get("port", "25565"))
-    if domain_full:
-        display_domain = domain_full if ".duckdns.org" in domain_full else f"{domain_full}.duckdns.org"
-        display_ip = f"{display_domain}:{port}" if port != "25565" else display_domain
-    else:
-        display_ip = f"Port {port} (Local/Public IP)"
+    display_ip = _display_address(config)
     nom = config.get("nom_serveur", "Minecraft")
     automod = config.get("activer_automodpack", 0)
     cle = config.get("cle_automodpack", "")
