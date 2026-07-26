@@ -271,6 +271,7 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc` | Dashboard (all servers) + command summary |
 | `mc help` | Full command list |
 | `mc version` | Show the installed MC Manager version |
+| `mc update` | Download and apply the latest version |
 | `mc language [fr\|en]` | Show or change the interface language |
 | `mc deploy` | Deploy a new server (Vanilla/Paper/Fabric/Forge/NeoForge) |
 | `mc add [path]` | Register an existing server without downloading anything |
@@ -462,6 +463,16 @@ The world is safely frozen with `save-off` during the backup (with a 10 s flush 
 **Retention:** set `backup_retention_days` in `config.json` (also asked by `mc configure`) to automatically delete daily backup folders older than N days after each backup. `0` (default) keeps everything forever.
 
 ---
+
+## Automatic updates
+
+MC Manager checks the latest published release in the background (throttled to once every few hours, silent if offline). When a newer version exists, every `mc` command shows a discreet line:
+
+```
+Update available: 2.3.1 — run 'mc update'
+```
+
+Run `mc update` to download and apply it. It replaces only the program files — your servers, `servers.json`, configs, backups and chosen language are never touched. The daemon is restarted automatically (run `sudo mc daemon restart` if it could not).
 
 ## Language (FR / EN)
 

@@ -11,6 +11,7 @@ daemon_error*.log
 # Runtime files
 server.pid
 language.txt
+update_check.json
 
 # Python
 __pycache__/

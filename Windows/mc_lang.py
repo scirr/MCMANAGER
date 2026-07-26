@@ -5,7 +5,7 @@
 import os
 
 # Single source of truth for the tool version (shown by `mc version`).
-VERSION = "2.2.0"
+VERSION = "2.3.0"
 
 _LANG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "language.txt")
 
@@ -358,6 +358,15 @@ _FR = {
     "help_help":              "Liste complète des commandes",
     "help_version":           "Afficher la version de MC Manager",
     "help_language":          "Changer la langue (fr/en)",
+    "help_update":            "Mettre à jour MC Manager vers la dernière version",
+    "update_available":       "Mise à jour disponible : {ver} — lancez 'mc update'",
+    "update_current":         "MC Manager est déjà à jour (v{ver}).",
+    "update_downloading":     "Téléchargement de la version {ver}...",
+    "update_done":            "Mis à jour vers la v{ver}. Rouvrez vos terminaux 'mc'.",
+    "update_failed":          "Échec de la mise à jour : {e}",
+    "update_no_asset":        "Aucun paquet de mise à jour trouvé pour cette plateforme.",
+    "update_check_failed":    "Impossible de vérifier les mises à jour (hors ligne ?).",
+    "update_daemon_manual":   "Redémarrez le service (admin) pour l'appliquer côté daemon : mc daemon restart.",
     "help_intro":             "Gestion de serveurs Minecraft. [{tgt}] = nom ou numéro (défaut : serveur actif).",
     "help_cat_lifecycle":     "Serveur — cycle de vie",
     "help_cat_multi":         "Multi-serveurs",
@@ -752,6 +761,15 @@ _EN = {
     "help_help":              "Full command list",
     "help_version":           "Show the MC Manager version",
     "help_language":          "Change the language (fr/en)",
+    "help_update":            "Update MC Manager to the latest version",
+    "update_available":       "Update available: {ver} — run 'mc update'",
+    "update_current":         "MC Manager is already up to date (v{ver}).",
+    "update_downloading":     "Downloading version {ver}...",
+    "update_done":            "Updated to v{ver}. Reopen your 'mc' terminals.",
+    "update_failed":          "Update failed: {e}",
+    "update_no_asset":        "No update package found for this platform.",
+    "update_check_failed":    "Could not check for updates (offline?).",
+    "update_daemon_manual":   "Restart the service (admin) to apply it daemon-side: mc daemon restart.",
     "help_intro":             "Minecraft server management. [{tgt}] = name or number (default: active server).",
     "help_cat_lifecycle":     "Server — lifecycle",
     "help_cat_multi":         "Multi-server",

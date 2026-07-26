@@ -16,6 +16,7 @@ import mc_image
 import mc_servers
 import mc_doctor
 import mc_lang
+import mc_update
 from mc_lang import T, VERSION
 
 def print_res(success, msg):
@@ -287,6 +288,16 @@ def prompt_language_if_unset():
             break
     print()
 
+def show_update_notice():
+    """Discreet, throttled, silent-on-failure 'update available' line."""
+    try:
+        mc_update.refresh_if_stale()
+        latest = mc_update.get_cached_notice()
+        if latest:
+            print(f"\033[93m{T['update_available'].format(ver=latest)}\033[0m\n")
+    except Exception:
+        pass
+
 def print_categorized_help():
     tgt, pth, val = T["arg_target"], T["arg_path"], T["arg_value"]
     categories = [
@@ -320,6 +331,7 @@ def print_categorized_help():
             ("daemon <run|start|stop|restart>", T["help_daemon"]),
         ]),
         (T["help_cat_general"], [
+            ("update", T["help_update"]),
             ("version", T["help_version"]),
             ("language [fr|en]", T["help_language"]),
             ("help", T["help_help"]),
@@ -362,6 +374,7 @@ def main():
     subparsers.add_parser("version", help=T["help_version"])
     p_lang = subparsers.add_parser("language", help=T["help_language"])
     p_lang.add_argument("lang", nargs="?", choices=["fr", "en"], default=None)
+    subparsers.add_parser("update", help=T["help_update"])
     subparsers.add_parser("deploy", help=T["help_deploy"])
     p_add = subparsers.add_parser("add", help=T["help_add"])
     p_add.add_argument("path", nargs="?", default=None, help=T["help_add_path"])
@@ -416,6 +429,9 @@ def main():
 
     args = parser.parse_args()
 
+    if args.action not in ("daemon", "update"):
+        show_update_notice()
+
     if args.action is None:
         print_dashboard(with_cheatsheet=True)
         return
@@ -435,6 +451,10 @@ def main():
         else:
             mc_lang.set_language(args.lang)
             print_res(True, T["language_set"].format(lang=args.lang))
+        return
+
+    if args.action == "update":
+        print_res(*mc_update.perform_update())
         return
 
     if args.action == "deploy":

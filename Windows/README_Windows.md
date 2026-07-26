@@ -246,6 +246,7 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc` | Dashboard (all servers) + command summary |
 | `mc help` | Full command list |
 | `mc version` | Show the installed MC Manager version |
+| `mc update` | Download and apply the latest version |
 | `mc language [fr\|en]` | Show or change the interface language |
 | `mc deploy` | Deploy a new server (Vanilla/Paper/Fabric/Forge/NeoForge) |
 | `mc add [path]` | Register an existing server without downloading anything |
@@ -465,6 +466,16 @@ The daemon service propagates the variable automatically: `install.bat` / `mc co
 
 - A server whose folder is **outside** the shared partition stores an absolute Windows path (`C:\...`), which Linux sees as "folder not found". Only servers inside the shared partition are visible cross-OS.
 - A server created on Linux with a POSIX path (`/home/...`) outside the shared partition shows as "folder not found" on Windows — this is expected.
+
+## Automatic updates
+
+MC Manager checks the latest published release in the background (throttled to once every few hours, silent if offline). When a newer version exists, every `mc` command shows a discreet line:
+
+```
+Update available: 2.3.1 — run 'mc update'
+```
+
+Run `mc update` to download and apply it. It replaces only the program files — your servers, `servers.json`, configs, backups and chosen language are never touched. The daemon is restarted automatically (run `mc daemon restart` as administrator if it could not).
 
 ## Language (FR / EN)
 
