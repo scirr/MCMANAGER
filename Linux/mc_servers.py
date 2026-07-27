@@ -27,7 +27,7 @@ else:
 # Directory the registry lives in — the anchor for portable (relative) paths.
 REGISTRY_DIR = os.path.dirname(REGISTRY_FILE)
 
-_EMPTY_REGISTRY = {"active": None, "next_id": 1, "servers": {}}
+_EMPTY_REGISTRY = {"active": None, "servers": {}}
 
 
 def _atomic_write_json(path, data):
@@ -36,6 +36,16 @@ def _atomic_write_json(path, data):
     with open(tmp_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
     os.replace(tmp_path, path)
+
+
+def _next_free_id(servers):
+    """Smallest positive integer not already used as a server id, so numbers
+    fill removed gaps and restart at 1 once the registry is empty."""
+    used = {info.get("id") for info in servers.values()}
+    i = 1
+    while i in used:
+        i += 1
+    return i
 
 
 def to_portable(dossier):
@@ -85,8 +95,8 @@ def load_registry():
     except Exception:
         return copy.deepcopy(_EMPTY_REGISTRY)
     registry.setdefault("active", None)
-    registry.setdefault("next_id", 1)
     registry.setdefault("servers", {})
+    registry.pop("next_id", None)  # legacy monotonic counter, no longer used
 
     # Resolve stored (possibly portable/relative) paths to absolute for this OS
     # so every in-memory consumer sees a real path without knowing about sharing.
@@ -97,8 +107,7 @@ def load_registry():
     missing_id = [info for info in registry["servers"].values() if "id" not in info]
     if missing_id:
         for info in missing_id:
-            info["id"] = registry["next_id"]
-            registry["next_id"] += 1
+            info["id"] = _next_free_id(registry["servers"])
         save_registry(registry)
 
     return registry
@@ -142,8 +151,7 @@ def register_server(name, dossier_serveur, port=None, rcon_port=None, set_active
 
     entry = registry["servers"].get(slug, {})
     if "id" not in entry:
-        entry["id"] = registry["next_id"]
-        registry["next_id"] += 1
+        entry["id"] = _next_free_id(registry["servers"])
     entry["dossier_serveur"] = os.path.abspath(os.path.expanduser(dossier_serveur))
     if port is not None:
         entry["port"] = port

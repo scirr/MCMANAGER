@@ -83,5 +83,27 @@ class SharedRegistryPathTests(unittest.TestCase):
         self.assertEqual(mc_servers.resolve_path(""), "")
 
 
+class NextFreeIdTests(unittest.TestCase):
+    """Server numbers fill removed gaps and restart at 1, never grow forever."""
+
+    def _servers(self, *ids):
+        return {f"s{i}": {"id": i} for i in ids}
+
+    def test_empty_starts_at_one(self):
+        self.assertEqual(mc_servers._next_free_id({}), 1)
+
+    def test_sequential(self):
+        self.assertEqual(mc_servers._next_free_id(self._servers(1)), 2)
+        self.assertEqual(mc_servers._next_free_id(self._servers(1, 2)), 3)
+
+    def test_fills_gap(self):
+        self.assertEqual(mc_servers._next_free_id(self._servers(1, 3)), 2)
+        self.assertEqual(mc_servers._next_free_id(self._servers(2, 3)), 1)
+
+    def test_reuses_after_removal(self):
+        # remove the only server -> next one is 1 again, not an ever-growing number
+        self.assertEqual(mc_servers._next_free_id(self._servers()), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
