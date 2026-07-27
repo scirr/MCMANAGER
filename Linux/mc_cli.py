@@ -600,7 +600,10 @@ def main():
                 mc_core.force_kill_server(config)
                 print_res(True, T["stop_forced"])
             else:
-                config["mode_maintenance"] = 0  # ensure webhook fires before maintenance is set
+                # No in-memory maintenance clear: stop_server sends its webhook
+                # only when the server was NOT already in maintenance (active ->
+                # maintenance transition). Stopping an already-maintenance server
+                # stays silent.
                 stop_ok, stop_msg = mc_core.stop_server(config)
                 print_res(stop_ok, stop_msg)
         # The server is still running if the stop failed — claiming maintenance

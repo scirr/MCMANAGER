@@ -264,6 +264,7 @@ def get_automodpack_fingerprint(dossier_serveur):
 # ==========================================
 
 def send_discord_webhook(config, payload, force=False):
+    # Maintenance is silent, except explicit commands (mc announce) that pass force=True.
     if not force and config.get("mode_maintenance", 0) == 1:
         return False, T["maintenance_active"]
 
