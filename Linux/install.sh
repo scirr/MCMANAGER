@@ -50,6 +50,13 @@ echo "[3/4] Installing daemon (systemd service)..."
 python3 mc_config.py --install-daemon
 echo ""
 
+# This root install created files (logs/, __pycache__, ...) as root:root, but
+# the service runs as $SUDO_USER. Hand the app directory back to that user so
+# the daemon can write logs/daemon.log (otherwise it loops in 'activating' with
+# PermissionError). ':' after the name uses the user's login group.
+APP_DIR="$(pwd)"
+chown -R "${SUDO_USER:-root}:" "$APP_DIR"
+
 echo "[4/4] Done."
 echo "========================================"
 echo "  Installation complete!"
