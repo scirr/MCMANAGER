@@ -5,7 +5,7 @@
 import os
 
 # Single source of truth for the tool version (shown by `mc version`).
-VERSION = "2.4.5"
+VERSION = "2.4.6"
 
 _LANG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "language.txt")
 
@@ -111,7 +111,7 @@ _FR = {
     "no_log_file":          "Aucun fichier daemon.log trouvé.",
 
     # ── mc_cli — server management ────────────────────────────────────────────
-    "target_info":           "[i] Cible : {name} ({sid})",
+    "target_info":           "Cible : {name} ({sid})",
     "set_active_ok":         "Serveur actif : {name} ({sid})",
     "server_not_found_use":  "Serveur '{target}' introuvable.",
     "deregister_warning":    "Vous allez désinscrire '{name}' (id {sid}).",
@@ -514,7 +514,7 @@ _EN = {
     "no_log_file":          "No daemon.log file found.",
 
     # ── mc_cli — server management ────────────────────────────────────────────
-    "target_info":           "[i] Target: {name} ({sid})",
+    "target_info":           "Target: {name} ({sid})",
     "set_active_ok":         "Active server: {name} ({sid})",
     "server_not_found_use":  "Server '{target}' not found.",
     "deregister_warning":    "You are about to remove '{name}' (id {sid}) from the registry.",
