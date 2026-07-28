@@ -12,7 +12,6 @@ import time
 import shutil
 import tempfile
 import zipfile
-import subprocess
 import urllib.request
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -25,7 +24,6 @@ ASSET_NAME = "MCManager-Linux.zip"
 CACHE_FILE = os.path.join(BASE_DIR, "update_check.json")
 CACHE_TTL = 6 * 3600          # re-check at most every 6 hours
 NET_TIMEOUT = 4               # keep commands snappy
-SERVICE_NAME = "mc_manager"
 
 
 # ── version comparison (pure, testable) ──────────────────────────────────────
@@ -105,8 +103,8 @@ def get_cached_notice():
 
 def _restart_daemon():
     try:
-        result = subprocess.run(["systemctl", "restart", SERVICE_NAME], capture_output=True)
-        return result.returncode == 0
+        import mc_config
+        return mc_config.run_systemctl("restart").returncode == 0
     except Exception:
         return False
 

@@ -6,7 +6,7 @@ import os
 
 # Single source of truth for the tool version (shown by `mc version`).
 # Keep identical to Windows/mc_lang.py.
-VERSION = "2.4.3"
+VERSION = "2.4.4"
 
 _LANG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "language.txt")
 
@@ -60,6 +60,7 @@ _FR = {
     "server_launched":      "Lancé sur {ip} (PID: {pid})",
     "start_console_hint":   "Le serveur tourne en arrière-plan. Tapez 'mc console' pour accéder à sa console.",
     "start_crashed":        "Le serveur s'est arrêté immédiatement après le lancement (port occupé ? JAR corrompu ?). Consultez : {log}",
+    "start_port_busy":      "Le port {port} est déjà utilisé : un serveur tourne probablement encore. Démarrage annulé pour éviter un doublon (monde verrouillé). Utilisez 'mc stop --force' si le processus est bloqué.",
     "already_offline":      "Déjà éteint.",
     "stop_sent":            "Arrêt envoyé.",
     "stop_rcon_unreachable": "RCON injoignable : impossible d'envoyer la commande d'arrêt. Le serveur tourne toujours — utilisez « mc stop --force » pour le tuer.",
@@ -457,6 +458,7 @@ _EN = {
     "server_launched":      "Started on {ip} (PID: {pid})",
     "start_console_hint":   "The server is running in the background. Type 'mc console' to open its console.",
     "start_crashed":        "The server exited immediately after launch (port in use? corrupted JAR?). Check: {log}",
+    "start_port_busy":      "Port {port} is already in use: a server is most likely still running. Start cancelled to avoid a duplicate (locked world). Use 'mc stop --force' if the process is stuck.",
     "already_offline":      "Already offline.",
     "stop_sent":            "Stop command sent.",
     "stop_rcon_unreachable": "RCON unreachable: could not send the stop command. The server is still running — use \"mc stop --force\" to kill it.",

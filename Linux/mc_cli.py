@@ -687,8 +687,6 @@ def dispatch_daemon(daemon_action):
         mc_daemon.main()
         return
 
-    import subprocess
-    service_name = f"{mc_config.SERVICE_NAME}.service"
     labels = {
         "start":   T["daemon_label_started"],
         "stop":    T["daemon_label_stopped"],
@@ -696,8 +694,9 @@ def dispatch_daemon(daemon_action):
     }
     label = labels[daemon_action]
 
-    result = subprocess.run(["systemctl", daemon_action, service_name],
-                            capture_output=True, text=True)
+    # Goes through sudo when not root: a plain systemctl call would be handed to
+    # polkit, which asks for a password the CLI cannot answer.
+    result = mc_config.run_systemctl(daemon_action)
 
     if result.returncode == 0:
         print_res(True, T["daemon_ok"].format(label=label))

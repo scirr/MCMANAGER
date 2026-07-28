@@ -458,10 +458,32 @@ WorkingDirectory={BASE_DIR}
 {env_line}ExecStart={python_exe} {daemon_path}
 Restart=on-failure
 RestartSec=10
+# Only kill the daemon itself, never the Minecraft servers it spawned: with the
+# default control-group mode, restarting the service would take the servers down
+# (leaving a stale server.pid) instead of just reloading the supervisor.
+KillMode=process
 
 [Install]
 WantedBy=multi-user.target
 """
+
+
+def run_systemctl(action):
+    """Run 'systemctl <action>' on the service, elevating when needed.
+
+    systemd delegates non-root calls to polkit, which asks for a password —
+    impossible over key-only SSH or from a script. Try sudo first, then fall
+    back to a direct call (works when a polkit rule already allows it).
+    """
+    base = ["systemctl", action, SERVICE_NAME]
+    if os.geteuid() != 0:
+        try:
+            result = subprocess.run(["sudo"] + base, capture_output=True, text=True)
+            if result.returncode == 0:
+                return result
+        except Exception:
+            pass
+    return subprocess.run(base, capture_output=True, text=True)
 
 def install_daemon_service(user=None):
     print(f"\n\033[96m=========================================")

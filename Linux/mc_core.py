@@ -99,10 +99,51 @@ def is_pid_running(pid: int) -> bool:
         pass
     return True
 
+def _port_in_use(port) -> bool:
+    """True if anything already listens on this TCP port (bind test)."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("0.0.0.0", int(port)))
+        return False
+    except OSError:
+        return True
+    except Exception:
+        return False
+
+def _port_listener_pid(port) -> int | None:
+    """PID listening on the given TCP port, or None if unknown."""
+    import re
+    try:
+        result = subprocess.run(
+            ["ss", "-lptnH", f"sport = :{int(port)}"],
+            capture_output=True, text=True, errors="replace", timeout=5
+        )
+    except Exception:
+        return None
+    match = re.search(r"pid=(\d+)", result.stdout or "")
+    return int(match.group(1)) if match else None
+
 def is_server_running(config) -> bool:
     pid = get_server_pid(config)
     if pid and is_pid_running(pid):
         return True
+
+    # The recorded PID is gone, but the server itself may still be up under
+    # another PID (daemon restarted, wrapper script replaced by its java
+    # child...). Adopt whoever holds the game port so the state repairs itself
+    # instead of needing a manual server.pid fix — and so the always-on daemon
+    # never spawns a duplicate JVM that dies on the world DirectoryLock.
+    port = config.get("port")
+    if port:
+        listener = _port_listener_pid(port)
+        if listener and is_pid_running(listener):
+            try:
+                with open(pid_file_path(config), 'w') as f:
+                    f.write(str(listener))
+            except Exception:
+                pass
+            return True
+
     pid_file = pid_file_path(config)
     if os.path.exists(pid_file):
         os.remove(pid_file)
@@ -362,6 +403,15 @@ def start_server(config, send_webhook=True):
         return False, T["invalid_dir"].format(path=dossier)
     if is_server_running(config):
         return False, T["already_online"]
+
+    # Last-resort guard: something still holds the game port (a listener we
+    # could not attribute to a PID, a foreign program...). Launching anyway
+    # would start a JVM that fails on the world DirectoryLock and then lingers,
+    # eating GBs of RAM without ever serving anything.
+    port = config.get("port")
+    if port and _port_in_use(port):
+        logging.error(f"Port {port} already in use, refusing to start a duplicate.")
+        return False, T["start_port_busy"].format(port=port)
 
     java_ok, java_detail = check_java()
     if not java_ok:

@@ -76,7 +76,7 @@ def is_pid_running(pid: int) -> bool:
     try:
         result = subprocess.run(
             ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
-            capture_output=True, text=True
+            capture_output=True, text=True, errors="replace"
         )
         # PIDs get recycled after a reboot: a live PID belonging to another
         # program must not make us believe the server is still up.
@@ -88,10 +88,62 @@ def is_pid_running(pid: int) -> bool:
     except Exception:
         return False
 
+def _port_in_use(port) -> bool:
+    """True if anything already listens on this TCP port (bind test)."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("0.0.0.0", int(port)))
+        return False
+    except OSError:
+        return True
+    except Exception:
+        return False
+
+def _port_listener_pid(port) -> int | None:
+    """PID listening on the given TCP port, or None if unknown."""
+    try:
+        # errors="replace": netstat prints localised headers that the console
+        # codepage cannot always decode — a crash here would wrongly report the
+        # server as offline and let a duplicate start.
+        result = subprocess.run(
+            ["netstat", "-ano", "-p", "tcp"],
+            capture_output=True, text=True, errors="replace", timeout=5,
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
+    except Exception:
+        return None
+    needle = f":{int(port)}"
+    for line in (result.stdout or "").splitlines():
+        parts = line.split()
+        if len(parts) >= 5 and parts[0].upper() == "TCP" and parts[3].upper() == "LISTENING":
+            if parts[1].endswith(needle):
+                try:
+                    return int(parts[4])
+                except ValueError:
+                    return None
+    return None
+
 def is_server_running(config) -> bool:
     pid = get_server_pid(config)
     if pid and is_pid_running(pid):
         return True
+
+    # The recorded PID is gone, but the server itself may still be up under
+    # another PID (service restarted, wrapper replaced by its java child...).
+    # Adopt whoever holds the game port so the state repairs itself instead of
+    # needing a manual server.pid fix — and so the always-on daemon never spawns
+    # a duplicate JVM that dies on the world DirectoryLock.
+    port = config.get("port")
+    if port:
+        listener = _port_listener_pid(port)
+        if listener and is_pid_running(listener):
+            try:
+                with open(pid_file_path(config), 'w') as f:
+                    f.write(str(listener))
+            except Exception:
+                pass
+            return True
+
     pid_file = pid_file_path(config)
     if os.path.exists(pid_file):
         os.remove(pid_file)
@@ -351,6 +403,15 @@ def start_server(config, send_webhook=True):
         return False, T["invalid_dir"].format(path=dossier)
     if is_server_running(config):
         return False, T["already_online"]
+
+    # Last-resort guard: something still holds the game port (a listener we
+    # could not attribute to a PID, a foreign program...). Launching anyway
+    # would start a JVM that fails on the world DirectoryLock and then lingers,
+    # eating GBs of RAM without ever serving anything.
+    port = config.get("port")
+    if port and _port_in_use(port):
+        logging.error(f"Port {port} already in use, refusing to start a duplicate.")
+        return False, T["start_port_busy"].format(port=port)
 
     java_ok, java_detail = check_java()
     if not java_ok:
