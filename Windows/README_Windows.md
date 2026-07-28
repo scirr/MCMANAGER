@@ -304,6 +304,8 @@ A server is always in one of these three modes, displayed in the dashboard (`mc 
 
 `mc resume [target]` exits maintenance and **automatically restores the previous mode** (schedule or always-on) — no need to specify it again.
 
+> **`mc resume` also brings the server back up.** Leaving maintenance hands the server back to the daemon, which starts it on its next tick: within ~30 seconds in `always-on` mode, or at the next opening time in `schedule` mode. **Do not chain `mc start` after it** — the server is already coming up, and a second launch is refused (the port is taken) to avoid a duplicate instance on a locked world.
+
 `mc mode always-on` clears existing schedule fields; `mc mode schedule` keeps them if they exist, otherwise applies defaults (20:00 → 03:00, adjustable with `mc schedule`).
 
 ---

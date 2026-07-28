@@ -6,7 +6,7 @@ import os
 
 # Single source of truth for the tool version (shown by `mc version`).
 # Keep identical to Windows/mc_lang.py.
-VERSION = "2.4.4"
+VERSION = "2.4.5"
 
 _LANG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "language.txt")
 
@@ -394,7 +394,8 @@ _FR = {
     "help_console":           "Console RCON interactive",
     "help_backup":            "Lancer une sauvegarde ZIP manuelle",
     "help_open":              "Ouvrir le dossier du serveur dans le gestionnaire de fichiers",
-    "help_resume":            "Sortir du mode maintenance",
+    "help_resume":            "Sortir du mode maintenance (le daemon relance le serveur si le mode l'exige)",
+    "resume_restart_hint":    "Le daemon va redémarrer le serveur automatiquement (sous ~30 s en 24h/24, ou à l'heure d'ouverture). Pas besoin de 'mc start'.",
     "help_logs":              "Afficher les dernières lignes du journal daemon",
     "help_mode":              "Changer de mode (schedule/always-on/maintenance)",
     "help_schedule":          "Définir les horaires (passe en mode schedule)",
@@ -792,7 +793,8 @@ _EN = {
     "help_console":           "Interactive RCON console",
     "help_backup":            "Run a manual ZIP backup",
     "help_open":              "Open server folder in the file manager",
-    "help_resume":            "Exit maintenance mode",
+    "help_resume":            "Exit maintenance mode (the daemon restarts the server if the mode requires it)",
+    "resume_restart_hint":    "The daemon will restart the server automatically (within ~30s in 24/7 mode, or at the opening time). No need to run 'mc start'.",
     "help_logs":              "Show recent daemon log lines",
     "help_mode":              "Change mode (schedule/always-on/maintenance)",
     "help_schedule":          "Set schedule (switches to schedule mode)",

@@ -644,6 +644,11 @@ def main():
         }
         current_mode = mc_core.effective_mode(config)
         print_res(True, T["maintenance_disabled"].format(mode=mode_labels.get(current_mode, current_mode)))
+        # Leaving maintenance hands the server back to the daemon, which will
+        # bring it up on its own — say so, otherwise 'resume' looks like a
+        # no-op and users chain a needless (and now refused) 'mc start'.
+        if not mc_core.is_server_running(config):
+            print(f"\033[90m[i]\033[0m {T['resume_restart_hint']}")
 
     elif args.action == "schedule":
         invalid = None

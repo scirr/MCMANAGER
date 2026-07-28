@@ -563,10 +563,17 @@ def send_start_webhook(config):
 
 def force_kill_server(config):
     pid = get_server_pid(config)
+    if not pid:
+        # Stale or missing pid file: fall back to whoever holds the game port,
+        # so an orphan JVM (failed start that never exited, service restarted...)
+        # can still be killed with 'mc stop --force' instead of by hand.
+        port = config.get("port")
+        if port:
+            pid = _port_listener_pid(port)
     if pid:
         try:
             subprocess.run(
-                ["taskkill", "/F", "/PID", str(pid)],
+                ["taskkill", "/F", "/T", "/PID", str(pid)],
                 capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW
             )
         except Exception:
