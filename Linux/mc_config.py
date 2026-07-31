@@ -334,6 +334,10 @@ def run_setup_performance(config):
 
     import mc_core
     config["java_flags"] = config.get("java_flags", mc_core.DEFAULT_JAVA_FLAGS)
+    # Forge/NeoForge get their heap from user_jvm_args.txt, which mc_core
+    # rewrites at start time — tell the user so the value does not look ignored.
+    if str(config.get("jar_name", "")).endswith(".sh"):
+        print(f"\033[90m[{T['icon_info']}]\033[0m {T['forge_sh_note']}")
     return config
 
 _AUTOMOD_LOADERS = {"Fabric", "Forge", "NeoForge"}

@@ -5,7 +5,7 @@
 import os
 
 # Single source of truth for the tool version (shown by `mc version`).
-VERSION = "2.4.6"
+VERSION = "2.4.7"
 
 _LANG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "language.txt")
 
@@ -347,7 +347,7 @@ _FR = {
     "no_servers_available":   "(aucun)",
     "stopping_server":        "Arrêt de '{name}'...",
     "backup_type_manual":     "manuelle",
-    "forge_bat_note":         "Note : RAM/flags Java gérés par user_jvm_args.txt pour Forge/NeoForge.",
+    "forge_bat_note":         "Note : Forge/NeoForge lisent leur RAM dans user_jvm_args.txt — MC Manager y applique la valeur ci-dessus à chaque démarrage.",
     "prompt_retention":       "Rétention des backups en jours (0 = illimité)",
     "invalid_retention":      "Valeur invalide ({val}) : entrez 0 (illimité) ou un nombre de jours positif.",
 
@@ -750,7 +750,7 @@ _EN = {
     "no_servers_available":   "(none)",
     "stopping_server":        "Stopping '{name}'...",
     "backup_type_manual":     "manual",
-    "forge_bat_note":         "Note: RAM/Java flags managed by user_jvm_args.txt for Forge/NeoForge.",
+    "forge_bat_note":         "Note: Forge/NeoForge read their RAM from user_jvm_args.txt — MC Manager writes the value above into it on every start.",
     "prompt_retention":       "Backup retention in days (0 = unlimited)",
     "invalid_retention":      "Invalid value ({val}): enter 0 (unlimited) or a positive number of days.",
 

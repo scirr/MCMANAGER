@@ -386,7 +386,7 @@ Each server has its own `config.json` in its server folder. `mc edit config [tar
 | `heure_fermeture` | Close hour | `0` |
 | `minute_fermeture` | Close minute | `30` |
 | `cpu_affinity` | CPU cores assigned to the server | `"8-15"` |
-| `ram_allocation` | RAM allocated to Java | `"8G"` |
+| `ram_allocation` | RAM allocated to Java (Forge/NeoForge: written into `user_jvm_args.txt` on each start) | `"8G"` |
 | `jar_name` | JAR file name (or `run.sh` for Forge/NeoForge) | `"fabric-server-launch.jar"` |
 | `rcon_port` | RCON port | `25575` |
 | `mcrcon_pass` | RCON password | `"password"` |

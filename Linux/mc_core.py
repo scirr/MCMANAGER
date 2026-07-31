@@ -395,6 +395,47 @@ def _display_address(config):
         return f"{domaine}:{port}" if port != "25565" else domaine
     return f"Port {port} (Local/Public IP)"
 
+_JVM_ARGS_MARKER = "# Managed by MC Manager"
+
+def _sync_run_script_ram(dossier, ram):
+    """Write the configured heap size into Forge/NeoForge's user_jvm_args.txt.
+
+    A server started through run.sh ignores any -Xms/-Xmx we pass on the command
+    line: the script feeds the JVM that file instead. Without this sync the RAM
+    chosen in MC Manager is silently dropped and the server runs on whatever the
+    file says — by default nothing at all, i.e. the JVM's own heuristic.
+    Commented lines are kept (they document the file); only active heap flags
+    are replaced.
+    """
+    args_file = os.path.join(dossier, "user_jvm_args.txt")
+    if not os.path.exists(args_file):
+        return
+    try:
+        with open(args_file, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+
+        kept = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith(_JVM_ARGS_MARKER):
+                continue
+            if not stripped.startswith("#") and ("-Xmx" in line or "-Xms" in line):
+                continue
+            kept.append(line)
+
+        # The stock file ends without a newline: appending blindly would glue
+        # our first flag onto the last comment.
+        if kept and not kept[-1].endswith("\n"):
+            kept[-1] += "\n"
+        kept += [f"{_JVM_ARGS_MARKER}\n", f"-Xms{ram}\n", f"-Xmx{ram}\n"]
+
+        tmp = args_file + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.writelines(kept)
+        os.replace(tmp, args_file)
+    except Exception:
+        pass  # a broken sync must never prevent the server from starting
+
 def start_server(config, send_webhook=True):
     import logging
     dossier = config.get("dossier_serveur", "")
@@ -434,11 +475,14 @@ def start_server(config, send_webhook=True):
     logging.info(f"JAR: {jar_name}")
 
     if jar_name.endswith(".sh"):
-        # Forge/NeoForge: run.sh handles its own JVM invocation (user_jvm_args.txt).
+        # Forge/NeoForge: run.sh handles its own JVM invocation, reading its
+        # heap settings from user_jvm_args.txt — so ram_allocation has to be
+        # pushed into that file rather than passed on the command line.
         # bash stays alive while java runs, so PID tracking works correctly.
         # "nogui" is forwarded (via run.sh's $@) to the Minecraft server so it
         # starts headless — otherwise it opens its Swing GUI window, and closing
         # that window kills the server. Interact through 'mc console' instead.
+        _sync_run_script_ram(dossier, ram)
         launch_args = ["bash", jar_name, "nogui"]
         logging.info(f"Forge/NeoForge launch via script: {jar_name}")
     else:
