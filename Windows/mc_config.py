@@ -312,6 +312,11 @@ def set_mode_maintenance(config):
 
 def resume_mode(config):
     config["mode_maintenance"] = 0
+    # Leaving maintenance is a reopening: the restart the daemon is about to
+    # perform must be announced. One-shot flag, because the always-on restart
+    # path is otherwise silent on purpose (a flapping server would spam Discord
+    # every 30 s). Consumed by mc_daemon on the first successful start.
+    config["announce_next_start"] = 1
     return config
 
 def run_setup_performance(config):

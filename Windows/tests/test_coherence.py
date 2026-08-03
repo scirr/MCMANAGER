@@ -165,6 +165,28 @@ class TestAutomodpackDeclineMarking(unittest.TestCase):
             "setup_automodpack should NOT be called for Vanilla")
 
 
+# ─── Maintenance / resume semantics ──────────────────────────────────────────
+
+class TestResumeAnnounce(unittest.TestCase):
+    """Leaving maintenance must arm a one-shot 'announce next start' flag: the
+    always-on restart path is silent by design, but a reopening is not."""
+
+    def test_resume_clears_maintenance(self):
+        import mc_config
+        config = mc_config.resume_mode({"mode_maintenance": 1})
+        self.assertEqual(config["mode_maintenance"], 0)
+
+    def test_resume_arms_announce_flag(self):
+        import mc_config
+        config = mc_config.resume_mode({"mode_maintenance": 1})
+        self.assertEqual(config["announce_next_start"], 1)
+
+    def test_maintenance_does_not_arm_the_flag(self):
+        import mc_config
+        config = mc_config.set_mode_maintenance({})
+        self.assertNotIn("announce_next_start", config)
+
+
 # ─── Coherence AUTOMODPACK_LOADER_MAP vs _AUTOMOD_LOADERS ────────────────────
 
 class TestAutomodpackConsistency(unittest.TestCase):

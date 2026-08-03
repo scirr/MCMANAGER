@@ -419,7 +419,7 @@ Each webhook supports the fields:
 - `show_ip` — Show the server's IP address (`true`/`false`)
 - `show_version` — Show the loader/version field (`true`/`false`)
 
-> Webhooks are **silent in maintenance mode**.
+> Webhooks are **silent in maintenance mode** — with one exception: leaving maintenance with `mc resume` is a reopening, so the start the daemon then performs **is announced**. Routine restarts (a crashed server brought back up in `always-on` mode) stay silent, otherwise a flapping server would post every 30 seconds.
 
 ---
 

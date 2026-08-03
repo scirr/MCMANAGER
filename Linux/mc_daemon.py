@@ -63,8 +63,15 @@ def process_server_tick(name, dossier_serveur, state):
 
     if always_on == 1:
         if not en_ligne:
+            # Routine restarts stay silent (a flapping server would spam Discord
+            # every 30 s), but the first start after 'mc resume' is a reopening
+            # and must be announced.
+            announce = config.get("announce_next_start", 0) == 1
             logging.info(f"[{name}] Server offline in 24/7 mode. Restarting...")
-            mc_core.start_server(config, send_webhook=False)
+            ok, _ = mc_core.start_server(config, send_webhook=announce)
+            if ok and announce:
+                config.pop("announce_next_start", None)
+                mc_config.save_config(config)
             return
 
         # Date-based triggers with a one-hour window: a tick delayed past the
@@ -93,7 +100,11 @@ def process_server_tick(name, dossier_serveur, state):
 
         if ouvert and not en_ligne:
             logging.info(f"[{name}] Open time reached. Starting server...")
-            mc_core.start_server(config)
+            ok, _ = mc_core.start_server(config)
+            # This path already announces; just consume the one-shot resume flag
+            # so it cannot fire again after a later switch to always-on.
+            if ok and config.pop("announce_next_start", None):
+                mc_config.save_config(config)
 
         if ouvert and en_ligne and not state["backup_milieu_fait"]:
             # Elapsed-based trigger: still fires if the tick that matched the
