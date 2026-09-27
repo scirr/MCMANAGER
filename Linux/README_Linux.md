@@ -277,7 +277,15 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc language [fr\|en]` | Show or change the interface language |
 | `mc deploy` | Deploy a new server (Vanilla/Paper/Fabric/Forge/NeoForge) |
 | `mc add [path]` | Register an existing server without downloading anything |
-| `mc status [target]` | Dashboard; filtered to a single server if `target` is given |
+| `mc status [target]` | Dashboard; filtered to a single server if `target` is given. Shows the state, and when running: PID, real RAM (RSS), uptime, players, next backup |
+| `mc status [target] --json` | Same information as JSON, for scripts (see [Scripting](#scripting-json-api)) |
+| `mc active [--path\|--json]` | Name of the active server (`--path`: its folder; `--json`: its full state) |
+| `mc players [target] [--json]` | Players online (vanilla, Paper and Essentials-style `list` replies are all understood) |
+| `mc rcon "<command>" [target]` | Send one command to the server and print its reply (RCON password read from the config) |
+| `mc config get [<key>] [target]` | Print one setting (or the whole `config.json` as JSON) |
+| `mc config set <key> <value> [target]` | Change a setting and propagate it everywhere it lives: `config.json`, `servers.json`, `server.properties`, firewall |
+| `mc freeze [target] [--max 1h] [-- <command>]` | Freeze the world for an external backup (`save-off` + `save-all flush`); with `-- <command>`, runs it and always thaws afterwards |
+| `mc thaw [target]` | Re-enable world saving |
 | `mc use <name/number>` | Change the active server (argument required) |
 | `mc configure [target]` | Reconfigure an already registered server (also guarantees RCON/AutoModpack) |
 | `mc remove <name/number>` | Unregister a server from the registry (deletes NO files) |
@@ -286,6 +294,7 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc start [target]` | Start the server |
 | `mc stop [target]` | Stop the server gracefully and wait until its process has really exited (switches to maintenance mode) |
 | `mc stop --force [target]` | Kill the server's processes (SIGKILL) when RCON is unavailable |
+| `mc stop [target] --reason <r> [--quiet]` | Stop and record why: `user` (default), `sleep`, `update`, `maintenance`, `switch`. Picks the matching Discord announcement and the state shown by `mc status`; `--quiet` sends no announcement |
 | `mc mode <value> [target]` | Change mode: `schedule`, `always-on` or `maintenance` |
 | `mc resume [target]` | Exit maintenance mode (automatically resumes the previous mode) |
 | `mc schedule H M H M [target]` | Set open/close schedule (switches to `schedule` mode) |
@@ -338,6 +347,72 @@ mc mode maintenance creative    # put "creative" in maintenance without changing
 mc resume                       # take the active server out of maintenance
 mc stop survival                # stop "survival" directly, without selecting it first
 ```
+
+---
+
+## Server states
+
+`mc status` (and the `state` field of `mc status --json`) shows one explicit state per server:
+
+| State | Meaning |
+|---|---|
+| `running` | The server process is alive and the game port accepts connections |
+| `starting` | The process is alive, the game port is not listening yet |
+| `stopped` | Not running; the daemon will start it (24/7 mode, or within opening hours) |
+| `closed` | Not running; schedule mode, outside opening hours |
+| `stopped-by-user` | Stopped with `mc stop` (or `--reason user`); the daemon leaves it alone |
+| `sleeping` | Stopped with `mc stop --reason sleep` |
+| `maintenance` | In maintenance for another reason (`mc mode maintenance`, `--reason update/maintenance/switch`) |
+
+The last three all rely on `mode_maintenance = 1` in `config.json` — still the one and only switch that makes the daemon leave a server alone. The reason is stored next to it in `stop_reason`, and `mc resume` clears both.
+
+---
+
+## Scripting (JSON API)
+
+Third-party scripts should use these commands rather than read MC Manager's files: the commands keep working when the files evolve.
+
+| Need | Command |
+|---|---|
+| Active server name / folder | `mc active` / `mc active --path` |
+| State of every server | `mc status --json` |
+| State of one server | `mc status <name> --json` or `mc active --json` |
+| Players online | `mc players --json` |
+| Run a Minecraft command | `mc rcon "say hello"` |
+| Read a setting | `mc config get port` |
+| Change a port consistently | `mc config set port 25566` |
+| Stop without announcing, for a known reason | `mc stop --reason sleep --quiet` |
+| Consistent external backup | `mc freeze -- restic backup /path/to/world` |
+
+JSON documents carry `"schema": 1`. Within a schema version, fields may be added, never renamed or removed. Human messages always go to stderr or are absent in `--json` mode, so stdout is pure JSON. On an error, `--json` commands print `{"schema": 1, "error": {"code": ...}}` and exit with the codes documented above.
+
+Example (`mc status --json`, abridged):
+
+```json
+{
+  "schema": 1,
+  "active": "survival",
+  "servers": [
+    {
+      "name": "survival", "id": 1, "active": true, "path": "/home/user/MCManager/Servers/survival/Server",
+      "state": "running", "error": null, "mode": "always-on", "maintenance": false, "stop_reason": null,
+      "port": 25565, "rcon_port": 25575, "loader": "Fabric", "version": "1.21.1", "frozen": false,
+      "pid": 12345, "uptime_s": 7260, "rss_kb": 6291456, "swap_kb": 0,
+      "cgroup": "/system.slice/mc_manager.service", "port_holder": null
+    }
+  ]
+}
+```
+
+A server whose folder is missing or whose `config.json` is unreadable has `"state": null` and an `"error"` object (`folder_missing`, `config_unreadable`).
+
+### Freezing the world for an external backup
+
+```bash
+mc freeze -- restic backup ~/MCManager/Servers/survival/Server/world
+```
+
+`mc freeze` sends `save-off` then `save-all flush`: once it returns, the world on disk is complete and no longer changes. With `-- <command>`, MC Manager runs the command and **always** thaws afterwards — even if the command fails or is interrupted — then exits with the command's own code. Without it, call `mc thaw` yourself (from a `trap ... EXIT` in shell, never as a plain last line). Either way, a freeze is exclusive (a second `mc freeze` fails) and has a deadline (`--max`, 1 hour by default): if its owner dies, the daemon thaws the world automatically when it expires. MC Manager's own backups never lift a freeze they did not set.
 
 ---
 
@@ -421,6 +496,7 @@ Each server has its own `config.json` in its server folder. `mc edit config [tar
 | `cle_automodpack` | AutoModpack certificate fingerprint — **detected automatically, never enter manually** | `"403e6792a7..."` |
 | `mode_maintenance` | Maintenance active (1) or not (0) — set via `mc mode maintenance` / `mc resume` | `0` |
 | `stop_timeout` | Seconds `mc stop` waits for a clean shutdown before `SIGTERM` (optional) | `120` |
+| `stop_reason` | Why the server was stopped (`user`, `sleep`, `update`, `maintenance`, `switch`) — set by `mc stop --reason`, cleared by `mc resume` | `"sleep"` |
 
 `config.json` is the **single source of truth** for the ports and RCON: on every start, `server-port`, `enable-rcon`, `rcon.port` and `rcon.password` in `server.properties` (and the ports cached in `servers.json`) are brought in line with it, and each correction is printed. JSON files saved with a UTF-8 BOM (Windows editors, PowerShell) are read normally. An unreadable `config.json` only affects its own server: `mc status` and `mc doctor` show the error and how to fix it, and the daemon keeps supervising the other servers.
 
@@ -436,8 +512,14 @@ Four events trigger a Discord message:
 |---|---|
 | `start_automod` | Start with AutoModpack enabled |
 | `start_normal` | Start without AutoModpack |
-| `stop` | Manual stop (`mc stop`) |
+| `stop` | Manual stop (`mc stop`, `--reason user`) |
+| `stop_sleep` | `mc stop --reason sleep` |
+| `stop_update` | `mc stop --reason update` |
+| `stop_maintenance` | `mc stop --reason maintenance` |
+| `stop_switch` | `mc stop --reason switch` |
 | `fermeture_nuit` | Automatic nightly shutdown |
+
+Templates added by a new version are appended to each server's `webhooks.json` automatically; your edits to the existing ones are kept. `mc stop --quiet` sends nothing.
 
 Each webhook supports the fields:
 - `title` — Embed title (supports `{nom}`, `{cle}`)

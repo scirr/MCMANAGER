@@ -116,7 +116,7 @@ def check_server(name, info):
         java = mc_core.server_java_pids(dossier) or ([pid] if pid else [])
         for jpid in java:
             cgroup = mc_core.proc_cgroup(jpid) or ""
-            if cgroup and mc_config.SERVICE_NAME not in cgroup:
+            if cgroup and mc_config.SERVICE_NAME not in cgroup and mc_config.check_service_unit()[0] != "missing":
                 results.append(("warn", T["doctor_label_cgroup"],
                                 T["doctor_cgroup_outside"].format(pid=jpid, cgroup=cgroup),
                                 T["doctor_cgroup_fix"]))
