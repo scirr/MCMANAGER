@@ -173,6 +173,8 @@ Diagnoses in one command: Java, RCON, firewall rule, `mc_manager` service, and p
 
 > Your server files, configs, and backups are stored outside the program folder and are never affected by an update.
 
+`mc update` replaces the program files and restarts the daemon, but never the systemd unit. When a release changes the unit, `mc update` (and `mc doctor`) says so: re-run `sudo ./install.sh` from the MC Manager folder — servers and settings are kept.
+
 ---
 
 ## Uninstallation
@@ -279,11 +281,11 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc use <name/number>` | Change the active server (argument required) |
 | `mc configure [target]` | Reconfigure an already registered server (also guarantees RCON/AutoModpack) |
 | `mc remove <name/number>` | Unregister a server from the registry (deletes NO files) |
-| `mc doctor [target]` | Full diagnostic (Java, RCON, firewall, service, port) — **all servers if `target` omitted** |
+| `mc doctor [target]` | Full diagnostic (machine: service, systemd unit, Java, zombie JVMs; per server: config.json, server.properties consistency, RCON, firewall, port holder, cgroup, swap) — **all servers if `target` omitted** |
 | `mc open [target]` | Open the server folder in the file manager |
 | `mc start [target]` | Start the server |
-| `mc stop [target]` | Stop the server gracefully (switches to maintenance mode) |
-| `mc stop --force [target]` | Kill the process directly (SIGKILL) when RCON is unavailable |
+| `mc stop [target]` | Stop the server gracefully and wait until its process has really exited (switches to maintenance mode) |
+| `mc stop --force [target]` | Kill the server's processes (SIGKILL) when RCON is unavailable |
 | `mc mode <value> [target]` | Change mode: `schedule`, `always-on` or `maintenance` |
 | `mc resume [target]` | Exit maintenance mode (automatically resumes the previous mode) |
 | `mc schedule H M H M [target]` | Set open/close schedule (switches to `schedule` mode) |
@@ -300,6 +302,28 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc daemon start/stop/restart` | Control the systemd service |
 
 > `mc doctor` with no target diagnoses **all registered servers** — all other commands fall back to the active server.
+
+### How `mc stop` stops a server
+
+1. warns the players, then `save-all flush` — from here on the world is on disk;
+2. sends `stop` over RCON and waits for the process to **really** exit (up to `stop_timeout` seconds, 120 by default). The game port is released a moment before the JVM ends, so waiting for the port alone is not enough;
+3. if the server hangs in its shutdown: `SIGTERM`, then `SIGKILL` 30 s later. No data is lost — the world was flushed in step 1.
+
+A server's processes are identified by their PID file **and** by "java running in the server folder" — never by the port alone. Another program holding the port (another server, a proxy) is shown as `port 25565 held by <program> (PID)` and is never adopted or killed.
+
+### Exit codes
+
+Every command ends with a documented exit code, so scripts can rely on it:
+
+| Code | Meaning |
+|---|---|
+| `0` | Success — or the requested state already holds (`mc start` on a running server, `mc stop` on a stopped one) |
+| `1` | The command failed (message printed says why and what to do) |
+| `2` | Invalid command line |
+| `3` | No server configured, unknown server name/number, or server folder missing |
+| `130` | Interrupted (Ctrl+C) |
+
+Output is plain text (no colour codes) when it is not a terminal, or when `NO_COLOR` is set. MC Manager never shows a raw Python traceback: an unexpected error is summarised in one line and its details are written to `logs/cli-error.log` (set `MCMANAGER_DEBUG=1` to see the traceback instead).
 
 ### Examples
 
@@ -396,6 +420,9 @@ Each server has its own `config.json` in its server folder. `mc edit config [tar
 | `activer_automodpack` | AutoModpack enabled (1) or not (0) | `1` |
 | `cle_automodpack` | AutoModpack certificate fingerprint — **detected automatically, never enter manually** | `"403e6792a7..."` |
 | `mode_maintenance` | Maintenance active (1) or not (0) — set via `mc mode maintenance` / `mc resume` | `0` |
+| `stop_timeout` | Seconds `mc stop` waits for a clean shutdown before `SIGTERM` (optional) | `120` |
+
+`config.json` is the **single source of truth** for the ports and RCON: on every start, `server-port`, `enable-rcon`, `rcon.port` and `rcon.password` in `server.properties` (and the ports cached in `servers.json`) are brought in line with it, and each correction is printed. JSON files saved with a UTF-8 BOM (Windows editors, PowerShell) are read normally. An unreadable `config.json` only affects its own server: `mc status` and `mc doctor` show the error and how to fix it, and the daemon keeps supervising the other servers.
 
 ---
 

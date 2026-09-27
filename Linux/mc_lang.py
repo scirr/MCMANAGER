@@ -6,7 +6,7 @@ import os
 
 # Single source of truth for the tool version (shown by `mc version`).
 # Keep identical to Windows/mc_lang.py.
-VERSION = "2.4.8"
+VERSION = "2.4.9"
 
 _LANG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "language.txt")
 
@@ -14,7 +14,7 @@ _LANG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "language.
 def _read_saved_language():
     """Return the persisted language ('fr'/'en') or None if not chosen yet."""
     try:
-        with open(_LANG_FILE, "r", encoding="utf-8") as f:
+        with open(_LANG_FILE, "r", encoding="utf-8-sig") as f:
             value = f.read().strip().lower()
         return value if value in ("fr", "en") else None
     except Exception:
@@ -425,6 +425,44 @@ _FR = {
     # ── mc_daemon / mc_core (in-game, visible to players) ────────────────────
     "ingame_closing":         "Attention, fermeture imminente dans {mins} minute(s) ! Mettez-vous a l'abri.",
     "ingame_stopping":        "Arrêt du serveur en cours...",
+    "start_port_busy_by": "Le port {port} est déjà tenu par {prog} (PID {pid}). Démarrage annulé. Libérez le port, ou changez-le avec 'mc configure'.",
+    "props_resynced": "server.properties resynchronisé depuis config.json : {key} {old} -> {new}",
+    "stop_waiting": "Arrêt en cours : sauvegarde du monde, puis attente de la fin réelle du processus...",
+    "stop_done": "Serveur arrêté.",
+    "stop_done_term": "Serveur arrêté (bloqué après {secs} s dans son arrêt, terminé par SIGTERM ; le monde avait été sauvegardé).",
+    "stop_done_kill": "Serveur arrêté de force (SIGKILL après {secs} s ; le monde avait été sauvegardé).",
+    "stop_still_running": "Le processus du serveur refuse de s'arrêter. Vérifiez avec 'mc doctor', puis 'mc stop --force'.",
+    "data_file_unreadable": "Fichier illisible : {path} ({detail})",
+    "data_file_fix": "Corrigez le JSON de {path} (ou restaurez-en une copie), puis relancez la commande.",
+    "status_config_unreadable": "CONFIG ILLISIBLE",
+    "status_port_held": "port {port} tenu par {prog} (PID {pid})",
+    "unexpected_error": "Erreur inattendue : {e}",
+    "unexpected_error_log": "Détails enregistrés dans {path}. Signalez-la sur https://github.com/scirr/MCMANAGER/issues",
+    "editor_not_found": "Éditeur introuvable : {editor}. Définissez la variable EDITOR (ex. : export EDITOR=nano).",
+    "unit_ok": "Service systemd à jour.",
+    "unit_missing": "Service systemd non installé.",
+    "unit_outdated": "Le service systemd installé est d'une version antérieure :",
+    "unit_reinstall_hint": "Réinstallez-le : cd {path} && sudo ./install.sh (vos serveurs et leurs réglages sont conservés).",
+    "doctor_host_title": "Machine",
+    "doctor_label_unit": "Unit systemd",
+    "doctor_unit_outdated": "ancienne version ({detail} attendu)",
+    "doctor_java_not21": "Java {major} détecté : Minecraft 1.20.5+ et ses mods sont conçus pour Java 21 (certains mods cassent sous une version plus récente).",
+    "doctor_label_zombies": "JVM zombies",
+    "doctor_zombies_none": "aucune",
+    "doctor_zombies_fix": "mc daemon restart  # le processus parent les récupère ; ces zombies ne consomment plus de RAM",
+    "doctor_label_config": "config.json",
+    "doctor_config_ok": "lisible",
+    "doctor_label_props": "server.properties",
+    "doctor_props_ok": "cohérent avec config.json",
+    "doctor_props_fix": "Appliqué automatiquement au prochain 'mc start' (config.json fait foi).",
+    "doctor_label_registry": "Registre",
+    "doctor_registry_port": "servers.json annonce le port {reg}, config.json le port {cfg}",
+    "doctor_label_cgroup": "Cgroup",
+    "doctor_cgroup_outside": "JVM {pid} lancée hors du service ({cgroup}) : les limites du service ne s'appliquent pas",
+    "doctor_cgroup_fix": "mc stop puis mc resume : le daemon la relancera dans le service.",
+    "doctor_label_swap": "Swap",
+    "doctor_swap_used": "JVM {pid} : {mb} Mo en swap",
+    "doctor_swap_fix": "Réduisez ram_allocation, ou interdisez le swap au service (MemorySwapMax=0).",
 }
 
 _EN = {
@@ -824,6 +862,44 @@ _EN = {
     # ── mc_daemon / mc_core (in-game, visible to players) ────────────────────
     "ingame_closing":         "Warning: server closing in {mins} minute(s)! Find shelter.",
     "ingame_stopping":        "Server shutting down...",
+    "start_port_busy_by": "Port {port} is already held by {prog} (PID {pid}). Start cancelled. Free the port, or change it with 'mc configure'.",
+    "props_resynced": "server.properties resynced from config.json: {key} {old} -> {new}",
+    "stop_waiting": "Stopping: saving the world, then waiting for the process to really exit...",
+    "stop_done": "Server stopped.",
+    "stop_done_term": "Server stopped (hung for {secs}s in its shutdown, ended with SIGTERM; the world had been saved).",
+    "stop_done_kill": "Server force-stopped (SIGKILL after {secs}s; the world had been saved).",
+    "stop_still_running": "The server process refuses to exit. Check with 'mc doctor', then 'mc stop --force'.",
+    "data_file_unreadable": "Unreadable file: {path} ({detail})",
+    "data_file_fix": "Fix the JSON in {path} (or restore a copy of it), then run the command again.",
+    "status_config_unreadable": "CONFIG UNREADABLE",
+    "status_port_held": "port {port} held by {prog} (PID {pid})",
+    "unexpected_error": "Unexpected error: {e}",
+    "unexpected_error_log": "Details saved to {path}. Please report it at https://github.com/scirr/MCMANAGER/issues",
+    "editor_not_found": "Editor not found: {editor}. Set the EDITOR variable (e.g. export EDITOR=nano).",
+    "unit_ok": "systemd service up to date.",
+    "unit_missing": "systemd service not installed.",
+    "unit_outdated": "The installed systemd service is from an older version:",
+    "unit_reinstall_hint": "Reinstall it: cd {path} && sudo ./install.sh (your servers and their settings are kept).",
+    "doctor_host_title": "Machine",
+    "doctor_label_unit": "systemd unit",
+    "doctor_unit_outdated": "older version ({detail} expected)",
+    "doctor_java_not21": "Java {major} detected: Minecraft 1.20.5+ and its mods are built for Java 21 (some mods break on newer versions).",
+    "doctor_label_zombies": "Zombie JVMs",
+    "doctor_zombies_none": "none",
+    "doctor_zombies_fix": "mc daemon restart  # the parent process reaps them; these zombies no longer use RAM",
+    "doctor_label_config": "config.json",
+    "doctor_config_ok": "readable",
+    "doctor_label_props": "server.properties",
+    "doctor_props_ok": "consistent with config.json",
+    "doctor_props_fix": "Applied automatically on the next 'mc start' (config.json is authoritative).",
+    "doctor_label_registry": "Registry",
+    "doctor_registry_port": "servers.json says port {reg}, config.json says port {cfg}",
+    "doctor_label_cgroup": "Cgroup",
+    "doctor_cgroup_outside": "JVM {pid} started outside the service ({cgroup}): the service limits do not apply",
+    "doctor_cgroup_fix": "mc stop then mc resume: the daemon will restart it inside the service.",
+    "doctor_label_swap": "Swap",
+    "doctor_swap_used": "JVM {pid}: {mb} MB swapped out",
+    "doctor_swap_fix": "Lower ram_allocation, or forbid swap for the service (MemorySwapMax=0).",
 }
 
 # T is mutated in place (never reassigned) so that `from mc_lang import T` in

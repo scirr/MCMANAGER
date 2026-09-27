@@ -153,4 +153,17 @@ def perform_update():
     msg = T["update_done"].format(ver=latest)
     if not restarted:
         msg += " " + T["update_daemon_manual"]
+    _report_unit_drift()
     return True, msg
+
+
+def _report_unit_drift():
+    """Run the NEW code's unit check in a fresh interpreter (this process still
+    holds the old modules) so a release that changes the systemd unit says
+    right away that 'sudo ./install.sh' is needed."""
+    try:
+        import subprocess
+        subprocess.run([sys.executable, os.path.join(BASE_DIR, "mc_config.py"), "--check-unit"],
+                       timeout=20)
+    except Exception:
+        pass

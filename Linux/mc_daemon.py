@@ -33,8 +33,24 @@ def is_open_hours(current_m, start_m, end_m):
         return start_m <= current_m < end_m
     return current_m >= start_m or current_m < end_m
 
+def _reap_children():
+    """Collect every server JVM this daemon spawned and that has exited.
+
+    Without it they stay zombies (state Z) for hours: 'kill -0', 'pgrep java'
+    and third-party scripts then believe a JVM is still running."""
+    while True:
+        try:
+            pid, _ = os.waitpid(-1, os.WNOHANG)
+        except ChildProcessError:
+            return
+        except Exception:
+            return
+        if pid == 0:
+            return
+
 def _new_state():
     return {
+        "last_error": None,
         "backup_milieu_fait": False,
         "noon_backup_date": None,
         "midnight_backup_date": None,
@@ -51,7 +67,17 @@ def process_server_tick(name, dossier_serveur, state):
         return
     state["missing_logged"] = False
 
-    config = mc_config.load_config(dossier_serveur)
+    try:
+        config = mc_config.load_config(dossier_serveur)
+    except mc_servers.DataFileError as e:
+        # Only this server is skipped; log once per distinct error, not every tick.
+        if state["last_error"] != str(e):
+            logging.error(f"[{name}] config.json unreadable, server skipped until fixed: {e}")
+            state["last_error"] = str(e)
+        return
+    if state["last_error"]:
+        logging.info(f"[{name}] config.json readable again, supervision resumed.")
+        state["last_error"] = None
     config["dossier_serveur"] = dossier_serveur
     if config.get("mode_maintenance", 0) == 1:
         return
@@ -133,17 +159,13 @@ def process_server_tick(name, dossier_serveur, state):
         if not ouvert and en_ligne:
             logging.info(f"[{name}] Starting nightly shutdown...")
 
-            mc_core.stop_server(config, manual=False)
-
-            patience = 0
-            while mc_core.is_server_running(config) and patience < 24:
-                time.sleep(5)
-                patience += 1
-
-            if mc_core.is_server_running(config):
-                logging.warning(f"[{name}] Server did not stop in time. Force killing.")
+            # stop_server waits for the JVM to be really gone and escalates to
+            # SIGTERM/SIGKILL itself if the shutdown hangs.
+            ok, msg = mc_core.stop_server(config, manual=False)
+            logging.info(f"[{name}] {msg}")
+            if not ok and mc_core.is_server_running(config):
+                logging.warning(f"[{name}] Clean stop impossible (RCON unreachable). Force killing.")
                 mc_core.force_kill_server(config)
-                time.sleep(5)
 
             mc_core.backup_server(config, "fermeture")
 
@@ -158,10 +180,24 @@ def main():
     logging.info("MC Manager service starting (Linux)...")
     mc_servers.migrate_legacy_single_server()
     states = {}
+    servers = {}
+    registry_error = None
 
     while True:
         time.sleep(30)
-        for name, info in mc_servers.list_servers().items():
+        _reap_children()
+        # An unreadable servers.json must not make every server disappear:
+        # keep supervising the last known list and say so once.
+        try:
+            servers = mc_servers.list_servers()
+            if registry_error:
+                logging.info("servers.json readable again.")
+                registry_error = None
+        except mc_servers.DataFileError as e:
+            if registry_error != str(e):
+                logging.error(f"servers.json unreadable, keeping the last known server list: {e}")
+                registry_error = str(e)
+        for name, info in servers.items():
             state = states.setdefault(name, _new_state())
             try:
                 process_server_tick(name, info.get("dossier_serveur", ""), state)

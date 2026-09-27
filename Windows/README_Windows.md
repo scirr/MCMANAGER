@@ -292,6 +292,22 @@ mc stop survival               # stop "survival" directly, without selecting it 
 
 ---
 
+### Exit codes
+
+Every command ends with a documented exit code, so scripts can rely on it:
+
+| Code | Meaning |
+|---|---|
+| `0` | Success — or the requested state already holds (`mc start` on a running server, `mc stop` on a stopped one) |
+| `1` | The command failed (message printed says why and what to do) |
+| `2` | Invalid command line |
+| `3` | No server configured, unknown server name/number, or server folder missing |
+| `130` | Interrupted (Ctrl+C) |
+
+MC Manager never shows a raw Python traceback: an unexpected error is summarised in one line and its details are written to `logs\cli-error.log` (set `MCMANAGER_DEBUG=1` to see the traceback instead). JSON files saved with a UTF-8 BOM (Notepad, PowerShell) are read normally, and an unreadable `config.json` only affects its own server.
+
+---
+
 ## Modes (schedule / always-on / maintenance)
 
 A server is always in one of these three modes, displayed in the dashboard (`mc status`):

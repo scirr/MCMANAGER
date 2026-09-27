@@ -48,7 +48,11 @@ def check_server(name, info):
                          T["doctor_dir_fix"].format(name=name)))
         return results
 
-    config = mc_config.load_config(dossier)
+    try:
+        config = mc_config.load_config(dossier)
+    except mc_servers.DataFileError as e:
+        results.append(("err", T["doctor_label_config"], e.detail, T["data_file_fix"].format(path=e.path)))
+        return results
     config["dossier_serveur"] = dossier
 
     java_ok, java_detail = mc_core.check_java()
@@ -101,7 +105,12 @@ def print_doctor_report(name, info, results):
 
 
 def run_doctor(target=None):
-    servers = mc_servers.list_servers()
+    try:
+        servers = mc_servers.list_servers()
+    except mc_servers.DataFileError as e:
+        mc_deploy.pr("err", T["data_file_unreadable"].format(path=e.path, detail=e.detail))
+        print(f"      \033[90m-> {T['data_file_fix'].format(path=e.path)}\033[0m")
+        return 1
     if not servers:
         mc_deploy.pr("warn", T["no_server_cfg_doctor"])
         return

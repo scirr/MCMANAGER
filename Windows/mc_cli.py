@@ -18,9 +18,26 @@ import mc_lang
 import mc_update
 from mc_lang import T, VERSION
 
+# Exit codes (documented in README_Windows.md — scripts rely on them).
+EXIT_OK = 0          # success, or the requested state already holds
+EXIT_ERROR = 1       # the command failed
+EXIT_USAGE = 2       # invalid command line (argparse)
+EXIT_NOT_FOUND = 3   # no server configured, unknown target, folder missing
+EXIT_INTERRUPTED = 130
+
+_failed = False
+
 def print_res(success, msg):
+    """Print a result line. A failure marks the command as failed (exit 1)."""
+    global _failed
+    if not success:
+        _failed = True
     color = "\033[92m[OK]\033[0m" if success else "\033[93m[!]\033[0m"
     print(f"{color} {msg}")
+
+def print_info(msg):
+    print(f"\033[90m[i]\033[0m {msg}")
+
 
 def save_config(config):
     mc_config.save_config(config)
@@ -161,7 +178,15 @@ def render_server_box(name, info, active_name):
         ]
         return _box(title, marker, field_lines)
 
-    config = mc_config.load_config(dossier)
+    try:
+        config = mc_config.load_config(dossier)
+    except mc_servers.DataFileError as e:
+        # One unreadable config.json must only affect its own box.
+        field_lines = [
+            f"{T['field_status']}   : {T['status_config_unreadable']}",
+            f"{T['field_dir']}  : {dossier}",
+        ]
+        return _box(title, marker, field_lines) + "\n" + f"  \033[91m{e.detail}\033[0m\n  \033[90m-> {T['data_file_fix'].format(path=e.path)}\033[0m"
     config["dossier_serveur"] = dossier
 
     en_ligne = mc_core.is_server_running(config)
@@ -205,13 +230,13 @@ def render_server_box(name, info, active_name):
 def print_dashboard(target=None, with_cheatsheet=False):
     servers = mc_servers.list_servers()
     if not servers:
-        print_res(False, T["no_server_dashboard"])
-        return
+        print(f"\033[93m[!]\033[0m {T['no_server_dashboard']}")
+        return EXIT_NOT_FOUND
 
     if target is not None:
         resolved = mc_servers.resolve_target(target)
         if not resolved:
-            return
+            return EXIT_NOT_FOUND
         name, _ = resolved
         servers = {name: servers[name]}
 
@@ -222,6 +247,7 @@ def print_dashboard(target=None, with_cheatsheet=False):
 
     if with_cheatsheet:
         print(T["cheatsheet"])
+    return EXIT_OK
 
 # ==========================================
 # LOGS
@@ -239,7 +265,7 @@ def print_logs(target=None):
     if target is not None:
         resolved = mc_servers.resolve_target(target)
         if not resolved:
-            return
+            return EXIT_NOT_FOUND
         name, _ = resolved
         prefix = f"[{name}]"
         lines = [l for l in lines if prefix in l]
@@ -422,8 +448,7 @@ def main():
         show_update_notice()
 
     if args.action is None:
-        print_dashboard(with_cheatsheet=True)
-        return
+        return print_dashboard(with_cheatsheet=True)
 
     if args.action == "help":
         print_categorized_help()
@@ -455,8 +480,7 @@ def main():
         return
 
     if args.action == "status":
-        print_dashboard(args.target)
-        return
+        return print_dashboard(args.target)
 
     if args.action == "use":
         if mc_servers.set_active(args.target):
@@ -464,12 +488,13 @@ def main():
             print_res(True, T["set_active_ok"].format(name=mc_servers.get_active_name(), sid=info.get("id", "?")))
         else:
             print_res(False, T["server_not_found_use"].format(target=args.target))
+            return EXIT_NOT_FOUND
         return
 
     if args.action == "remove":
         resolved = mc_servers.resolve_target(args.target, require_folder=False)
         if not resolved:
-            return
+            return EXIT_NOT_FOUND
         name, dossier = resolved
         info = mc_servers.list_servers().get(name, {})
         print(f"\033[93m[!]\033[0m {T['deregister_warning'].format(name=name, sid=info.get('id', '?'))}")
@@ -498,7 +523,7 @@ def main():
         target = getattr(args, "target", None)
         resolved = mc_servers.resolve_target(target)
         if not resolved:
-            return
+            return EXIT_NOT_FOUND
         active_name, dossier_serveur = resolved
         if target is None:
             info = mc_servers.list_servers().get(active_name, {})
@@ -529,16 +554,13 @@ def main():
         return
 
     if args.action == "doctor":
-        mc_doctor.run_doctor(args.target)
-        return
+        return mc_doctor.run_doctor(args.target)
 
     if args.action == "logs":
-        print_logs(args.target)
-        return
+        return print_logs(args.target)
 
     if args.action == "daemon":
-        dispatch_daemon(args.daemon_action)
-        return
+        return dispatch_daemon(args.daemon_action)
 
     # --- centralized resolution for server-targeting commands ---
     config = None
@@ -548,7 +570,7 @@ def main():
         target = getattr(args, "target", None)
         resolved = mc_servers.resolve_target(target)
         if not resolved:
-            return
+            return EXIT_NOT_FOUND
         active_name, dossier_serveur = resolved
         if target is None:
             info = mc_servers.list_servers().get(active_name, {})
@@ -560,9 +582,14 @@ def main():
         mc_config.run_setup(active_name)
 
     elif args.action == "edit":
-        editor = os.environ.get("EDITOR", "notepad")
+        import shlex
+        import subprocess
+        editor = shlex.split(os.environ.get("VISUAL") or os.environ.get("EDITOR") or "notepad", posix=False)
         path = mc_config.config_path(dossier_serveur) if args.what == "config" else mc_config.webhooks_path(dossier_serveur)
-        os.system(f'{editor} "{path}"')
+        try:
+            subprocess.call(editor + [path])
+        except FileNotFoundError:
+            print_res(False, T["editor_not_found"].format(editor=editor[0]))
 
     elif args.action == "open":
         os.startfile(dossier_serveur)
@@ -575,9 +602,12 @@ def main():
         # daemon keeps ignoring it, webhooks stay silent) until 'mc resume'.
         logging.basicConfig(level=logging.INFO, format="\033[90m[INFO]\033[0m %(message)s")
         ok, msg = mc_core.start_server(config)
-        print_res(ok, msg)
+        if not ok and msg == T["already_online"]:
+            print_info(msg)          # desired state already holds: exit 0
+        else:
+            print_res(ok, msg)
         if ok:
-            print(f"\033[90m[i]\033[0m {T['start_console_hint']}")
+            print_info(T["start_console_hint"])
 
     elif args.action == "stop":
         was_running = mc_core.is_server_running(config)
@@ -593,6 +623,8 @@ def main():
                 # stays silent.
                 stop_ok, stop_msg = mc_core.stop_server(config)
                 print_res(stop_ok, stop_msg)
+        else:
+            print_info(T["already_offline"])
         # The server is still running if the stop failed — claiming maintenance
         # was enabled would hide that from the user.
         if stop_ok:
@@ -696,7 +728,7 @@ def dispatch_daemon(daemon_action):
 
     if result.returncode == 0:
         print_res(True, T["daemon_ok"].format(label=label))
-        return
+        return EXIT_OK
 
     if result.returncode == 1060:
         print_res(False, T["daemon_not_installed"])
@@ -706,5 +738,78 @@ def dispatch_daemon(daemon_action):
         detail = (result.stdout or result.stderr or "").strip()
         print_res(False, T["daemon_error_msg"].format(action=daemon_action, code=result.returncode, detail=detail))
 
+# ==========================================
+# ENTRY POINT
+# ==========================================
+
+class _AnsiStripper:
+    """Wraps a stream and drops ANSI colour codes. Used when the output is not a
+    terminal (pipes, logs, scripts) or when NO_COLOR is set."""
+    import re as _re
+    _ANSI = _re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+    def __init__(self, stream):
+        self._stream = stream
+
+    def write(self, data):
+        return self._stream.write(self._ANSI.sub("", data))
+
+    def __getattr__(self, name):
+        return getattr(self._stream, name)
+
+def _setup_output():
+    for name in ("stdout", "stderr"):
+        stream = getattr(sys, name)
+        try:
+            plain = os.environ.get("NO_COLOR") is not None or not stream.isatty()
+        except Exception:
+            plain = True
+        if plain:
+            setattr(sys, name, _AnsiStripper(stream))
+
+def _log_crash():
+    """Write the traceback to logs/cli-error.log and return that path."""
+    import traceback
+    import datetime
+    path = os.path.join(BASE_DIR, "logs", "cli-error.log")
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(f"\n=== {datetime.datetime.now().isoformat(timespec='seconds')} "
+                    f"MC Manager v{VERSION} — mc {' '.join(sys.argv[1:])}\n")
+            traceback.print_exc(file=f)
+    except Exception:
+        return None
+    return path
+
+def run():
+    """Run the CLI and exit with a documented code. No raw Python traceback ever
+    reaches the user: unexpected errors are logged and summarised (set
+    MCMANAGER_DEBUG=1 to see the traceback)."""
+    _setup_output()
+    try:
+        code = main()
+    except KeyboardInterrupt:
+        print()
+        code = EXIT_INTERRUPTED
+    except SystemExit:
+        raise
+    except mc_servers.DataFileError as e:
+        print(f"\033[91m[{T['icon_err']}]\033[0m {T['data_file_unreadable'].format(path=e.path, detail=e.detail)}")
+        print(f"\033[90m[i]\033[0m {T['data_file_fix'].format(path=e.path)}")
+        code = EXIT_ERROR
+    except Exception as e:
+        if os.environ.get("MCMANAGER_DEBUG"):
+            raise
+        log = _log_crash()
+        print(f"\033[91m[{T['icon_err']}]\033[0m {T['unexpected_error'].format(e=f'{type(e).__name__}: {e}')}")
+        if log:
+            print(f"\033[90m[i]\033[0m {T['unexpected_error_log'].format(path=log)}")
+        code = EXIT_ERROR
+    if code is None:
+        code = EXIT_ERROR if _failed else EXIT_OK
+    sys.stdout.flush()
+    sys.exit(code)
+
 if __name__ == "__main__":
-    main()
+    run()
