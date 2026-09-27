@@ -4,8 +4,17 @@ Maintainer procedure. Users receive a release through `mc update`, which
 installs the **latest GitHub release** only after verifying its signature.
 
 Releases are built, signed and published by GitHub Actions
-(`.github/workflows/release.yml`). Publishing a version is: **push a tag.**
-Every release is kept; the newest one is marked *latest*.
+(`.github/workflows/release.yml`). Every release is kept; the newest one is
+marked *latest*.
+
+## Quick path
+
+1. Bump `VERSION` in both `mc_lang.py` files and add `release-notes/vX.Y.Z.md`
+   (steps 1 and 2 below), merged into `main`.
+2. **Actions → Release → Run workflow** (branch `main`).
+
+That is all: the workflow reads the version, creates the tag on `main`,
+tests, builds, signs and publishes. It refuses if the tag already exists.
 
 ---
 
@@ -62,19 +71,23 @@ cd ../Windows && python -m unittest discover tests
 CI runs the same suites on Linux and Windows, plus `ruff`, `bandit` and
 `pip-audit`, on every push.
 
-### 4. Commit, push, tag
+### 4. Publish
+
+**Actions → Release → Run workflow**, on `main`. The workflow creates the
+tag `vX.Y.Z` on `main`'s current commit (and refuses if it already exists).
+
+Alternative, from a terminal:
 
 ```bash
-git commit -am "release: v2.7.0"
-git push origin main
 git tag v2.7.0
 git push origin v2.7.0
 ```
 
-The tag starts the release workflow, which:
+Either way, the release workflow:
 
-1. runs the Linux and Windows test suites;
-2. checks that the tag, both `VERSION` values and `release-notes/<tag>.md` agree;
+1. checks that the tag, both `VERSION` values and `release-notes/<tag>.md` agree
+   (and, when run by hand, creates the tag);
+2. runs the Linux and Windows test suites;
 3. builds `MCManager.zip` and `MCManager-Linux.zip`;
 4. writes `SHA256SUMS` and signs it (`SHA256SUMS.sig`) with `RELEASE_SIGNING_KEY`,
    after checking the key matches the public key in the code;
@@ -111,9 +124,11 @@ Commits without a tag are tested by CI but notify nobody and touch no release.
 
 | Symptom | Cause |
 |---|---|
-| Workflow: `VERSION is X, the tag is vY` | Bump both `mc_lang.py` files, move the tag (`git tag -f`, `git push -f origin vY`). |
-| Workflow: `release-notes/vY.md is missing` | Add the notes file, commit, move the tag. |
+| Workflow: `VERSION is X, the release is vY` | Bump both `mc_lang.py` files (and, for a pushed tag, move it: `git tag -f`, `git push -f origin vY`). |
+| Workflow: `vY already exists` | That version is published: bump `VERSION` first. |
+| Workflow: `Run this workflow on main` | Pick `main` in the *Run workflow* branch menu. |
+| Workflow: `release-notes/vY.md is missing` | Add the notes file to `main`. |
 | Workflow: `RELEASE_SIGNING_KEY is missing` | The repository secret is not set. |
 | Workflow: `does not match the public key embedded in the code` | The secret and `RELEASE_PUBLIC_KEY` come from different key pairs. |
-| Users: "Invalid signature" / "does not match its hash" | The release assets were replaced by hand. Re-run the workflow for the tag. |
+| Users: "Invalid signature" / "does not match its hash" | The release assets were replaced by hand. Delete the release and its tag, then run the workflow again. |
 | Users are told about an update they already have | `VERSION` was not bumped with the tag. |
