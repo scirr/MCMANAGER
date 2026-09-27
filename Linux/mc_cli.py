@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import os
 import sys
 import socket
@@ -17,6 +18,7 @@ import mc_servers
 import mc_doctor
 import mc_lang
 import mc_update
+import mc_api
 from mc_lang import T, VERSION
 
 # Exit codes (documented in README_Linux.md — scripts rely on them).
@@ -38,6 +40,26 @@ def print_res(success, msg):
 
 def print_info(msg):
     print(f"\033[90m[i]\033[0m {msg}")
+
+def print_target(name):
+    """'Target: <name>' hint when the active server is used implicitly. On
+    stderr, so a command's own output (rcon, players...) stays clean."""
+    info = mc_servers.list_servers().get(name, {})
+    print(f"\033[90m[i]\033[0m {T['target_info'].format(name=name, sid=info.get('id', '?'))}", file=sys.stderr)
+
+def print_json(obj):
+    print(json.dumps(obj, indent=2, ensure_ascii=False))
+
+def resolve_for_json(target):
+    """resolve_target with its human messages sent to stderr; returns
+    (name, dossier) or None after printing a JSON error on stdout."""
+    import contextlib
+    with contextlib.redirect_stdout(sys.stderr):
+        resolved = mc_servers.resolve_target(target)
+    if not resolved:
+        print_json({"schema": mc_api.SCHEMA_VERSION,
+                    "error": {"code": "not_found", "target": target}})
+    return resolved
 
 def save_config(config):
     mc_config.save_config(config)
@@ -174,6 +196,13 @@ def _box(title, marker, field_lines):
     out.append(top)
     return "\n".join(out)
 
+_FIELD_KEYS = ("field_status", "field_mode", "field_version", "field_dir", "field_port",
+               "field_ram", "field_uptime", "field_players", "field_cgroup", "field_backup")
+
+def _field(key, value):
+    width = max(len(T[k]) for k in _FIELD_KEYS)
+    return f"{T[key].ljust(width)} : {value}"
+
 def render_server_box(name, info, active_name):
     dossier = info.get("dossier_serveur", "")
     server_id = info.get("id", "?")
@@ -182,8 +211,8 @@ def render_server_box(name, info, active_name):
 
     if not os.path.exists(dossier):
         field_lines = [
-            f"{T['field_status']}   : {T['dir_missing']}",
-            f"{T['field_dir']}  : {dossier}",
+            _field('field_status', T['dir_missing']),
+            _field('field_dir', dossier),
         ]
         return _box(title, marker, field_lines)
 
@@ -192,23 +221,26 @@ def render_server_box(name, info, active_name):
     except mc_servers.DataFileError as e:
         # One unreadable config.json must only affect its own box.
         field_lines = [
-            f"{T['field_status']}   : {T['status_config_unreadable']}",
-            f"{T['field_dir']}  : {dossier}",
+            _field('field_status', T['status_config_unreadable']),
+            _field('field_dir', dossier),
         ]
         return _box(title, marker, field_lines) + "\n" + f"  \033[91m{e.detail}\033[0m\n  \033[90m-> {T['data_file_fix'].format(path=e.path)}\033[0m"
     config["dossier_serveur"] = dossier
 
-    en_ligne = mc_core.is_server_running(config)
-    pid = mc_core.get_server_pid(config) if en_ligne else None
-    if pid:
-        statut = T["status_online"].format(pid=pid)
-    elif en_ligne:
-        statut = T["status_online_nopid"]
+    snap = mc_api.server_snapshot(name, info, active_name)
+    state = snap.get("state")
+    pid = snap.get("pid")
+    if state == "running":
+        statut = T["status_online"].format(pid=pid) if pid else T["status_online_nopid"]
+    elif state == "starting":
+        statut = T["state_starting"].format(pid=pid or "?")
     else:
-        statut = T["status_offline"]
-        occupant = mc_core.port_occupant(config.get("port")) if config.get("port") else None
-        if occupant and occupant[0]:
-            statut += " — " + T["status_port_held"].format(port=config.get("port"), prog=occupant[1], pid=occupant[0])
+        statut = T[f"state_{state.replace('-', '_')}"]
+        holder = snap.get("port_holder")
+        if holder and holder.get("pid"):
+            statut += " — " + T["status_port_held"].format(port=snap.get("port"), prog=holder["program"], pid=holder["pid"])
+    if snap.get("frozen"):
+        statut += " — " + T["state_frozen"]
 
     mode = mc_core.effective_mode(config)
     if mode == "schedule":
@@ -231,13 +263,56 @@ def render_server_box(name, info, active_name):
     port = config.get("port", info.get("port", "?"))
 
     field_lines = [
-        f"{T['field_status']}   : {statut}",
-        f"{T['field_mode']}     : {mode_label}",
-        f"{T['field_version']}  : {version_label}",
-        f"{T['field_dir']}  : {dossier}",
-        f"{T['field_port']}     : {port}",
+        _field('field_status', statut),
+        _field('field_mode', mode_label),
+        _field('field_version', version_label),
+        _field('field_dir', dossier),
+        _field('field_port', port),
     ]
+    if state in ("running", "starting"):
+        if snap.get("rss_kb"):
+            if snap["rss_kb"] >= 1048576:
+                ram = T["ram_value"].format(gb=snap["rss_kb"] / 1048576)
+            else:
+                ram = T["ram_value_mb"].format(mb=snap["rss_kb"] // 1024)
+            if snap.get("swap_kb"):
+                ram += " " + T["ram_swap"].format(mb=snap["swap_kb"] // 1024)
+            field_lines.append(_field('field_ram', ram))
+        if snap.get("uptime_s") is not None:
+            field_lines.append(_field('field_uptime', _human_duration(snap['uptime_s'])))
+        if state == "running" and config.get("mcrcon_pass"):
+            ok, data = mc_api.query_players(config)
+            if ok:
+                who = f" ({', '.join(data['players'])})" if data["players"] else ""
+                field_lines.append(_field('field_players', f"{data['online']}/{data['max']}{who}"))
+        cgroup = snap.get("cgroup") or ""
+        if cgroup and mc_config.SERVICE_NAME not in cgroup and mc_config.check_service_unit()[0] != "missing":
+            field_lines.append(_field('field_cgroup', T['cgroup_outside_short']))
+    next_backup = _next_backup_label(config, state)
+    if next_backup:
+        field_lines.append(_field('field_backup', next_backup))
     return _box(title, marker, field_lines)
+
+def _human_duration(seconds):
+    days, rem = divmod(int(seconds), 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes = rem // 60
+    if days:
+        return f"{days} j {hours} h" if mc_lang.current_language() == "fr" else f"{days}d {hours}h"
+    if hours:
+        return f"{hours} h {minutes:02d}" if mc_lang.current_language() == "fr" else f"{hours}h{minutes:02d}"
+    return f"{minutes} min"
+
+def _next_backup_label(config, state):
+    """When the daemon will next back this server up, or None."""
+    mode = mc_core.effective_mode(config)
+    if mode == "maintenance":
+        return None
+    if mode == "always-on":
+        import datetime
+        return T["backup_next_at"].format(time="12:00" if datetime.datetime.now().hour < 12 else "00:00")
+    _start, end = mc_core.schedule_minutes(config)
+    return T["backup_next_close"].format(time="%02d:%02d" % divmod(end, 60))
 
 def print_dashboard(target=None, with_cheatsheet=False):
     servers = mc_servers.list_servers()
@@ -322,7 +397,7 @@ def show_update_notice():
         mc_update.refresh_if_stale()
         latest = mc_update.get_cached_notice()
         if latest:
-            print(f"\033[93m{T['update_available'].format(ver=latest)}\033[0m\n")
+            print(f"\033[93m{T['update_available'].format(ver=latest)}\033[0m\n", file=sys.stderr)
     except Exception:
         pass
 
@@ -332,13 +407,19 @@ def print_categorized_help():
         (T["help_cat_lifecycle"], [
             (f"start [{tgt}]", T["help_start"]),
             (f"stop [{tgt}] [--force]", T["help_stop"]),
+            (f"stop [{tgt}] --reason <r> [--quiet]", T["help_stop_reason"]),
             (f"console [{tgt}]", T["help_console"]),
+            (f"rcon \"<cmd>\" [{tgt}]", T["help_rcon"]),
+            (f"players [{tgt}] [--json]", T["help_players"]),
             (f"backup [{tgt}]", T["help_backup"]),
+            (f"freeze [{tgt}] [-- <cmd>]", T["help_freeze"]),
+            (f"thaw [{tgt}]", T["help_thaw"]),
             (f"announce [{tgt}]", T["help_announce"]),
             (f"fingerprint [{tgt}]", T["help_fingerprint"]),
         ]),
         (T["help_cat_multi"], [
-            (f"status [{tgt}]", T["help_status"]),
+            (f"status [{tgt}] [--json]", T["help_status"]),
+            ("active [--path|--json]", T["help_active"]),
             (f"use <{tgt}>", T["help_use"]),
             (f"remove <{tgt}>", T["help_remove"]),
             (f"open [{tgt}]", T["help_open"]),
@@ -347,6 +428,7 @@ def print_categorized_help():
             ("deploy", T["help_deploy"]),
             (f"add [{pth}]", T["help_add"]),
             (f"configure [{tgt}]", T["help_configure"]),
+            (f"config get|set <{T['arg_key']}> [<{val}>] [{tgt}]", T["help_config"]),
             (f"edit config|webhooks [{tgt}]", T["help_edit"]),
             (f"image add|rm [{tgt}]", T["help_image"]),
             (f"schedule H M H M [{tgt}]", T["help_schedule"]),
@@ -406,7 +488,30 @@ def main():
     subparsers.add_parser("deploy", help=T["help_deploy"])
     p_add = subparsers.add_parser("add", help=T["help_add"])
     p_add.add_argument("path", nargs="?", default=None, help=T["help_add_path"])
-    subparsers.add_parser("status", parents=[target_parser], help=T["help_status"])
+
+    p_status = subparsers.add_parser("status", parents=[target_parser], help=T["help_status"])
+    p_status.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_active = subparsers.add_parser("active", help=T["help_active"])
+    g_active = p_active.add_mutually_exclusive_group()
+    g_active.add_argument("--path", action="store_true", help=T["help_active_path"])
+    g_active.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_players = subparsers.add_parser("players", parents=[target_parser], help=T["help_players"])
+    p_players.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_rcon = subparsers.add_parser("rcon", help=T["help_rcon"])
+    p_rcon.add_argument("command", help=T["help_rcon_command"])
+    p_rcon.add_argument("target", nargs="?", default=None, help=T["cli_target_help"])
+
+    p_freeze = subparsers.add_parser("freeze", parents=[target_parser], help=T["help_freeze"])
+    p_freeze.add_argument("--max", default=None, metavar="DURATION", help=T["help_freeze_max"])
+    subparsers.add_parser("thaw", parents=[target_parser], help=T["help_thaw"])
+
+    p_config = subparsers.add_parser("config", help=T["help_config"])
+    p_config.add_argument("config_action", choices=["get", "set"])
+    p_config.add_argument("key", nargs="?", default=None)
+    p_config.add_argument("rest", nargs="*", help=T["help_config_rest"])
 
     p_use = subparsers.add_parser("use", help=T["help_use"])
     p_use.add_argument("target", help=T["help_use_target"])
@@ -421,6 +526,8 @@ def main():
     p_stop = subparsers.add_parser("stop", help=T["help_stop"])
     p_stop.add_argument("target", nargs="?", default=None, help=T["cli_target_help"])
     p_stop.add_argument("--force", "-f", action="store_true", help=T["help_stop_force"])
+    p_stop.add_argument("--reason", choices=mc_api.STOP_REASONS, default=None, help=T["help_stop_reason_arg"])
+    p_stop.add_argument("--quiet", "-q", action="store_true", help=T["help_stop_quiet"])
     subparsers.add_parser("console", parents=[target_parser], help=T["help_console"])
     subparsers.add_parser("backup", parents=[target_parser], help=T["help_backup"])
     subparsers.add_parser("open", parents=[target_parser], help=T["help_open"])
@@ -455,9 +562,14 @@ def main():
     p_image_rm = image_subs.add_parser("rm", help=T["help_image_rm"])
     p_image_rm.add_argument("target", nargs="?", default=None)
 
-    args = parser.parse_args()
+    argv = sys.argv[1:]
+    freeze_cmd = None
+    if argv and argv[0] == "freeze" and "--" in argv:
+        cut = argv.index("--")
+        argv, freeze_cmd = argv[:cut], argv[cut + 1:]
+    args = parser.parse_args(argv)
 
-    if args.action not in ("daemon", "update"):
+    if args.action not in ("daemon", "update") and not getattr(args, "json", False):
         show_update_notice()
 
     if args.action is None:
@@ -493,7 +605,46 @@ def main():
         return
 
     if args.action == "status":
+        if args.json:
+            name = None
+            if args.target is not None:
+                resolved = resolve_for_json(args.target)
+                if not resolved:
+                    return EXIT_NOT_FOUND
+                name = resolved[0]
+            print_json(mc_api.status_document(name))
+            return EXIT_OK
         return print_dashboard(args.target)
+
+    if args.action == "active":
+        registry = mc_servers.load_registry()
+        name = registry.get("active")
+        info = registry["servers"].get(name) if name else None
+        if not info:
+            if args.json:
+                print_json({"schema": mc_api.SCHEMA_VERSION, "error": {"code": "no_active_server"}})
+            else:
+                print(f"\033[93m[!]\033[0m {T['no_active_short']}", file=sys.stderr)
+            return EXIT_NOT_FOUND
+        if args.json:
+            print_json({"schema": mc_api.SCHEMA_VERSION, **mc_api.server_snapshot(name, info, name)})
+        elif args.path:
+            print(info.get("dossier_serveur", ""))
+        else:
+            print(name)
+        return EXIT_OK
+
+    if args.action == "players":
+        return cmd_players(args)
+
+    if args.action == "rcon":
+        return cmd_rcon(args)
+
+    if args.action == "config":
+        return cmd_config(args)
+
+    if args.action in ("freeze", "thaw"):
+        return cmd_freeze_thaw(args, freeze_cmd)
 
     if args.action == "use":
         if mc_servers.set_active(args.target):
@@ -539,8 +690,7 @@ def main():
             return EXIT_NOT_FOUND
         active_name, dossier_serveur = resolved
         if target is None:
-            info = mc_servers.list_servers().get(active_name, {})
-            print(f"\033[90m[i]\033[0m {T['target_info'].format(name=active_name, sid=info.get('id', '?'))}")
+            print_target(active_name)
         if image_action == "add":
             src = args.path
             if not src:
@@ -586,8 +736,7 @@ def main():
             return EXIT_NOT_FOUND
         active_name, dossier_serveur = resolved
         if target is None:
-            info = mc_servers.list_servers().get(active_name, {})
-            print(f"\033[90m[i]\033[0m {T['target_info'].format(name=active_name, sid=info.get('id', '?'))}")
+            print_target(active_name)
         config = mc_config.load_config(dossier_serveur)
         config["dossier_serveur"] = dossier_serveur
 
@@ -637,7 +786,7 @@ def main():
                 # maintenance transition). Stopping an already-maintenance server
                 # stays silent. It returns once the JVM has really exited.
                 print_info(T["stop_waiting"])
-                stop_ok, stop_msg = mc_core.stop_server(config)
+                stop_ok, stop_msg = mc_core.stop_server(config, reason=args.reason, quiet=args.quiet)
                 print_res(stop_ok, stop_msg)
         else:
             print_info(T["already_offline"])
@@ -645,7 +794,12 @@ def main():
         # was enabled would hide that from the user.
         if stop_ok:
             config["mode_maintenance"] = 1
+            # Why it is stopped: 'mc status' shows "sleeping" / "maintenance"
+            # / "stopped by user" instead of one overloaded flag.
+            config["stop_reason"] = args.reason or "user"
             save_config(config)
+            if mc_api.is_frozen(config):
+                mc_api.thaw(config)   # server gone: the freeze has nothing left to hold
             print_res(True, T["maintenance_activated"])
 
     elif args.action == "announce":
@@ -719,6 +873,146 @@ def main():
         config["heure_fermeture"], config["minute_fermeture"] = args.close_h, args.close_m
         save_config(config)
         print_res(True, T["schedule_updated"])
+
+
+# ==========================================
+# MACHINE-FRIENDLY COMMANDS
+# ==========================================
+
+def _load_target_config(target, quiet_json=False):
+    """Resolve a target and load its config. Returns (name, config) or None."""
+    resolved = resolve_for_json(target) if quiet_json else mc_servers.resolve_target(target)
+    if not resolved:
+        return None
+    name, dossier = resolved
+    if target is None and not quiet_json:
+        print_target(name)
+    config = mc_config.load_config(dossier)
+    config["dossier_serveur"] = dossier
+    return name, config
+
+def cmd_players(args):
+    loaded = _load_target_config(args.target, quiet_json=args.json)
+    if not loaded:
+        return EXIT_NOT_FOUND
+    name, config = loaded
+    if not mc_core.is_server_running(config):
+        if args.json:
+            print_json({"schema": mc_api.SCHEMA_VERSION, "server": name, "online": 0, "max": None,
+                        "players": [], "state": mc_api.server_state(config)})
+            return EXIT_OK
+        print_info(T["players_offline"])
+        return EXIT_OK
+    ok, data = mc_api.query_players(config)
+    if not ok:
+        if args.json:
+            print_json({"schema": mc_api.SCHEMA_VERSION, "server": name,
+                        "error": {"code": "rcon_failed", "detail": data}})
+        else:
+            print_res(False, T["players_failed"].format(detail=data))
+        return EXIT_ERROR
+    if args.json:
+        print_json({"schema": mc_api.SCHEMA_VERSION, "server": name, **data})
+    else:
+        names = ", ".join(data["players"]) or "-"
+        print(T["players_line"].format(online=data["online"], max=data["max"], names=names))
+    return EXIT_OK
+
+def cmd_rcon(args):
+    loaded = _load_target_config(args.target)
+    if not loaded:
+        return EXIT_NOT_FOUND
+    _name, config = loaded
+    if not mc_core.is_server_running(config):
+        print_res(False, T["console_offline"])
+        return EXIT_ERROR
+    ok, reply = mc_api.rcon_exec(config, args.command)
+    if not ok:
+        print_res(False, T["rcon_failed"].format(detail=reply))
+        return EXIT_ERROR
+    if reply:
+        print(reply)
+    return EXIT_OK
+
+def cmd_freeze_thaw(args, command=None):
+    loaded = _load_target_config(args.target)
+    if not loaded:
+        return EXIT_NOT_FOUND
+    name, config = loaded
+    if args.action == "thaw":
+        ok, code = mc_api.thaw(config)
+        print_res(ok, T[f"thaw_{code}"])
+        return EXIT_OK if ok else EXIT_ERROR
+
+    try:
+        max_s = mc_api.parse_duration(args.max) if args.max else mc_api.DEFAULT_FREEZE_MAX
+    except ValueError:
+        print_res(False, T["invalid_duration"].format(val=args.max))
+        return EXIT_USAGE
+    ok, code = mc_api.freeze(config, max_s)
+    if not ok:
+        print_res(False, T[f"freeze_{code}"])
+        return EXIT_ERROR
+    if code == "offline":
+        print_info(T["freeze_offline"])
+    else:
+        print_res(True, T["freeze_frozen"].format(mins=max(1, max_s // 60)))
+    if not command:
+        return EXIT_OK
+
+    # 'mc freeze -- <cmd>': run the command, then ALWAYS thaw — even if the
+    # command fails or is interrupted — and exit with the command's own code.
+    import subprocess
+    rc = EXIT_ERROR
+    try:
+        rc = subprocess.call(command)
+    except FileNotFoundError:
+        print_res(False, T["freeze_cmd_not_found"].format(cmd=command[0]))
+    except KeyboardInterrupt:
+        rc = EXIT_INTERRUPTED
+    finally:
+        ok, code = mc_api.thaw(config)
+        print_res(ok, T[f"thaw_{code}"])
+    return rc
+
+def cmd_config(args):
+    rest = list(args.rest or [])
+    if args.config_action == "get":
+        target = rest[0] if rest else None
+        loaded = _load_target_config(target, quiet_json=True)
+        if not loaded:
+            return EXIT_NOT_FOUND
+        _name, config = loaded
+        if args.key is None:
+            config.pop("dossier_serveur", None)
+            print_json(config)
+            return EXIT_OK
+        if args.key not in config:
+            print(f"\033[93m[!]\033[0m {T['config_key_unset'].format(key=args.key)}", file=sys.stderr)
+            return EXIT_ERROR
+        value = config[args.key]
+        print(json.dumps(value, ensure_ascii=False) if isinstance(value, (dict, list)) else value)
+        return EXIT_OK
+
+    # set
+    if args.key is None or not rest:
+        print_res(False, T["config_set_usage"])
+        return EXIT_USAGE
+    value, target = rest[0], (rest[1] if len(rest) > 1 else None)
+    loaded = _load_target_config(target)
+    if not loaded:
+        return EXIT_NOT_FOUND
+    name, config = loaded
+    status, detail = mc_config.set_value(config, name, args.key, value)
+    if status != "ok":
+        print_res(False, detail)
+        return EXIT_USAGE if status in ("unknown", "invalid") else EXIT_ERROR
+    for line in detail:
+        print_info(line)
+    print_res(True, T["config_set_ok"].format(key=args.key, value="***" if args.key == "mcrcon_pass" else config[args.key]))
+    if mc_core.is_server_running(config) and args.key in mc_config.RESTART_KEYS:
+        print_info(T["config_restart_needed"])
+    return EXIT_OK
 
 def dispatch_daemon(daemon_action):
     if daemon_action == "run":

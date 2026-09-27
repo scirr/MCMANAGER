@@ -40,6 +40,26 @@ _FALLBACK_WEBHOOKS = {
             "title": "🔴 Le serveur {nom} est fermé",
             "color": 16711680,
             "description": "Le serveur est hors ligne jusqu'à la prochaine ouverture."
+        },
+        "stop_sleep": {
+            "title": "💤 {nom} est en veille",
+            "color": 9807270,
+            "description": "Personne n'est connecté : le serveur se repose. Il se réveille dès qu'un joueur se connecte."
+        },
+        "stop_update": {
+            "title": "🛠️ {nom} : mise à jour en cours",
+            "color": 15105570,
+            "description": "Le serveur redémarre après une mise à jour. Il revient dans quelques minutes."
+        },
+        "stop_maintenance": {
+            "title": "🛠️ {nom} est en maintenance",
+            "color": 15105570,
+            "description": "Le serveur est temporairement arrêté pour maintenance."
+        },
+        "stop_switch": {
+            "title": "🔁 {nom} laisse la place",
+            "color": 3447003,
+            "description": "Le serveur s'arrête pour laisser place à un autre serveur."
         }
     },
     "en": {
@@ -66,6 +86,26 @@ _FALLBACK_WEBHOOKS = {
             "title": "🔴 {nom} is now closed",
             "color": 16711680,
             "description": "The server is offline until the next scheduled opening."
+        },
+        "stop_sleep": {
+            "title": "💤 {nom} is sleeping",
+            "color": 9807270,
+            "description": "Nobody is online, so the server is resting. It wakes up as soon as a player connects."
+        },
+        "stop_update": {
+            "title": "🛠️ {nom}: update in progress",
+            "color": 15105570,
+            "description": "The server is restarting after an update. It will be back in a few minutes."
+        },
+        "stop_maintenance": {
+            "title": "🛠️ {nom} is under maintenance",
+            "color": 15105570,
+            "description": "The server is temporarily stopped for maintenance."
+        },
+        "stop_switch": {
+            "title": "🔁 {nom} makes way",
+            "color": 3447003,
+            "description": "The server is stopping to make way for another server."
         }
     }
 }
@@ -317,16 +357,92 @@ def set_mode_always_on(config):
 
 def set_mode_maintenance(config):
     config["mode_maintenance"] = 1
+    config["stop_reason"] = "maintenance"
     return config
 
 def resume_mode(config):
     config["mode_maintenance"] = 0
+    config.pop("stop_reason", None)
     # Leaving maintenance is a reopening: the restart the daemon is about to
     # perform must be announced. One-shot flag, because the always-on restart
     # path is otherwise silent on purpose (a flapping server would spam Discord
     # every 30 s). Consumed by mc_daemon on the first successful start.
     config["announce_next_start"] = 1
     return config
+
+# Keys 'mc config set' may change, with their validation. Anything else goes
+# through 'mc configure' or 'mc edit config'.
+def _int_min(minimum):
+    def check(v):
+        try:
+            return int(v) >= minimum
+        except (TypeError, ValueError):
+            return False
+    return check
+
+SETTABLE_KEYS = {
+    #  key                     (converter, validator)
+    "port":                  (int, valid_port),
+    "rcon_port":             (int, valid_port),
+    "mcrcon_pass":           (str, lambda v: bool(str(v).strip())),
+    "ram_allocation":        (str, valid_ram),
+    "cpu_affinity":          (str, valid_cpu),
+    "jar_name":              (str, lambda v: bool(str(v).strip())),
+    "nom_serveur":           (str, lambda v: bool(str(v).strip())),
+    "domaine":               (str, lambda v: True),
+    "webhook_url":           (str, lambda v: v == "" or str(v).startswith("https://")),
+    "dossier_backup":        (str, lambda v: bool(str(v).strip())),
+    "backup_retention_days": (int, _int_min(0)),
+    "stop_timeout":          (int, _int_min(10)),
+}
+# Changes that only take effect when the server restarts.
+RESTART_KEYS = {"port", "rcon_port", "mcrcon_pass", "ram_allocation", "cpu_affinity", "jar_name"}
+
+def set_value(config, name, key, raw):
+    """Validate and apply one setting, then propagate it everywhere it lives:
+    config.json (atomic), servers.json (ports), server.properties (ports,
+    RCON) and the firewall (game port). Returns (status, detail): status 'ok'
+    with a list of what was updated, or 'unknown' / 'invalid' / 'conflict'
+    with a message."""
+    import mc_core
+    import mc_firewall
+    if key not in SETTABLE_KEYS:
+        return "unknown", T["config_unknown_key"].format(key=key, keys=", ".join(sorted(SETTABLE_KEYS)))
+    convert, validate = SETTABLE_KEYS[key]
+    try:
+        value = convert(str(raw).strip())
+    except (TypeError, ValueError):
+        return "invalid", T["config_invalid_value"].format(key=key, val=raw)
+    if not validate(value):
+        return "invalid", T["config_invalid_value"].format(key=key, val=raw)
+    if key == "dossier_backup":
+        value = os.path.abspath(os.path.expanduser(value))
+
+    if key in ("port", "rcon_port"):
+        other_key = "rcon_port" if key == "port" else "port"
+        if str(config.get(other_key)) == str(value):
+            return "conflict", T["config_port_same"].format(port=value)
+        kwargs = {key: value}
+        clash = mc_servers.find_port_conflict(exclude_name=name, **kwargs)
+        if clash:
+            return "conflict", T["config_port_taken"].format(port=value, name=clash)
+
+    old = config.get(key)
+    config[key] = value
+    save_config(config)
+    updated = [T["config_updated_file"].format(file="config.json")]
+    if key in ("port", "rcon_port"):
+        updated.append(T["config_updated_file"].format(file="servers.json"))
+    if key in ("port", "rcon_port", "mcrcon_pass"):
+        if mc_core.sync_server_properties(config):
+            updated.append(T["config_updated_file"].format(file="server.properties"))
+    if key == "port" and old != value:
+        ok, manual = mc_firewall.ensure_game_port_rule(value, old_port=old)
+        if ok:
+            updated.append(T["firewall_ok"].format(port=value))
+        else:
+            updated.append(T["firewall_failed"] + " " + manual)
+    return "ok", updated
 
 def run_setup_performance(config):
     print(f"\n\033[96m=========================================")

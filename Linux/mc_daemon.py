@@ -11,6 +11,7 @@ sys.path.append(BASE_DIR)
 import mc_config
 import mc_core
 import mc_servers
+import mc_api
 from mc_lang import T
 
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
@@ -28,10 +29,7 @@ logging.basicConfig(
 # In-game warning thresholds before a scheduled close (minutes).
 WARN_THRESHOLDS = (10, 5, 2, 1)
 
-def is_open_hours(current_m, start_m, end_m):
-    if start_m < end_m:
-        return start_m <= current_m < end_m
-    return current_m >= start_m or current_m < end_m
+is_open_hours = mc_core.is_open_hours
 
 def _reap_children():
     """Collect every server JVM this daemon spawned and that has exited.
@@ -79,6 +77,15 @@ def process_server_tick(name, dossier_serveur, state):
         logging.info(f"[{name}] config.json readable again, supervision resumed.")
         state["last_error"] = None
     config["dossier_serveur"] = dossier_serveur
+
+    # A world frozen by 'mc freeze' whose owner never thawed it (script killed,
+    # machine rebooted...) is thawed once its deadline passes — even in
+    # maintenance, where saving must work again as soon as the server runs.
+    if mc_api.is_frozen(config) and mc_api.freeze_expired(config):
+        ok, code = mc_api.thaw(config)
+        if ok:
+            logging.warning(f"[{name}] World freeze expired: saving re-enabled ({code}).")
+
     if config.get("mode_maintenance", 0) == 1:
         return
 
@@ -115,8 +122,7 @@ def process_server_tick(name, dossier_serveur, state):
             state["midnight_backup_date"] = today
 
     else:
-        start_mins = int(config.get("heure_ouverture", 20)) * 60 + int(config.get("minute_ouverture", 0))
-        end_mins = int(config.get("heure_fermeture", 3)) * 60 + int(config.get("minute_fermeture", 0))
+        start_mins, end_mins = mc_core.schedule_minutes(config)
 
         ouvert = is_open_hours(current_mins, start_mins, end_mins)
 

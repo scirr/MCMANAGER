@@ -357,6 +357,22 @@ def effective_mode(config) -> str:
         return "always-on"
     return "schedule"
 
+def is_open_hours(current_m, start_m, end_m):
+    """True if minute-of-day current_m falls in [start_m, end_m), across midnight."""
+    if start_m < end_m:
+        return start_m <= current_m < end_m
+    return current_m >= start_m or current_m < end_m
+
+def schedule_minutes(config):
+    start = int(config.get("heure_ouverture", 20)) * 60 + int(config.get("minute_ouverture", 0))
+    end = int(config.get("heure_fermeture", 3)) * 60 + int(config.get("minute_fermeture", 0))
+    return start, end
+
+def is_open_now(config, now=None):
+    now = now or datetime.datetime.now()
+    start, end = schedule_minutes(config)
+    return is_open_hours(now.hour * 60 + now.minute, start, end)
+
 def guess_loader_and_version(config) -> tuple:
     loader = config.get("loader")
     mc_version = config.get("mc_version")
@@ -876,14 +892,26 @@ def _signal_server(config, sig):
             pass
     return bool(targets)
 
-def stop_server(config, manual=True, wait=True, timeout=None):
+# Webhook template sent for each 'mc stop --reason'. Missing templates fall back
+# to the built-in ones (mc_config._FALLBACK_WEBHOOKS).
+STOP_WEBHOOKS = {
+    None:          "stop",
+    "user":        "stop",
+    "sleep":       "stop_sleep",
+    "update":      "stop_update",
+    "maintenance": "stop_maintenance",
+    "switch":      "stop_switch",
+}
+
+def stop_server(config, manual=True, wait=True, timeout=None, reason=None, quiet=False):
     """Stop the server cleanly and, by default, wait until its process is gone.
 
     Sequence: warn players, 'save-all flush' (the world is on disk from here
     on), 'stop' over RCON, wait; if the JVM hangs in its shutdown (seen: an
     RCON thread blocking it forever while holding GBs of RAM), SIGTERM, then
     SIGKILL — without data loss, the world was flushed first.
-    Returns (ok, message).
+    `reason` picks the Discord announcement (see STOP_WEBHOOKS); `quiet`
+    sends none. Returns (ok, message).
     """
     if not is_server_running(config):
         return False, T["already_offline"]
@@ -893,11 +921,12 @@ def stop_server(config, manual=True, wait=True, timeout=None):
     if not send_rcon(config, "stop"):
         return False, T["stop_rcon_unreachable"]
 
-    if manual:
+    if manual and not quiet:
         try:
             nom = config.get("nom_serveur", "Minecraft")
+            key = STOP_WEBHOOKS.get(reason, "stop")
             templates = mc_config.load_webhooks(config["dossier_serveur"])
-            tpl = templates.get("stop") or mc_config.get_fallback_webhook("stop")
+            tpl = templates.get(key) or mc_config.get_fallback_webhook(key) or mc_config.get_fallback_webhook("stop")
             payload = {"embeds": [_build_embed(tpl, {"nom": nom})]}
             send_discord_webhook(config, payload)
         except Exception:
@@ -1025,8 +1054,11 @@ def backup_server(config, type_backup=None):
     zip_name = os.path.join(dossier_jour, f"backup_{type_backup}_{date_str}.zip")
     staging = os.path.join(dossier, "_mcmanager_backup_staging")
 
+    # An external tool froze the world ('mc freeze'): saving is already off
+    # and the world flushed; leave the freeze to its owner.
+    frozen = os.path.exists(os.path.join(dossier, ".mcmanager_frozen"))
     try:
-        if is_server_running(config):
+        if is_server_running(config) and not frozen:
             send_rcon(config, "save-off")
             # 'flush' makes the command return only once every chunk is on
             # disk; the pause covers servers whose RCON replies early.
@@ -1054,6 +1086,6 @@ def backup_server(config, type_backup=None):
         return False, T["backup_error"].format(e=e)
     finally:
         shutil.rmtree(staging, ignore_errors=True)
-        if is_server_running(config):
+        if is_server_running(config) and not frozen:
             send_rcon(config, "save-on")
 

@@ -23,6 +23,26 @@
             "title": "🔴 Le serveur {nom} est fermé",
             "color": 16711680,
             "description": "C'est l'heure de dormir. La sauvegarde finale a été archivée avec succès. Le serveur est hors ligne jusqu'à la prochaine ouverture."
+        },
+        "stop_sleep": {
+            "title": "💤 {nom} est en veille",
+            "color": 9807270,
+            "description": "Personne n'est connecté : le serveur se repose. Il se réveille dès qu'un joueur se connecte."
+        },
+        "stop_update": {
+            "title": "🛠️ {nom} : mise à jour en cours",
+            "color": 15105570,
+            "description": "Le serveur redémarre après une mise à jour. Il revient dans quelques minutes."
+        },
+        "stop_maintenance": {
+            "title": "🛠️ {nom} est en maintenance",
+            "color": 15105570,
+            "description": "Le serveur est temporairement arrêté pour maintenance."
+        },
+        "stop_switch": {
+            "title": "🔁 {nom} laisse la place",
+            "color": 3447003,
+            "description": "Le serveur s'arrête pour laisser place à un autre serveur."
         }
     },
     "en": {
@@ -49,6 +69,26 @@
             "title": "🔴 {nom} is now closed",
             "color": 16711680,
             "description": "Time to sleep. The final backup has been archived successfully. The server is offline until the next scheduled opening."
+        },
+        "stop_sleep": {
+            "title": "💤 {nom} is sleeping",
+            "color": 9807270,
+            "description": "Nobody is online, so the server is resting. It wakes up as soon as a player connects."
+        },
+        "stop_update": {
+            "title": "🛠️ {nom}: update in progress",
+            "color": 15105570,
+            "description": "The server is restarting after an update. It will be back in a few minutes."
+        },
+        "stop_maintenance": {
+            "title": "🛠️ {nom} is under maintenance",
+            "color": 15105570,
+            "description": "The server is temporarily stopped for maintenance."
+        },
+        "stop_switch": {
+            "title": "🔁 {nom} makes way",
+            "color": 3447003,
+            "description": "The server is stopping to make way for another server."
         }
     }
 }

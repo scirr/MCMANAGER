@@ -24,6 +24,7 @@ This README is a high-level overview only. For installation steps and the comple
 - **CPU affinity** — Pins the server process to specific CPU cores
 - **Shared registry (dual-boot)** — Point Windows and Linux at one shared disk (`MCMANAGER_DATA_DIR`) and the same servers appear on both, no re-registering
 - **Bilingual (FR/EN)** — A single build; the language is chosen on first launch and switchable anytime with `mc language`
+- **Scriptable** — Documented exit codes, `--json` output with a versioned schema, and commands (`mc active`, `mc players`, `mc rcon`, `mc config`, `mc freeze`) so tools never have to parse MC Manager's files (Linux)
 - **Cross-platform** — Same logic, adapted natively for Linux and Windows
 
 ---
@@ -46,6 +47,7 @@ MC_Manager/
 │   ├── mc_image.py     # server-icon.png handling
 │   ├── mc_lang.py      # bilingual FR/EN strings
 │   ├── mc_validate.py  # pure validators
+│   ├── mc_api.py       # states, JSON snapshots, players, freeze/thaw
 │   ├── mc_setup.py     # Java check
 │   ├── install.sh / uninstall.sh
 │   ├── webhook_templates.json
@@ -108,7 +110,11 @@ mc deploy
 | `mc use <target>` | Set the active server |
 | `mc remove <target>` | Unregister a server |
 | `mc start` / `mc stop [--force]` | Start / stop the server (`--force` kills the process if RCON is unavailable) |
-| `mc status` | Show server status |
+| `mc stop --reason <r> [--quiet]` | Stop for a stated reason (`sleep`, `update`, `maintenance`, `switch`) — Linux |
+| `mc status [--json]` | Show server status (explicit state, RAM, uptime, players) — `--json` on Linux |
+| `mc active` / `mc players` / `mc rcon "<cmd>"` | Scripting helpers: active server, players online, one RCON command — Linux |
+| `mc config get\|set <key> [value]` | Read / change a setting everywhere it lives — Linux |
+| `mc freeze` / `mc thaw` | Freeze the world for an external backup — Linux |
 | `mc console` | Attach to the interactive RCON console |
 | `mc logs` | Show recent server logs |
 | `mc backup` | Manual ZIP backup |
