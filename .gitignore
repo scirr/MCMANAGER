@@ -4,6 +4,7 @@ webhooks.json
 
 # Logs
 logs/
+run/
 daemon.log
 daemon_error*.log
 *.log

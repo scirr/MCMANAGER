@@ -99,6 +99,13 @@ def check_server(name, info):
         results.append(("warn", T["doctor_label_props"], detail, T["doctor_props_fix"]))
     else:
         results.append(("ok", T["doctor_label_props"], T["doctor_props_ok"], None))
+    rcon_port = config.get("rcon_port")
+    if rcon_port:
+        clash = mc_servers.find_port_conflict(port=rcon_port, rcon_port=rcon_port, exclude_name=name)
+        if clash:
+            results.append(("warn", T["doctor_label_rcon_port"],
+                            T["doctor_rcon_shared"].format(port=rcon_port, other=clash),
+                            T["doctor_rcon_shared_fix"].format(name=name)))
     reg_port = info.get("port")
     if reg_port is not None and config.get("port") is not None and str(reg_port) != str(config.get("port")):
         results.append(("warn", T["doctor_label_registry"],

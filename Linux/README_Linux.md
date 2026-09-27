@@ -286,6 +286,11 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc config set <key> <value> [target]` | Change a setting and propagate it everywhere it lives: `config.json`, `servers.json`, `server.properties`, firewall |
 | `mc freeze [target] [--max 1h] [-- <command>]` | Freeze the world for an external backup (`save-off` + `save-all flush`); with `-- <command>`, runs it and always thaws afterwards |
 | `mc thaw [target]` | Re-enable world saving |
+| `mc switch <target> [--force]` | Hand the active server's place to another server: stop, swap game and RCON ports, start (refused while players are online unless `--force`) |
+| `mc sleep enable\|disable\|status\|wake [target] [--after 2h]` | Automatic sleep when nobody plays; wakes when a known player joins |
+| `mc sleep allow\|deny <player> [target]` | Let a player who never joined before wake the server (or stop letting them) |
+| `mc datapack list\|enable\|disable [<pack>] [target]` | Manage datapacks live (`--before P`, `--after P`, `--first`, `--last` to order) |
+| `mc mod list\|add\|remove [<mod>] [target]` | Manage mods, AutoModpack copy included; removal goes to quarantine |
 | `mc use <name/number>` | Change the active server (argument required) |
 | `mc configure [target]` | Reconfigure an already registered server (also guarantees RCON/AutoModpack) |
 | `mc remove <name/number>` | Unregister a server from the registry (deletes NO files) |
@@ -368,6 +373,60 @@ The last three all rely on `mode_maintenance = 1` in `config.json` — still the
 
 ---
 
+## Sleep mode
+
+```bash
+mc sleep enable --after 2h      # sleep after 2 hours without players
+mc sleep status
+mc sleep allow Alex             # a friend who has never joined yet
+mc sleep wake                   # wake it now
+```
+
+When nobody has played for the chosen time, the server is saved and stopped (Discord: "sleeping"), and its state becomes `sleeping`. The service then holds the game port itself:
+
+- the server **stays visible** in the multiplayer list, with a "sleeping" description and 0 players — whatever the players' game version;
+- when a player **the server already knows** tries to join (anyone in `usercache.json`, `ops.json` or `whitelist.json` of any registered server, plus `mc sleep allow`), the server wakes up and the player is asked to reconnect a minute later. Unknown names — mostly internet scanners — get a polite refusal and never wake it;
+- it never wakes during a world freeze (`mc freeze`: it waits for the thaw), outside opening hours in schedule mode, or after a manual `mc stop`.
+
+Sleep requires RCON (to count players) and the service to be running. It frees all the server's memory while nobody plays.
+
+---
+
+## Switching servers (`mc switch`)
+
+```bash
+mc switch creative
+```
+
+Makes `creative` the active server **in place of** the current one: refuses if players are online (`--force` to override), stops the current server (reason `switch`) and waits for its process to exit, **swaps the game ports and the RCON ports** of the two servers (a shared RCON port is replaced by a free one), updates both `server.properties`, then starts `creative`. Players keep using the same address.
+
+---
+
+## Datapacks and mods
+
+```bash
+mc datapack list                          # files, enabled state and order, problems
+mc datapack enable terralith --first      # enable (or move) a pack
+mc datapack disable terralith
+mc mod add ~/Downloads/create-1.0.jar     # into mods/ and the AutoModpack host modpack
+mc mod add ~/Downloads/spark.jar --server-only
+mc mod remove create                      # moved to mods_quarantine/<date>/, never deleted
+```
+
+- A pack placed in a **sub-folder** of `world/datapacks` is ignored by Minecraft: `mc datapack list` flags it.
+- A pack that changes world generation (`worldgen/`) only takes effect after a **restart**: MC Manager says so.
+- Moving an already enabled pack works (Minecraft itself refuses; MC Manager disables and re-enables it at the requested position).
+- With AutoModpack, a mod exists twice (`mods/` and `automodpack/host-modpack/main/mods/`): `mc mod` always handles both copies, so a removed mod is no longer shipped to players.
+- Removing a mod that **adds blocks** turns those blocks into air in the world, and the server saves that. MC Manager refuses unless you add `--yes` — back the world up first.
+
+---
+
+## Starting through the service
+
+`mc start`, `mc switch` and wake-ups are carried out **by the service** whenever it is running: the server is never a child of your terminal, so it stays inside the service's limits (memory, swap, `KillMode=process`) and survives the terminal closing. When the service is not running, `mc start` launches the server directly and says so.
+
+---
+
 ## Scripting (JSON API)
 
 Third-party scripts should use these commands rather than read MC Manager's files: the commands keep working when the files evolve.
@@ -383,6 +442,15 @@ Third-party scripts should use these commands rather than read MC Manager's file
 | Change a port consistently | `mc config set port 25566` |
 | Stop without announcing, for a known reason | `mc stop --reason sleep --quiet` |
 | Consistent external backup | `mc freeze -- restic backup /path/to/world` |
+| Switch the active server | `mc switch <name> --json` |
+| Sleep settings / state | `mc sleep status --json` |
+| Datapacks, mods | `mc datapack list --json`, `mc mod list --json` |
+
+Every action command with `--json` prints a result object: `{"schema": 1, "ok": true|false, "code": "<stable identifier>", ...}`. The `code` values are stable and meant for programs; the human text is derived from them in the chosen language.
+
+### Architecture
+
+Every operation lives in `mc_api.py` (plus `mc_content.py` for datapacks and mods): functions that take a server and return a result object, never print, and never depend on the terminal. The command line is one front end over this layer; a graphical interface can call the same functions, or the same commands with `--json`, and get exactly the same behaviour.
 
 JSON documents carry `"schema": 1`. Within a schema version, fields may be added, never renamed or removed. Human messages always go to stderr or are absent in `--json` mode, so stdout is pure JSON. On an error, `--json` commands print `{"schema": 1, "error": {"code": ...}}` and exit with the codes documented above.
 

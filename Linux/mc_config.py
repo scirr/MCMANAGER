@@ -422,8 +422,8 @@ def set_value(config, name, key, raw):
         other_key = "rcon_port" if key == "port" else "port"
         if str(config.get(other_key)) == str(value):
             return "conflict", T["config_port_same"].format(port=value)
-        kwargs = {key: value}
-        clash = mc_servers.find_port_conflict(exclude_name=name, **kwargs)
+        # A port must be free among every other server's game AND RCON ports.
+        clash = mc_servers.find_port_conflict(port=value, rcon_port=value, exclude_name=name)
         if clash:
             return "conflict", T["config_port_taken"].format(port=value, name=clash)
 

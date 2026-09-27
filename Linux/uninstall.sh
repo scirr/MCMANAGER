@@ -53,7 +53,7 @@ fi
 echo ""
 
 echo "[4/4] Cleaning generated files..."
-rm -rf logs __pycache__
+rm -rf logs run __pycache__
 rm -f daemon.log daemon_error*.log server.pid mc
 echo "[OK] Generated files cleaned."
 echo ""

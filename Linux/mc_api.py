@@ -169,8 +169,12 @@ def server_snapshot(name, info, active_name=None):
             snap["cgroup"] = mc_core.proc_cgroup(pid)
     elif snap["port"]:
         occupant = mc_core.port_occupant(snap["port"])
-        if occupant:
+        if state == "sleeping":
+            # Held by the daemon's sleep listener, which is the expected case.
+            snap["sleep_listener"] = occupant is not None
+        elif occupant:
             snap["port_holder"] = {"pid": occupant[0], "program": occupant[1]}
+    snap["sleep"] = sleep_info(config)
     return snap
 
 
@@ -322,3 +326,207 @@ def freeze_expired(config, now=None):
     if marker is None:
         return is_frozen(config)     # unreadable marker: treat as expired
     return (now or time.time()) >= marker.get("expires", 0)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Operations — the single entry point for every front end (CLI today, GUI
+# tomorrow). Each returns result(): {"ok": bool, "code": str, ...data}. Codes
+# are stable identifiers; front ends turn them into text in their own
+# language. Nothing here prints.
+# ══════════════════════════════════════════════════════════════════════════════
+
+# True inside the daemon process: operations then act directly instead of
+# going through the daemon's request channel.
+IN_DAEMON = False
+
+
+def result(ok, code, **data):
+    return {"ok": ok, "code": code, **data}
+
+
+def load_server(target=None):
+    """(name, config) for a target (name, number or None = active server), or
+    a failure result. Never prints."""
+    registry = mc_servers.load_registry()
+    servers = registry.get("servers", {})
+    if not servers:
+        return None, result(False, "no_server")
+    name = registry.get("active") if target is None else mc_servers._lookup_key(servers, target)
+    if not name or name not in servers:
+        return None, result(False, "not_found", target=target,
+                            available=[f"{i.get('id')}:{n}" for n, i in servers.items()])
+    dossier = servers[name].get("dossier_serveur", "")
+    if not dossier or not os.path.isdir(dossier):
+        return None, result(False, "folder_missing", server=name, path=dossier)
+    config = mc_config.load_config(dossier)
+    config["dossier_serveur"] = dossier
+    return (name, config), None
+
+
+# ── start / stop ─────────────────────────────────────────────────────────────
+
+def start(name, config):
+    """Start a server. When the daemon is running, it launches the JVM itself,
+    so the server lives in the service's cgroup (memory limits, KillMode) and
+    never as a child of the caller's shell; otherwise the JVM is launched
+    directly and the result says so (outside_service=True)."""
+    import mc_ipc
+    if mc_core.is_server_running(config):
+        return result(True, "already_running", server=name)
+    if not IN_DAEMON and mc_ipc.daemon_listening():
+        answer = mc_ipc.call("start", server=name)
+        if answer is None:
+            return result(False, "daemon_timeout", server=name)
+        return answer
+    ok, msg = mc_core.start_server(config)
+    return result(ok, "started" if ok else "start_failed", server=name, message=msg,
+                  outside_service=not IN_DAEMON)
+
+
+def stop(name, config, reason=None, quiet=False, force=False):
+    """Stop a server and hand it over to maintenance with a recorded reason
+    (mode_maintenance = 1 is what makes the daemon leave it alone)."""
+    reason = reason or "user"
+    if reason not in STOP_REASONS:
+        return result(False, "bad_reason", reason=reason)
+    message = None
+    if mc_core.is_server_running(config):
+        if force:
+            if not mc_core.force_kill_server(config):
+                return result(False, "still_running", server=name)
+            code = "killed"
+        else:
+            ok, message = mc_core.stop_server(config, reason=reason, quiet=quiet)
+            if not ok:
+                return result(False, "stop_failed", server=name, message=message)
+            code = "stopped"
+    else:
+        code = "already_stopped"
+    config["mode_maintenance"] = 1
+    config["stop_reason"] = reason
+    mc_config.save_config(config)
+    if is_frozen(config):
+        thaw(config)
+    return result(True, code, server=name, reason=reason, message=message)
+
+
+# ── switch ───────────────────────────────────────────────────────────────────
+
+def _free_rcon_port(start_at, taken):
+    port = int(start_at) + 1
+    while port in taken or mc_core._port_in_use(port):
+        port += 1
+    return port
+
+
+def switch(target, force=False):
+    """Hand the active server's place (its game port, its RCON port, the
+    'active' mark) to another server, atomically:
+    refuse while players are online (unless force), stop the outgoing server
+    with reason 'switch' and wait for its JVM to exit, swap the ports, resync
+    server.properties on both sides, then start the incoming server."""
+    registry = mc_servers.load_registry()
+    out_name = registry.get("active")
+    loaded, error = load_server(target)
+    if error:
+        return error
+    in_name, in_cfg = loaded
+    if out_name == in_name:
+        return result(False, "already_active", server=in_name)
+    out_loaded, error = load_server(out_name) if out_name else (None, None)
+    if error or not out_loaded:
+        # No valid outgoing server: this is just 'use' + 'start'.
+        mc_servers.set_active(in_name)
+        in_cfg["mode_maintenance"] = 0
+        in_cfg.pop("stop_reason", None)
+        mc_config.save_config(in_cfg)
+        started = start(in_name, in_cfg)
+        return result(started["ok"], "switched" if started["ok"] else "start_failed",
+                      server=in_name, previous=None, start=started)
+    _, out_cfg = out_loaded
+
+    if mc_core.is_server_running(out_cfg) and not force:
+        ok, players = query_players(out_cfg)
+        if not ok:
+            return result(False, "players_unknown", server=out_name)
+        if players["online"] > 0:
+            return result(False, "players_online", server=out_name,
+                          online=players["online"], players=players["players"])
+
+    stopped = stop(out_name, out_cfg, reason="switch")
+    if not stopped["ok"]:
+        return result(False, "stop_failed", server=out_name, stop=stopped)
+    if mc_core.is_server_running(in_cfg):
+        # The incoming server must restart to take its new port.
+        ok, msg = mc_core.stop_server(in_cfg, reason="switch", quiet=True)
+        if not ok:
+            return result(False, "stop_failed", server=in_name, message=msg)
+
+    out_port, out_rcon = out_cfg.get("port"), out_cfg.get("rcon_port", mc_core.DEFAULT_RCON_PORT)
+    in_port, in_rcon = in_cfg.get("port"), in_cfg.get("rcon_port", mc_core.DEFAULT_RCON_PORT)
+    in_cfg["port"], out_cfg["port"] = out_port, in_port
+    in_cfg["rcon_port"], out_cfg["rcon_port"] = out_rcon, in_rcon
+    if str(in_rcon) == str(out_rcon):
+        taken = set()
+        for info in mc_servers.list_servers().values():
+            for key in ("port", "rcon_port"):
+                if info.get(key):
+                    taken.add(int(info[key]))
+        taken |= {int(out_port or 0), int(in_port or 0)}
+        out_cfg["rcon_port"] = _free_rcon_port(out_rcon, taken)
+
+    in_cfg["mode_maintenance"] = 0
+    in_cfg.pop("stop_reason", None)
+    mc_config.save_config(out_cfg)
+    mc_config.save_config(in_cfg)
+    mc_core.sync_server_properties(out_cfg)
+    mc_core.sync_server_properties(in_cfg)
+    mc_servers.set_active(in_name)
+
+    started = start(in_name, in_cfg)
+    return result(started["ok"], "switched" if started["ok"] else "start_failed",
+                  server=in_name, previous=out_name, port=in_cfg["port"],
+                  rcon_port=in_cfg["rcon_port"], previous_rcon_port=out_cfg["rcon_port"],
+                  start=started)
+
+
+# ── sleep settings ───────────────────────────────────────────────────────────
+
+DEFAULT_SLEEP_AFTER = 2 * 3600
+
+
+def sleep_info(config):
+    return {
+        "enabled": config.get("sleep_enabled", 0) == 1,
+        "after_s": int(config.get("sleep_after", DEFAULT_SLEEP_AFTER)),
+        "allow": list(config.get("sleep_allow", [])),
+    }
+
+
+def sleep_configure(name, config, enabled=None, after_s=None, allow_add=(), allow_remove=()):
+    if enabled is not None:
+        config["sleep_enabled"] = 1 if enabled else 0
+    if after_s is not None:
+        if after_s < 300:
+            return result(False, "sleep_after_too_short", minimum=300)
+        config["sleep_after"] = int(after_s)
+    allow = [n for n in config.get("sleep_allow", []) if n.lower() not in {a.lower() for a in allow_remove}]
+    for n in allow_add:
+        if n.lower() not in {a.lower() for a in allow}:
+            allow.append(n)
+    if allow or "sleep_allow" in config:
+        config["sleep_allow"] = allow
+    if enabled and not config.get("mcrcon_pass"):
+        return result(False, "sleep_needs_rcon", server=name)
+    mc_config.save_config(config)
+    return result(True, "sleep_updated", server=name, **sleep_info(config))
+
+
+def wake(name, config):
+    """Wake a sleeping server now (same path as a known player joining)."""
+    if server_state(config) != "sleeping":
+        return result(False, "not_sleeping", server=name, state=server_state(config))
+    config["mode_maintenance"] = 0
+    config.pop("stop_reason", None)
+    mc_config.save_config(config)
+    return start(name, config)

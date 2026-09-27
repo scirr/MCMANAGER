@@ -251,7 +251,10 @@ def render_server_box(name, info, active_name):
         mode_label = T["mode_sched_hours"].format(oh=ho, om=mo, ch=hf, cm=mf)
     elif mode == "maintenance":
         was = T["mode_always_on"] if config.get("always_on", 1) == 1 else T["mode_schedule"]
-        mode_label = T["mode_maint_was"].format(was=was)
+        if state == "sleeping":
+            mode_label = T["mode_sleep_was"].format(was=was)
+        else:
+            mode_label = T["mode_maint_was"].format(was=was)
     else:
         mode_label = T["mode_always_on"]
 
@@ -414,6 +417,8 @@ def print_categorized_help():
             (f"backup [{tgt}]", T["help_backup"]),
             (f"freeze [{tgt}] [-- <cmd>]", T["help_freeze"]),
             (f"thaw [{tgt}]", T["help_thaw"]),
+            (f"sleep enable|disable|status|wake [{tgt}] [--after 2h]", T["help_sleep"]),
+            (f"sleep allow|deny <{T['arg_player']}> [{tgt}]", T["help_sleep_allow"]),
             (f"announce [{tgt}]", T["help_announce"]),
             (f"fingerprint [{tgt}]", T["help_fingerprint"]),
         ]),
@@ -421,6 +426,7 @@ def print_categorized_help():
             (f"status [{tgt}] [--json]", T["help_status"]),
             ("active [--path|--json]", T["help_active"]),
             (f"use <{tgt}>", T["help_use"]),
+            (f"switch <{tgt}> [--force]", T["help_switch"]),
             (f"remove <{tgt}>", T["help_remove"]),
             (f"open [{tgt}]", T["help_open"]),
         ]),
@@ -431,6 +437,8 @@ def print_categorized_help():
             (f"config get|set <{T['arg_key']}> [<{val}>] [{tgt}]", T["help_config"]),
             (f"edit config|webhooks [{tgt}]", T["help_edit"]),
             (f"image add|rm [{tgt}]", T["help_image"]),
+            (f"datapack list|enable|disable [<pack>] [{tgt}]", T["help_datapack"]),
+            (f"mod list|add|remove [<mod>] [{tgt}]", T["help_mod"]),
             (f"schedule H M H M [{tgt}]", T["help_schedule"]),
             (f"mode <{val}> [{tgt}]", T["help_mode"]),
             (f"resume [{tgt}]", T["help_resume"]),
@@ -507,6 +515,34 @@ def main():
     p_freeze = subparsers.add_parser("freeze", parents=[target_parser], help=T["help_freeze"])
     p_freeze.add_argument("--max", default=None, metavar="DURATION", help=T["help_freeze_max"])
     subparsers.add_parser("thaw", parents=[target_parser], help=T["help_thaw"])
+
+    p_switch = subparsers.add_parser("switch", help=T["help_switch"])
+    p_switch.add_argument("target", help=T["cli_target_help"])
+    p_switch.add_argument("--force", action="store_true", help=T["help_switch_force"])
+    p_switch.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_sleep = subparsers.add_parser("sleep", help=T["help_sleep"])
+    p_sleep.add_argument("sleep_action", choices=["enable", "disable", "status", "wake", "allow", "deny"])
+    p_sleep.add_argument("args", nargs="*", help=T["help_sleep_args"])
+    p_sleep.add_argument("--after", default=None, metavar="DURATION", help=T["help_sleep_after"])
+    p_sleep.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_dp = subparsers.add_parser("datapack", help=T["help_datapack"])
+    p_dp.add_argument("dp_action", choices=["list", "enable", "disable"])
+    p_dp.add_argument("args", nargs="*", help=T["help_datapack_args"])
+    g_dp = p_dp.add_mutually_exclusive_group()
+    g_dp.add_argument("--before", metavar="PACK")
+    g_dp.add_argument("--after", metavar="PACK")
+    g_dp.add_argument("--first", action="store_true")
+    g_dp.add_argument("--last", action="store_true")
+    p_dp.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_mod = subparsers.add_parser("mod", help=T["help_mod"])
+    p_mod.add_argument("mod_action", choices=["list", "add", "remove"])
+    p_mod.add_argument("args", nargs="*", help=T["help_mod_args"])
+    p_mod.add_argument("--server-only", action="store_true", help=T["help_mod_server_only"])
+    p_mod.add_argument("--yes", action="store_true", help=T["help_mod_yes"])
+    p_mod.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_config = subparsers.add_parser("config", help=T["help_config"])
     p_config.add_argument("config_action", choices=["get", "set"])
@@ -643,6 +679,18 @@ def main():
     if args.action == "config":
         return cmd_config(args)
 
+    if args.action == "switch":
+        return cmd_switch(args)
+
+    if args.action == "sleep":
+        return cmd_sleep(args)
+
+    if args.action == "datapack":
+        return cmd_datapack(args)
+
+    if args.action == "mod":
+        return cmd_mod(args)
+
     if args.action in ("freeze", "thaw"):
         return cmd_freeze_thaw(args, freeze_cmd)
 
@@ -765,41 +813,31 @@ def main():
         # can therefore be started manually while staying in maintenance (the
         # daemon keeps ignoring it, webhooks stay silent) until 'mc resume'.
         logging.basicConfig(level=logging.INFO, format="\033[90m[INFO]\033[0m %(message)s")
-        ok, msg = mc_core.start_server(config)
-        if not ok and msg == T["already_online"]:
-            print_info(msg)          # desired state already holds: exit 0
+        res = mc_api.start(active_name, config)
+        if res["code"] == "already_running":
+            print_info(T["already_online"])          # desired state already holds: exit 0
         else:
-            print_res(ok, msg)
-        if ok:
+            print_res(res["ok"], res.get("message") or render(res))
+        if res["ok"] and res["code"] != "already_running":
+            if res.get("outside_service"):
+                print_info(T["start_outside_service"])
             print_info(T["start_console_hint"])
 
     elif args.action == "stop":
-        was_running = mc_core.is_server_running(config)
-        stop_ok = True
-        if was_running:
-            if getattr(args, "force", False):
-                stop_ok = mc_core.force_kill_server(config)
-                print_res(stop_ok, T["stop_forced"] if stop_ok else T["stop_still_running"])
-            else:
-                # No in-memory maintenance clear: stop_server sends its webhook
-                # only when the server was NOT already in maintenance (active ->
-                # maintenance transition). Stopping an already-maintenance server
-                # stays silent. It returns once the JVM has really exited.
-                print_info(T["stop_waiting"])
-                stop_ok, stop_msg = mc_core.stop_server(config, reason=args.reason, quiet=args.quiet)
-                print_res(stop_ok, stop_msg)
-        else:
+        # The JVM is waited for; the reason is recorded next to the
+        # maintenance flag so 'mc status' can say "sleeping", "maintenance"...
+        if mc_core.is_server_running(config) and not args.force:
+            print_info(T["stop_waiting"])
+        res = mc_api.stop(active_name, config, reason=args.reason, quiet=args.quiet, force=args.force)
+        if res["code"] == "already_stopped":
             print_info(T["already_offline"])
-        # The server is still running if the stop failed — claiming maintenance
-        # was enabled would hide that from the user.
-        if stop_ok:
-            config["mode_maintenance"] = 1
-            # Why it is stopped: 'mc status' shows "sleeping" / "maintenance"
-            # / "stopped by user" instead of one overloaded flag.
-            config["stop_reason"] = args.reason or "user"
-            save_config(config)
-            if mc_api.is_frozen(config):
-                mc_api.thaw(config)   # server gone: the freeze has nothing left to hold
+        elif res["code"] == "killed":
+            print_res(True, T["stop_forced"])
+        elif res["ok"]:
+            print_res(True, res.get("message") or T["stop_done"])
+        else:
+            print_res(False, res.get("message") or render(res))
+        if res["ok"]:
             print_res(True, T["maintenance_activated"])
 
     elif args.action == "announce":
@@ -1013,6 +1051,176 @@ def cmd_config(args):
     if mc_core.is_server_running(config) and args.key in mc_config.RESTART_KEYS:
         print_info(T["config_restart_needed"])
     return EXIT_OK
+
+
+# ==========================================
+# SWITCH / SLEEP / DATAPACKS / MODS
+# ==========================================
+
+def render(res):
+    """Text for an API result, from its code (strings 'res_<code>')."""
+    template = T.get(f"res_{res.get('code')}")
+    if not template:
+        return res.get("message") or res.get("code", "?")
+    data = {k: (", ".join(map(str, v)) if isinstance(v, (list, tuple)) else v) for k, v in res.items()}
+    try:
+        return template.format(**data)
+    except (KeyError, IndexError, ValueError):
+        return template
+
+def _finish(res, as_json):
+    """Print an API result (JSON or text) and return the exit code."""
+    if as_json:
+        print_json({"schema": mc_api.SCHEMA_VERSION, **res})
+    else:
+        print_res(res["ok"], render(res))
+        if res.get("restart_required"):
+            print_info(T["restart_required"])
+    if res["ok"]:
+        return EXIT_OK
+    return EXIT_NOT_FOUND if res["code"] in ("not_found", "no_server", "folder_missing") else EXIT_ERROR
+
+def _load(target, as_json):
+    loaded, error = mc_api.load_server(target)
+    if error:
+        return None, _finish(error, as_json)
+    if target is None and not as_json:
+        print_target(loaded[0])
+    return loaded, None
+
+def _split_target(values, wanted):
+    """Positional values = `wanted` operands then an optional target."""
+    values = list(values or [])
+    operands, rest = values[:wanted], values[wanted:]
+    if len(rest) > 1:
+        return None, None
+    return operands, (rest[0] if rest else None)
+
+def cmd_switch(args):
+    if not args.json:
+        print_info(T["switch_running"])
+    res = mc_api.switch(args.target, force=args.force)
+    if res["ok"] and not args.json:
+        start = res.get("start") or {}
+        if start.get("message"):
+            print_info(start["message"])
+    return _finish(res, args.json)
+
+def cmd_sleep(args):
+    action = args.sleep_action
+    wanted = 1 if action in ("allow", "deny") else 0
+    operands, target = _split_target(args.args, wanted)
+    if operands is None or len(operands) < wanted:
+        print_res(False, T["sleep_usage"])
+        return EXIT_USAGE
+    loaded, code = _load(target, args.json)
+    if not loaded:
+        return code
+    name, config = loaded
+    if action == "status":
+        info = mc_api.sleep_info(config)
+        state = mc_api.server_state(config)
+        if args.json:
+            print_json({"schema": mc_api.SCHEMA_VERSION, "server": name, "state": state, **info})
+            return EXIT_OK
+        if info["enabled"]:
+            print_res(True, T["sleep_status_on"].format(after=_human_duration(info["after_s"])))
+        else:
+            print_info(T["sleep_status_off"])
+        print_info(T["sleep_status_state"].format(state=state))
+        if info["allow"]:
+            print_info(T["sleep_status_allow"].format(names=", ".join(info["allow"])))
+        return EXIT_OK
+    if action == "wake":
+        return _finish(mc_api.wake(name, config), args.json)
+    after = None
+    if args.after:
+        try:
+            after = mc_api.parse_duration(args.after)
+        except ValueError:
+            print_res(False, T["invalid_duration"].format(val=args.after))
+            return EXIT_USAGE
+    if action == "enable":
+        res = mc_api.sleep_configure(name, config, enabled=True, after_s=after)
+    elif action == "disable":
+        res = mc_api.sleep_configure(name, config, enabled=False)
+    elif action == "allow":
+        res = mc_api.sleep_configure(name, config, allow_add=operands)
+    else:
+        res = mc_api.sleep_configure(name, config, allow_remove=operands)
+    if res["ok"] and not args.json:
+        res = dict(res, after=_human_duration(res["after_s"]))
+    return _finish(res, args.json)
+
+def cmd_datapack(args):
+    import mc_content
+    wanted = 0 if args.dp_action == "list" else 1
+    operands, target = _split_target(args.args, wanted)
+    if operands is None or len(operands) < wanted:
+        print_res(False, T["datapack_usage"])
+        return EXIT_USAGE
+    loaded, code = _load(target, args.json)
+    if not loaded:
+        return code
+    _name, config = loaded
+    if args.dp_action == "list":
+        res = mc_content.datapack_list(config)
+        if args.json:
+            return _finish(res, True)
+        if not res["running"]:
+            print_info(T["datapack_offline_list"])
+        for pack in res["packs"]:
+            state = {True: T["dp_enabled"], False: T["dp_disabled"], None: "?"}[pack["enabled"]]
+            flags = []
+            if pack["order"] is not None:
+                flags.append(f"#{pack['order'] + 1}")
+            if pack["worldgen"]:
+                flags.append(T["dp_worldgen"])
+            line = f"  {pack['file']:<40} {state:<12} {' '.join(flags)}"
+            print(line.rstrip())
+            if pack["problem"]:
+                print(f"    \033[93m-> {T['res_pack_' + pack['problem']].format(name=pack['file'])}\033[0m")
+        if not res["packs"]:
+            print_info(T["datapack_none"].format(folder=res["folder"]))
+        return EXIT_OK
+    res = mc_content.datapack_set(config, operands[0], enable=args.dp_action == "enable",
+                                  before=args.before, after=args.after,
+                                  first=args.first, last=args.last)
+    return _finish(res, args.json)
+
+def cmd_mod(args):
+    import mc_content
+    wanted = 0 if args.mod_action == "list" else 1
+    operands, target = _split_target(args.args, wanted)
+    if operands is None or len(operands) < wanted:
+        print_res(False, T["mod_usage"])
+        return EXIT_USAGE
+    loaded, code = _load(target, args.json)
+    if not loaded:
+        return code
+    _name, config = loaded
+    if args.mod_action == "list":
+        res = mc_content.mod_list(config)
+        if args.json:
+            return _finish(res, True)
+        for mod in res["mods"]:
+            where = []
+            if mod["server"]:
+                where.append(T["mod_where_server"])
+            if mod["modpack"]:
+                where.append(T["mod_where_modpack"])
+            print(f"  {mod['file']:<50} {' + '.join(where)}")
+        print_info(T["mod_count"].format(n=len(res["mods"])))
+        return EXIT_OK
+    if args.mod_action == "add":
+        res = mc_content.mod_add(config, operands[0], server_only=args.server_only)
+    else:
+        res = mc_content.mod_remove(config, operands[0], confirm_blocks=args.yes)
+    if res["ok"] and res["code"] == "added" and not args.json:
+        res = dict(res, copies=len(res["copies"]))
+    if res["ok"] and res["code"] == "removed" and not args.json:
+        res = dict(res, moved=len(res["moved"]))
+    return _finish(res, args.json)
 
 def dispatch_daemon(daemon_action):
     if daemon_action == "run":

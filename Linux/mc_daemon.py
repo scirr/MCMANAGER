@@ -12,6 +12,9 @@ import mc_config
 import mc_core
 import mc_servers
 import mc_api
+import mc_ipc
+import mc_sleep
+import threading
 from mc_lang import T
 
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
@@ -48,6 +51,7 @@ def _reap_children():
 
 def _new_state():
     return {
+        "idle_since": None,
         "last_error": None,
         "backup_milieu_fait": False,
         "noon_backup_date": None,
@@ -93,6 +97,11 @@ def process_server_tick(name, dossier_serveur, state):
     current_mins = maintenant.hour * 60 + maintenant.minute
     en_ligne = mc_core.is_server_running(config)
     always_on = config.get("always_on", 1)
+
+    if en_ligne and _put_to_sleep_if_idle(name, config, state):
+        return
+    if not en_ligne:
+        state["idle_since"] = None
 
     if always_on == 1:
         if not en_ligne:
@@ -182,27 +191,249 @@ def process_server_tick(name, dossier_serveur, state):
             mc_core.send_discord_webhook(config, payload)
             logging.info(f"[{name}] Server stopped and backed up successfully.")
 
+
+def _put_to_sleep_if_idle(name, config, state, now=None):
+    """Sleep mode: stop a server nobody has played on for sleep_after seconds.
+    Returns True if the server was put to sleep. Never during a world freeze,
+    never outside opening hours (the nightly close handles those), never when
+    the player count is unknown (RCON down)."""
+    info = mc_api.sleep_info(config)
+    if not info["enabled"]:
+        state["idle_since"] = None
+        return False
+    if config.get("always_on", 1) != 1 and not mc_core.is_open_now(config):
+        return False
+    ok, players = mc_api.query_players(config)
+    if not ok:
+        return False
+    now = now or time.time()
+    if players["online"] > 0:
+        state["idle_since"] = None
+        return False
+    if state["idle_since"] is None:
+        state["idle_since"] = now
+        return False
+    if now - state["idle_since"] < info["after_s"] or mc_api.is_frozen(config):
+        return False
+    logging.info(f"[{name}] No player for {int(now - state['idle_since']) // 60} min: going to sleep.")
+    result = mc_api.stop(name, config, reason="sleep")
+    logging.info(f"[{name}] Sleep: {result['code']} {result.get('message') or ''}".rstrip())
+    state["idle_since"] = None
+    return result["ok"]
+
+
+class SleepManager:
+    """Owns one SleepListener per sleeping server and the wake queue."""
+
+    KNOWN_REFRESH = 60
+
+    def __init__(self):
+        self.listeners = {}
+        self.wakes = []
+        self.lock = threading.Lock()
+        self.retry_after = {}
+        self._known = set()
+        self._known_at = 0
+
+    def known(self):
+        if time.time() - self._known_at > self.KNOWN_REFRESH:
+            dirs, extra = [], []
+            try:
+                for info in mc_servers.list_servers().values():
+                    dossier = info.get("dossier_serveur", "")
+                    dirs.append(dossier)
+                    try:
+                        extra += mc_config.load_config(dossier).get("sleep_allow", [])
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            self._known = mc_sleep.known_players(dirs, extra)
+            self._known_at = time.time()
+        return self._known
+
+    @staticmethod
+    def should_listen(config):
+        return (mc_api.sleep_info(config)["enabled"]
+                and config.get("mode_maintenance", 0) == 1
+                and config.get("stop_reason") == "sleep"
+                and not mc_core.is_server_running(config))
+
+    def sync(self, servers):
+        for name, info in servers.items():
+            dossier = info.get("dossier_serveur", "")
+            try:
+                config = mc_config.load_config(dossier)
+            except Exception:
+                continue
+            config["dossier_serveur"] = dossier
+            listener = self.listeners.get(name)
+            wanted = self.should_listen(config)
+            if listener and (not wanted or not listener.is_alive()
+                             or listener.port != int(config.get("port") or 0)):
+                self.release(name)
+                listener = None
+            if wanted and not listener and config.get("port") \
+                    and time.time() >= self.retry_after.get(name, 0):
+                self._listen(name, dossier, config)
+        for name in list(self.listeners):
+            if name not in servers:
+                self.release(name)
+
+    def release(self, name):
+        listener = self.listeners.pop(name, None)
+        if listener:
+            listener.stop()
+            logging.info(f"[{name}] Sleep listener closed (port {listener.port}).")
+
+    def release_port(self, port):
+        for name, listener in list(self.listeners.items()):
+            if listener.port == int(port or 0):
+                self.release(name)
+
+    def _listen(self, name, dossier, config):
+        def status():
+            fresh = mc_config.load_config(dossier)
+            nom = fresh.get("nom_serveur", name)
+            return (T["sleep_motd"].format(name=nom), _max_players(dossier),
+                    fresh.get("mc_version") or "Minecraft", mc_sleep.server_favicon(dossier))
+
+        def on_login(player):
+            return self.decide(name, dossier, player)
+
+        def on_error(msg):
+            logging.warning(f"[{name}] Sleep listener cannot hold port {config.get('port')}: {msg}. Retrying in 60 s.")
+            self.retry_after[name] = time.time() + 60
+
+        listener = mc_sleep.SleepListener(name, config["port"], status, on_login, on_error)
+        listener.start()
+        self.listeners[name] = listener
+        logging.info(f"[{name}] Sleeping: listener on port {config['port']}.")
+
+    def decide(self, name, dossier, player):
+        """Runs in a listener thread: may this player wake the server?"""
+        try:
+            config = mc_config.load_config(dossier)
+        except Exception:
+            return T["sleep_kick_unavailable"]
+        config["dossier_serveur"] = dossier
+        if player.lower() not in self.known():
+            logging.info(f"[{name}] Wake refused: unknown player '{player}'.")
+            return T["sleep_kick_unknown"]
+        if mc_api.is_frozen(config):
+            logging.info(f"[{name}] Wake postponed for '{player}': world frozen (backup running).")
+            return T["sleep_kick_backup"]
+        if config.get("always_on", 1) != 1 and not mc_core.is_open_now(config):
+            start, _end = mc_core.schedule_minutes(config)
+            return T["sleep_kick_closed"].format(time="%02d:%02d" % divmod(start, 60))
+        if config.get("stop_reason") != "sleep":
+            return T["sleep_kick_starting"]
+        with self.lock:
+            if name not in self.wakes:
+                self.wakes.append(name)
+                logging.info(f"[{name}] Wake requested by '{player}'.")
+        return T["sleep_kick_waking"]
+
+    def pop_wakes(self):
+        with self.lock:
+            wakes, self.wakes = self.wakes, []
+        return wakes
+
+
+def _max_players(dossier):
+    try:
+        with open(os.path.join(dossier, "server.properties"), encoding="utf-8-sig", errors="replace") as f:
+            for line in f:
+                if line.startswith("max-players="):
+                    return int(line.split("=", 1)[1].strip())
+    except Exception:
+        pass
+    return 20
+
+
+def _handle_request(sleep, request):
+    """Serve one request from the CLI (see mc_ipc)."""
+    action, params = request.get("action"), request.get("params") or {}
+    if action == "start":
+        loaded, error = mc_api.load_server(params.get("server"))
+        if error:
+            return error
+        name, config = loaded
+        sleep.release(name)
+        sleep.release_port(config.get("port"))
+        res = mc_api.start(name, config)
+        if res["ok"] and config.pop("announce_next_start", None):
+            mc_config.save_config(config)
+        logging.info(f"[{name}] Start requested from the command line: {res['code']}.")
+        return res
+    return mc_api.result(False, "unknown_action", action=action)
+
+
+def _process_wakes(sleep):
+    for name in sleep.pop_wakes():
+        loaded, error = mc_api.load_server(name)
+        if error:
+            continue
+        _, config = loaded
+        sleep.release(name)
+        res = mc_api.wake(name, config)
+        logging.info(f"[{name}] Wake: {res['code']}.")
+
 def main():
     logging.info("MC Manager service starting (Linux)...")
+    mc_api.IN_DAEMON = True
     mc_servers.migrate_legacy_single_server()
     states = {}
     servers = {}
     registry_error = None
+    sleep = SleepManager()
+    next_tick = time.time() + 30
+    next_sync = 0
 
+    # One-second loop: requests from the command line and wakes are served
+    # promptly; supervision still runs every 30 seconds.
     while True:
-        time.sleep(30)
+        time.sleep(1)
+        mc_ipc.beat()
         _reap_children()
-        # An unreadable servers.json must not make every server disappear:
-        # keep supervising the last known list and say so once.
+
+        for request_id, request in mc_ipc.pending_requests():
+            try:
+                answer = _handle_request(sleep, request)
+            except Exception as e:
+                logging.error(f"Request {request.get('action')} failed: {e}")
+                answer = mc_api.result(False, "daemon_error", detail=str(e))
+            mc_ipc.respond(request_id, answer)
+
         try:
-            servers = mc_servers.list_servers()
-            if registry_error:
-                logging.info("servers.json readable again.")
-                registry_error = None
-        except mc_servers.DataFileError as e:
-            if registry_error != str(e):
-                logging.error(f"servers.json unreadable, keeping the last known server list: {e}")
-                registry_error = str(e)
+            _process_wakes(sleep)
+        except Exception as e:
+            logging.error(f"Wake failed: {e}")
+
+        now = time.time()
+        if now >= next_sync or now >= next_tick:
+            # An unreadable servers.json must not make every server disappear:
+            # keep supervising the last known list and say so once.
+            try:
+                servers = mc_servers.list_servers()
+                if registry_error:
+                    logging.info("servers.json readable again.")
+                    registry_error = None
+            except mc_servers.DataFileError as e:
+                if registry_error != str(e):
+                    logging.error(f"servers.json unreadable, keeping the last known server list: {e}")
+                    registry_error = str(e)
+
+        if now >= next_sync:
+            next_sync = now + 5
+            try:
+                sleep.sync(servers)
+            except Exception as e:
+                logging.error(f"Sleep listeners: {e}")
+
+        if now < next_tick:
+            continue
+        next_tick = now + 30
         for name, info in servers.items():
             state = states.setdefault(name, _new_state())
             try:

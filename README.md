@@ -19,6 +19,7 @@ This README is a high-level overview only. For installation steps and the comple
 - **Automatic backups** — Mid-session, nightly and manual ZIP backups with `save-off` / `save-on` safety
 - **Discord webhooks** — Notifies players on server open, close, and shutdown events
 - **Maintenance mode** — Instantly pauses the daemon without stopping it
+- **Sleep mode** — Frees the server's memory when nobody plays; the server stays listed and wakes when a known player joins (Linux)
 - **Custom domain** — Show players a friendly domain/link (from any DNS provider) instead of a bare IP
 - **AutoModpack integration** — Sends the connection key directly in the Discord embed
 - **CPU affinity** — Pins the server process to specific CPU cores
@@ -47,7 +48,10 @@ MC_Manager/
 │   ├── mc_image.py     # server-icon.png handling
 │   ├── mc_lang.py      # bilingual FR/EN strings
 │   ├── mc_validate.py  # pure validators
-│   ├── mc_api.py       # states, JSON snapshots, players, freeze/thaw
+│   ├── mc_api.py       # operations layer: states, start/stop/switch, sleep, freeze
+│   ├── mc_content.py   # datapacks and mods
+│   ├── mc_sleep.py     # sleep listener (Minecraft status/login protocol)
+│   ├── mc_ipc.py       # request channel CLI -> daemon
 │   ├── mc_setup.py     # Java check
 │   ├── install.sh / uninstall.sh
 │   ├── webhook_templates.json
@@ -115,6 +119,9 @@ mc deploy
 | `mc active` / `mc players` / `mc rcon "<cmd>"` | Scripting helpers: active server, players online, one RCON command — Linux |
 | `mc config get\|set <key> [value]` | Read / change a setting everywhere it lives — Linux |
 | `mc freeze` / `mc thaw` | Freeze the world for an external backup — Linux |
+| `mc switch <target>` | Hand the active server's place (ports included) to another server — Linux |
+| `mc sleep enable\|disable\|status` | Sleep when nobody plays, wake when a known player joins — Linux |
+| `mc datapack` / `mc mod` | Manage datapacks and mods (AutoModpack copy, quarantine) — Linux |
 | `mc console` | Attach to the interactive RCON console |
 | `mc logs` | Show recent server logs |
 | `mc backup` | Manual ZIP backup |
