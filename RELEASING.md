@@ -13,8 +13,9 @@ marked *latest*.
    (steps 1 and 2 below), merged into `main`.
 2. **Actions → Release → Run workflow** (branch `main`).
 
-That is all: the workflow reads the version, creates the tag on `main`,
-tests, builds, signs and publishes. It refuses if the tag already exists.
+That is all: the workflow reads the version, tests, builds, signs, then
+creates the tag on `main` and publishes. It refuses if the tag already
+exists; a failed run creates nothing and can simply be run again.
 
 ---
 
@@ -74,7 +75,8 @@ CI runs the same suites on Linux and Windows, plus `ruff`, `bandit` and
 ### 4. Publish
 
 **Actions → Release → Run workflow**, on `main`. The workflow creates the
-tag `vX.Y.Z` on `main`'s current commit (and refuses if it already exists).
+tag `vX.Y.Z` on `main`'s current commit at the very end, only if every step
+succeeded (and refuses to start if the tag already exists).
 
 Alternative, from a terminal:
 
@@ -85,14 +87,14 @@ git push origin v2.7.0
 
 Either way, the release workflow:
 
-1. checks that the tag, both `VERSION` values and `release-notes/<tag>.md` agree
-   (and, when run by hand, creates the tag);
+1. checks that the tag, both `VERSION` values and `release-notes/<tag>.md` agree;
 2. runs the Linux and Windows test suites;
 3. builds `MCManager.zip` and `MCManager-Linux.zip`;
 4. writes `SHA256SUMS` and signs it (`SHA256SUMS.sig`) with `RELEASE_SIGNING_KEY`,
    after checking the key matches the public key in the code;
 5. records a build provenance attestation;
-6. publishes the release with the notes, marked *latest*.
+6. publishes the release with the notes, marked *latest* (when run by hand,
+   this step creates the tag).
 
 A failure at any step publishes nothing.
 

@@ -2,9 +2,9 @@ name: Release
 
 # Two ways to publish:
 # - Actions > Release > Run workflow (on main): the version is read from
-#   mc_lang.py, the tag is created on main's current commit, and the release
-#   is built in this same run (a tag pushed with GITHUB_TOKEN starts no other
-#   workflow);
+#   mc_lang.py and everything happens in this run; the tag is created on
+#   main's commit by the final publish step only, so a failed run leaves
+#   nothing behind and can simply be run again;
 # - pushing a vX.Y.Z tag.
 
 on:
@@ -24,9 +24,10 @@ jobs:
     name: Check version and tag
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     outputs:
       tag: ${{ steps.version.outputs.tag }}
+      sha: ${{ steps.version.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -54,7 +55,8 @@ jobs:
             exit 1
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-      - name: Create the tag on main
+          echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+      - name: Check this version can be published from here
         if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -68,8 +70,6 @@ jobs:
             echo "::error::$TAG already exists: bump VERSION in both mc_lang.py files first"
             exit 1
           fi
-          gh api "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/$TAG" -f "sha=$GITHUB_SHA"
-          echo "Created $TAG on $GITHUB_SHA"
 
   tests:
     name: Tests (${{ matrix.platform }})
@@ -87,7 +87,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.prepare.outputs.tag }}
+          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -109,7 +109,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.prepare.outputs.tag }}
+          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -134,11 +134,20 @@ jobs:
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          SHA: ${{ needs.prepare.outputs.sha }}
         run: |
+          # A pushed tag must already exist; a manual run creates it here, on
+          # the tested commit, only once everything else has succeeded.
+          if [ "$EVENT" = "push" ]; then
+            target="--verify-tag"
+          else
+            target="--target=$SHA"
+          fi
           gh release create "$TAG" \
             dist/MCManager.zip dist/MCManager-Linux.zip dist/SHA256SUMS dist/SHA256SUMS.sig \
             --repo "$GITHUB_REPOSITORY" \
             --title "MC Manager $TAG" \
             --notes-file "release-notes/$TAG.md" \
-            --verify-tag \
+            "$target" \
             --latest
