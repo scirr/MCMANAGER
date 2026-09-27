@@ -39,6 +39,13 @@ Reopen the terminal afterwards. Never hardcode the token in the script.
 
 Bug fix → bump the last digit. New feature → bump the middle one.
 
+### 1b. Write the release notes
+
+In `release-notes/vX.Y.Z.md`, following the previous files: what is fixed,
+improved or deprecated, the behaviour changes, and **what updating requires**
+(`mc update` alone, or `sudo ./install.sh` when the systemd unit changed).
+Keep it ASCII-only: it becomes `$bodyText` in `create_release.ps1`.
+
 ### 2. Test
 
 ```powershell
