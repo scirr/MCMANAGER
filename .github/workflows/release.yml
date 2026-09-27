@@ -1,0 +1,93 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    name: Tests (${{ matrix.platform }})
+    strategy:
+      matrix:
+        include:
+          - platform: Linux
+            os: ubuntu-latest
+          - platform: Windows
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit tests
+        working-directory: ${{ matrix.platform }}
+        run: python -m unittest discover tests
+
+  release:
+    name: Build, sign and publish
+    needs: tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check the tag, the versions and the notes agree
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          for f in Linux/mc_lang.py Windows/mc_lang.py; do
+            found=$(sed -n 's/^VERSION = "\(.*\)"$/\1/p' "$f")
+            if [ "$found" != "$version" ]; then
+              echo "::error file=$f::VERSION is $found, the tag is $GITHUB_REF_NAME"
+              exit 1
+            fi
+          done
+          if [ ! -f "release-notes/$GITHUB_REF_NAME.md" ]; then
+            echo "::error::release-notes/$GITHUB_REF_NAME.md is missing"
+            exit 1
+          fi
+      - name: Build both packages
+        run: |
+          (cd Linux && python build_release.py)
+          (cd Windows && python build_release.py)
+      - name: Sign
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: |
+          python -m pip install --disable-pip-version-check "cryptography==50.0.1"
+          python tools/sign_release.py dist
+      - name: Build provenance attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/MCManager.zip
+            dist/MCManager-Linux.zip
+            dist/SHA256SUMS
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/MCManager.zip dist/MCManager-Linux.zip dist/SHA256SUMS dist/SHA256SUMS.sig \
+            --title "MC Manager $GITHUB_REF_NAME" \
+            --notes-file "release-notes/$GITHUB_REF_NAME.md" \
+            --verify-tag \
+            --latest
