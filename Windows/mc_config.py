@@ -172,9 +172,9 @@ def smart_ask(prompt_text, key, config, default_val, is_int=False):
         return ans
 
 def install_mc_command():
-    print(f"\n\033[96m=========================================")
+    print("\n\033[96m=========================================")
     print(f"   {T['install_mc_header']}")
-    print(f"=========================================\033[0m")
+    print("=========================================\033[0m")
 
     bat_content = f'@echo off\npython "{BASE_DIR}\\mc_cli.py" %*\n'
     bat_path = os.path.join(BASE_DIR, "mc.bat")
@@ -324,9 +324,9 @@ def resume_mode(config):
     return config
 
 def run_setup_performance(config):
-    print(f"\n\033[96m=========================================")
+    print("\n\033[96m=========================================")
     print(f"   {T['section_performance']}")
-    print(f"=========================================\033[0m")
+    print("=========================================\033[0m")
     detected_jar = detect_default_jar(config.get("dossier_serveur", ""))
     nb_cores = os.cpu_count()
     default_cpu_str = f"0-{nb_cores - 1}" if nb_cores else "0-3"
@@ -426,9 +426,9 @@ def run_setup(target=None):
         return
     name, dossier_serveur = resolved
 
-    print(f"\033[96m=========================================")
+    print("\033[96m=========================================")
     print(f"   {T['setup_header']}")
-    print(f"=========================================\033[0m")
+    print("=========================================\033[0m")
     config = load_config(dossier_serveur)
     config["dossier_serveur"] = dossier_serveur
 
@@ -463,7 +463,7 @@ def ensure_nssm():
     try:
         with tempfile.TemporaryDirectory() as tmp:
             zip_path = os.path.join(tmp, "nssm.zip")
-            urllib.request.urlretrieve(NSSM_URL, zip_path)
+            urllib.request.urlretrieve(NSSM_URL, zip_path)  # nosec B310 - constant https URL
             with zipfile.ZipFile(zip_path) as zf:
                 member = next(n for n in zf.namelist() if n.endswith(f"{arch}/nssm.exe"))
                 zf.extract(member, tmp)
@@ -477,9 +477,9 @@ def ensure_nssm():
         return None
 
 def install_daemon_task():
-    print(f"\n\033[96m=========================================")
+    print("\n\033[96m=========================================")
     print(f"   {T['daemon_inst_header']}")
-    print(f"=========================================\033[0m")
+    print("=========================================\033[0m")
 
     nssm_exe = ensure_nssm()
     if not nssm_exe:

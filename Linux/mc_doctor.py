@@ -5,7 +5,6 @@ systemd service, and port conflict — without modifying anything.
 """
 import os
 import shutil
-import socket
 import subprocess
 
 import mc_servers
@@ -38,6 +37,16 @@ def _check_daemon_service():
         return False, T["doctor_svc_not_inst"]
     running = states.get("ActiveState") == "active"
     return running, (T["doctor_svc_running"] if running else T["doctor_svc_stopped"])
+
+
+def _daemon_pid():
+    try:
+        import json
+        import mc_ipc
+        with open(mc_ipc.HEARTBEAT_FILE, encoding="utf-8") as f:
+            return int(json.load(f).get("pid"))
+    except Exception:
+        return None
 
 
 def check_host():
@@ -143,20 +152,42 @@ def check_server(name, info):
         results.append(("warn", T["doctor_label_rcon_live"], T["doctor_rcon_offline"], None))
 
     port = config.get("port", info.get("port"))
+    backend = mc_firewall.detect()
     if port:
-        if not mc_firewall.firewalld_available():
-            results.append(("warn", T["doctor_label_firewall"],
-                             T["doctor_fw_no_firewalld"], None))
+        if backend is None:
+            results.append(("info", T["doctor_label_firewall"], T["doctor_fw_none"], None))
         else:
-            name_rule = mc_firewall.rule_name(port)
-            present = mc_firewall.rule_exists(name_rule)
-            results.append(("ok" if present else "warn", T["doctor_label_firewall"],
-                             T["doctor_fw_present"].format(rule=name_rule) if present else T["doctor_fw_absent"],
-                             None if present else mc_firewall.manual_command(port)))
+            is_open = mc_firewall.port_open(port, backend)
+            if is_open is None:
+                results.append(("info", T["doctor_label_firewall"],
+                                T["doctor_fw_unreadable"].format(fw=backend), None))
+            else:
+                results.append(("ok" if is_open else "warn", T["doctor_label_firewall"],
+                                T["doctor_fw_open"].format(port=port, fw=backend) if is_open
+                                else T["doctor_fw_closed"].format(port=port, fw=backend),
+                                None if is_open else mc_firewall.manual_command(port, name, backend)))
+    rcon_port = config.get("rcon_port")
+    if rcon_port and backend:
+        exposed = mc_firewall.port_open(rcon_port, backend)
+        if exposed:
+            results.append(("err", T["doctor_label_rcon_fw"],
+                            T["doctor_rcon_exposed"].format(port=rcon_port, fw=backend),
+                            T["doctor_rcon_exposed_fix_ufw"].format(port=rcon_port) if backend == "ufw"
+                            else T["doctor_rcon_exposed_fix_fwd"].format(port=rcon_port)))
+        elif exposed is False:
+            results.append(("ok", T["doctor_label_rcon_fw"], T["doctor_rcon_closed"].format(port=rcon_port), None))
 
     if port and not running:
         occupant = mc_core.port_occupant(port)
-        if occupant and occupant[0]:
+        sleeping = config.get("mode_maintenance", 0) == 1 and config.get("stop_reason") == "sleep"
+        daemon_pid = _daemon_pid()
+        if occupant and occupant[0] and sleeping and occupant[0] == daemon_pid:
+            results.append(("ok", T["doctor_label_port"], T["doctor_port_native_sleep"], None))
+        elif occupant and occupant[0] and sleeping:
+            # An external sleep tool holding the port is the expected state.
+            results.append(("info", T["doctor_label_port"],
+                            T["doctor_port_external_sleep"].format(prog=occupant[1], pid=occupant[0]), None))
+        elif occupant and occupant[0]:
             results.append(("warn", T["doctor_label_port"],
                             T["status_port_held"].format(port=port, prog=occupant[1], pid=occupant[0]),
                             T["doctor_port_busy_fix"]))

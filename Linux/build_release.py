@@ -33,6 +33,7 @@ PACKAGE_FILES = [
     "mc_lang.py",
     "mc_validate.py",
     "mc_update.py",
+    "mc_sig.py",
     "mc_api.py",
     "mc_ipc.py",
     "mc_sleep.py",
@@ -40,6 +41,7 @@ PACKAGE_FILES = [
     "install.sh",
     "uninstall.sh",
     "webhook_templates.json",
+    "requirements.txt",
 ]
 
 def build_zip(zip_name="MCManager-Linux.zip"):

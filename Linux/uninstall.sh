@@ -7,7 +7,7 @@ echo ""
 echo "This script removes system integrations:"
 echo "  - mc_manager systemd service"
 echo "  - Global 'mc' command (/usr/local/bin/mc)"
-echo "  - Generated files (logs, mc, __pycache__)"
+echo "  - Generated files (logs, run, previous, venv, mc, __pycache__)"
 echo ""
 echo "The .py scripts in this folder will NOT be removed."
 echo ""
@@ -53,7 +53,7 @@ fi
 echo ""
 
 echo "[4/4] Cleaning generated files..."
-rm -rf logs run __pycache__
+rm -rf logs run previous venv __pycache__
 rm -f daemon.log daemon_error*.log server.pid mc
 echo "[OK] Generated files cleaned."
 echo ""

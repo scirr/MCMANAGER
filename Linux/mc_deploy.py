@@ -20,7 +20,7 @@ import mc_core
 import mc_config
 import mc_servers
 from mc_lang import T
-from mc_validate import valid_port, valid_ram, valid_cpu, valid_bool
+from mc_validate import valid_port
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -76,11 +76,16 @@ def ask_yn(prompt, default=True):
         return default
     return val in ("o", "oui", "y", "yes")
 
+def _require_https(url):
+    if not str(url).startswith("https://"):
+        raise ValueError(f"refusing non-https URL: {url}")
+
 def download(url, dest, label=""):
     pr("info", T["downloading"].format(label=f" {label}" if label else ""))
     try:
+        _require_https(url)
         req = urllib.request.Request(url, headers={"User-Agent": "MCManager/2.0"})
-        with urllib.request.urlopen(req, timeout=60) as r, open(dest, "wb") as f:
+        with urllib.request.urlopen(req, timeout=60) as r, open(dest, "wb") as f:  # nosec B310 - https checked
             total = int(r.headers.get("Content-Length", 0))
             done = 0
             while True:
@@ -100,8 +105,9 @@ def download(url, dest, label=""):
 
 def fetch_json(url):
     try:
+        _require_https(url)
         req = urllib.request.Request(url, headers={"User-Agent": "MCManager/2.0"})
-        with urllib.request.urlopen(req, timeout=15) as r:
+        with urllib.request.urlopen(req, timeout=15) as r:  # nosec B310 - https only
             return json.loads(r.read().decode())
     except Exception as e:
         pr("err", T["api_error"].format(e=e))
@@ -302,7 +308,7 @@ def _forge_maven_versions(mc_version):
     url = "https://files.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml"
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "MCManager/2.0"})
-        with urllib.request.urlopen(req, timeout=15) as r:
+        with urllib.request.urlopen(req, timeout=15) as r:  # nosec B310 - https only
             content = r.read().decode()
         return re.findall(r"<version>(" + re.escape(mc_version) + r"-[^<]+)</version>", content)
     except Exception:

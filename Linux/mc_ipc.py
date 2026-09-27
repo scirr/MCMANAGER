@@ -31,7 +31,7 @@ def _write_atomic(path, data):
     tmp = f"{path}.{os.getpid()}.tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f)
-    os.chmod(tmp, 0o666)   # a request made with sudo must stay removable by the daemon user
+    os.chmod(tmp, 0o644)   # a request made with sudo must stay readable by the daemon user
     os.replace(tmp, path)
 
 

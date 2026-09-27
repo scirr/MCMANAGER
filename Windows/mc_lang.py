@@ -5,7 +5,7 @@
 import os
 
 # Single source of truth for the tool version (shown by `mc version`).
-VERSION = "2.6.0"
+VERSION = "2.7.0"
 
 _LANG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "language.txt")
 
@@ -435,6 +435,28 @@ _FR = {
     "unexpected_error_log": "Détails enregistrés dans {path}. Signalez-la sur https://github.com/scirr/MCMANAGER/issues",
     "editor_not_found": "Éditeur introuvable : {editor}. Définissez la variable EDITOR (ex. : set EDITOR=notepad).",
     "doctor_label_config": "config.json",
+    "help_update_check": "Vérifier seulement s'il existe une nouvelle version",
+    "help_update_to": "Installer une version précise (ex. : 2.6.0), y compris plus ancienne",
+    "help_update_rollback": "Revenir à la version installée avant la dernière mise à jour",
+    "upd_checked": "Version installée : {current} — dernière publiée : {latest}.",
+    "upd_available_hint": "Mise à jour disponible : 'mc update' installera la {latest}.",
+    "upd_rollback_hint": "Retour arrière possible : 'mc update --rollback'.",
+    "upd_up_to_date": "MC Manager est déjà à jour (v{current}).",
+    "upd_updated": "Mis à jour : v{previous} -> v{version}. Paquet signé et vérifié. Rouvrez vos terminaux 'mc'.",
+    "upd_rolled_back": "Retour arrière effectué : v{previous} -> v{version}.",
+    "upd_no_previous": "Aucune version précédente conservée : le retour arrière est possible après une mise à jour.",
+    "upd_check_failed": "Impossible de joindre GitHub pour vérifier les mises à jour (hors ligne ?).",
+    "upd_version_not_found": "La version {target} n'existe pas dans les releases.",
+    "upd_no_asset": "La release v{version} ne contient pas de paquet pour cette plateforme.",
+    "upd_unsigned": "La release v{version} n'est pas signée : installation refusée.",
+    "upd_bad_signature": "Signature invalide pour la v{version} : installation refusée, rien n'a été modifié.",
+    "upd_not_listed": "Le paquet n'est pas listé dans SHA256SUMS (v{version}) : installation refusée.",
+    "upd_bad_checksum": "Le paquet téléchargé ne correspond pas à son empreinte (v{version}) : installation refusée, rien n'a été modifié.",
+    "upd_bad_package": "Paquet de la v{version} invalide : installation refusée.",
+    "upd_update_failed": "Échec de la mise à jour : {detail}",
+    "upd_refused_hint": "Réessayez plus tard ; si l'erreur persiste, signalez-la : https://github.com/scirr/MCMANAGER/issues",
+    "help_json": "Sortie JSON (pour les scripts)",
+    "upd_unsigned_hint": "Les versions publiées avant la 2.7.0 ne sont pas signées. Pour revenir à la version précédente installée : mc update --rollback.",
 }
 
 _EN = {
@@ -845,6 +867,28 @@ _EN = {
     "unexpected_error_log": "Details saved to {path}. Please report it at https://github.com/scirr/MCMANAGER/issues",
     "editor_not_found": "Editor not found: {editor}. Set the EDITOR variable (e.g. set EDITOR=notepad).",
     "doctor_label_config": "config.json",
+    "help_update_check": "Only check whether a new version exists",
+    "help_update_to": "Install a specific version (e.g. 2.6.0), older ones included",
+    "help_update_rollback": "Go back to the version installed before the last update",
+    "upd_checked": "Installed version: {current} — latest published: {latest}.",
+    "upd_available_hint": "Update available: 'mc update' will install {latest}.",
+    "upd_rollback_hint": "Rollback available: 'mc update --rollback'.",
+    "upd_up_to_date": "MC Manager is already up to date (v{current}).",
+    "upd_updated": "Updated: v{previous} -> v{version}. Package signed and verified. Reopen your 'mc' terminals.",
+    "upd_rolled_back": "Rolled back: v{previous} -> v{version}.",
+    "upd_no_previous": "No previous version kept: rollback is available after an update.",
+    "upd_check_failed": "Cannot reach GitHub to check for updates (offline?).",
+    "upd_version_not_found": "Version {target} does not exist in the releases.",
+    "upd_no_asset": "Release v{version} has no package for this platform.",
+    "upd_unsigned": "Release v{version} is not signed: installation refused.",
+    "upd_bad_signature": "Invalid signature for v{version}: installation refused, nothing was changed.",
+    "upd_not_listed": "The package is not listed in SHA256SUMS (v{version}): installation refused.",
+    "upd_bad_checksum": "The downloaded package does not match its hash (v{version}): installation refused, nothing was changed.",
+    "upd_bad_package": "Invalid package for v{version}: installation refused.",
+    "upd_update_failed": "Update failed: {detail}",
+    "upd_refused_hint": "Try again later; if the error persists, please report it: https://github.com/scirr/MCMANAGER/issues",
+    "help_json": "JSON output (for scripts)",
+    "upd_unsigned_hint": "Versions published before 2.7.0 are not signed. To return to the previously installed version: mc update --rollback.",
 }
 
 # T is mutated in place (never reassigned) so that `from mc_lang import T` in

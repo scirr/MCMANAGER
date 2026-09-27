@@ -1,0 +1,10 @@
+target-version = "py310"
+line-length = 120
+
+[lint]
+# Correctness rules only: syntax errors, undefined names, unused imports and
+# variables, comparison mistakes. Style is not enforced.
+select = ["E4", "E7", "E9", "F"]
+# The codebase's own conventions: imports after sys.path setup, one-line
+# guards ("if not x: return"), short loop names.
+ignore = ["E402", "E701", "E741"]

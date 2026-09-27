@@ -5,7 +5,7 @@ Validates validation loops for each user input, in both languages (FR and EN).
 import sys
 import os
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 LINUX_DIR = os.path.join(os.path.dirname(__file__), "..")
 sys.path.insert(0, LINUX_DIR)

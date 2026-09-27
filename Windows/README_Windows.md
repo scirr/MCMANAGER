@@ -494,6 +494,14 @@ Update available: 2.3.1 — run 'mc update'
 
 Run `mc update` to download and apply it. It replaces only the program files — your servers, `servers.json`, configs, backups and chosen language are never touched. The daemon is restarted automatically (run `mc daemon restart` as administrator if it could not).
 
+```
+mc update --check      # only check (add --json for scripts)
+mc update --to 2.6.0   # install a specific version, older ones included
+mc update --rollback   # go back to the version installed before the last update
+```
+
+Every release is **signed**: `mc update` checks the Ed25519 signature of `SHA256SUMS` against the key built into MC Manager, then the package hash, and refuses — changing nothing — at the slightest mismatch. The version being replaced is kept in `previous\`.
+
 ## Language (FR / EN)
 
 MC Manager ships as a **single bilingual build**. On the **first `mc` command** it asks you to choose French or English; the choice is saved (in `language.txt`, next to the app) and used from then on. Change it anytime:

@@ -10,7 +10,7 @@ Automatic Minecraft server management tool for Linux (Fedora and other systemd d
 - Python 3.10+
 - [Java 21](https://adoptium.net/temurin/releases/?version=21) (`sudo dnf install java-21-openjdk-headless` on Fedora)
 - [Pillow](https://python-pillow.org/) (optional, only for `mc image` — installed by `install.sh`)
-- firewalld (optional, for automatic firewall management — pre-installed on Fedora)
+- ufw (Debian, Ubuntu) or firewalld (Fedora, RHEL) — optional, for automatic firewall management
 
 > No `screen`, `curl`, `zip` or `mcrcon` binary needed: process management, HTTP and the RCON protocol are handled natively in Python.
 
@@ -123,15 +123,15 @@ Opens the server folder in your file manager (via `xdg-open`) — handy for brow
 
 Having the server "ONLINE" is not always enough for other players to connect — it depends on where they are.
 
-### Firewall (managed automatically via firewalld)
+### Firewall (managed automatically: ufw or firewalld)
 
-Fedora blocks unsolicited incoming connections by default. **`mc deploy`/`mc add`/`mc configure` automatically open** the configured game port in firewalld (permanent rule). The RCON port is **never exposed**.
+MC Manager detects the active firewall — **ufw** (Debian, Ubuntu), then **firewalld** (Fedora, RHEL). **`mc deploy`/`mc add`/`mc configure` and `mc config set port` automatically open** the configured game port (TCP, permanent rule; ufw rules carry the comment `MC Manager <server>`), and remove the old rule when the port changes. The RCON port is **never exposed**, and `mc doctor` reports an error if a rule opens it.
 
-If automatic opening fails (not run as root, firewalld inactive…), a message provides the exact command to paste into a terminal:
-```bash
-sudo firewall-cmd --permanent --add-port=25565/tcp && sudo firewall-cmd --reload
+If automatic opening fails (not run as root, firewall inactive…), a message provides the exact command to paste into a terminal:
 ```
-(replace `25565` with your actual port). `mc doctor` checks this rule for you — no need to remember these commands day-to-day.
+sudo ufw allow 25565/tcp comment 'MC Manager survival'                              # ufw
+sudo firewall-cmd --permanent --add-port=25565/tcp && sudo firewall-cmd --reload    # firewalld
+```
 
 ### Players on your local network (LAN)
 
@@ -160,20 +160,18 @@ Diagnoses in one command: Java, RCON, firewall rule, `mc_manager` service, and p
 
 ## Updating MC Manager
 
-1. Download the latest ZIP from the [Releases page](https://github.com/scirr/MCMANAGER/releases).
-2. Stop the daemon if it is running:
-   ```
-   mc daemon stop
-   ```
-3. Extract the ZIP and copy all `.py` files, `install.sh`, `uninstall.sh`, and `webhook_templates.json` from the archive into your existing MC Manager folder, overwriting the old files.
-4. Restart the daemon:
-   ```
-   mc daemon start
-   ```
+```
+mc update              # install the latest release
+mc update --check      # only check (add --json for scripts)
+mc update --to 2.6.0   # install a specific version, older ones included
+mc update --rollback   # go back to the version installed before the last update
+```
 
-> Your server files, configs, and backups are stored outside the program folder and are never affected by an update.
+Every release is **signed**: `mc update` downloads the package with `SHA256SUMS` and its Ed25519 signature `SHA256SUMS.sig`, checks the signature against the key built into MC Manager, then the package hash — and refuses, changing nothing, at the slightest mismatch. Before installing, the current version is kept in `previous/`, which `--rollback` puts back (and a second `--rollback` undoes).
 
-`mc update` replaces the program files and restarts the daemon, but never the systemd unit. When a release changes the unit, `mc update` (and `mc doctor`) says so: re-run `sudo ./install.sh` from the MC Manager folder — servers and settings are kept.
+Only program files are replaced: servers, `servers.json`, configs, backups, logs, the chosen language and the Python environment are never touched. The daemon is restarted automatically.
+
+`mc update` never replaces the systemd unit or re-runs the installer. When a release changes them, the release notes say so, and `mc update` (and `mc doctor`) warns about an outdated unit: re-run `sudo ./install.sh` from the MC Manager folder — servers and settings are kept.
 
 ---
 
@@ -650,7 +648,7 @@ MC Manager checks the latest published release in the background (throttled to o
 Update available: 2.3.1 — run 'mc update'
 ```
 
-Run `mc update` to download and apply it. It replaces only the program files — your servers, `servers.json`, configs, backups and chosen language are never touched. The daemon is restarted automatically (run `sudo mc daemon restart` if it could not).
+Run `mc update` to download, verify and apply it (see [Updating MC Manager](#updating-mc-manager)). The daemon is restarted automatically (run `sudo mc daemon restart` if it could not).
 
 ## Language (FR / EN)
 

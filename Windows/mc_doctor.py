@@ -19,7 +19,7 @@ def _check_port_in_use(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(1)
         try:
-            s.bind(("0.0.0.0", int(port)))
+            s.bind(("0.0.0.0", int(port)))  # nosec B104 - probes the public game port
             return False
         except OSError:
             return True

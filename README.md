@@ -26,6 +26,7 @@ This README is a high-level overview only. For installation steps and the comple
 - **Shared registry (dual-boot)** — Point Windows and Linux at one shared disk (`MCMANAGER_DATA_DIR`) and the same servers appear on both, no re-registering
 - **Bilingual (FR/EN)** — A single build; the language is chosen on first launch and switchable anytime with `mc language`
 - **Scriptable** — Documented exit codes, `--json` output with a versioned schema, and commands (`mc active`, `mc players`, `mc rcon`, `mc config`, `mc freeze`) so tools never have to parse MC Manager's files (Linux)
+- **Signed updates** — `mc update` installs only packages whose Ed25519 signature and hashes check out, keeps the previous version for `mc update --rollback`; releases are built, signed and attested by CI
 - **Cross-platform** — Same logic, adapted natively for Linux and Windows
 
 ---
@@ -44,7 +45,8 @@ MC_Manager/
 │   ├── mc_deploy.py    # deploy / add / configure wizards
 │   ├── mc_daemon.py    # background scheduler (30s tick)
 │   ├── mc_doctor.py    # non-destructive diagnostics
-│   ├── mc_firewall.py  # firewalld rule automation
+│   ├── mc_firewall.py  # ufw / firewalld rule automation
+│   ├── mc_sig.py       # Ed25519 verification of signed updates
 │   ├── mc_image.py     # server-icon.png handling
 │   ├── mc_lang.py      # bilingual FR/EN strings
 │   ├── mc_validate.py  # pure validators
@@ -131,6 +133,7 @@ mc deploy
 | `mc schedule H M H M` | Set opening and closing time |
 | `mc doctor` | Run non-destructive diagnostics |
 | `mc language [fr\|en]` | Show or change the interface language |
+| `mc update [--check\|--to X\|--rollback]` | Signed self-update, specific version, or rollback |
 | `mc edit` | Edit `config.json` in `$EDITOR` |
 | `mc image add\|rm` | Set or remove the server icon |
 | `mc daemon <run\|start\|stop\|restart>` | Control the background service |
@@ -191,7 +194,7 @@ Webhooks are silenced during maintenance mode by design (no players connected).
 | HTTP requests | `urllib` (built-in) | `urllib` (built-in) |
 | RCON | native Python socket | native Python socket |
 | Daemon | systemd service | NSSM Windows service |
-| Firewall | `firewall-cmd` (firewalld) | `netsh advfirewall` |
+| Firewall | `ufw` or `firewalld` | `netsh advfirewall` |
 | Global command | `mc` in `/usr/local/bin/` | `mc.bat` in `System32` |
 | Server console | interactive RCON (termios) | interactive RCON |
 | Icon file picker | zenity / kdialog | `tkinter` |
@@ -204,7 +207,7 @@ Webhooks are silenced during maintenance mode by design (no players connected).
 - [Python 3.10+](https://www.python.org/downloads/)
 - [Java 21](https://adoptium.net/temurin/releases/?version=21) (Temurin recommended)
 - systemd (standard on Fedora and most distributions)
-- Optional: `firewalld` for automatic port rules, `Pillow` for server-icon resizing, `zenity`/`kdialog` for the graphical icon picker
+- Optional: `ufw` or `firewalld` for automatic port rules, `Pillow` for server-icon resizing, `zenity`/`kdialog` for the graphical icon picker
 - No external runtime dependencies — RCON, HTTP and backups use the Python standard library
 
 ### Windows

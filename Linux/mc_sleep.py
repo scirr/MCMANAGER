@@ -208,7 +208,7 @@ class SleepListener(threading.Thread):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(("0.0.0.0", self.port))
+            sock.bind(("0.0.0.0", self.port))  # nosec B104 - stands in for the public game port
             sock.listen(16)
             sock.settimeout(1)
         except OSError as e:

@@ -127,7 +127,7 @@ def rcon_console(config):
     log_thread = threading.Thread(target=tail_log, daemon=True)
     log_thread.start()
 
-    print(f"\033[96m>\033[0m ", end='', flush=True)
+    print("\033[96m>\033[0m ", end='', flush=True)
 
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
@@ -155,7 +155,7 @@ def rcon_console(config):
                         pass
                     except Exception:
                         pass
-                print(f"\033[96m>\033[0m ", end='', flush=True)
+                print("\033[96m>\033[0m ", end='', flush=True)
             elif ch == '\x1b':  # escape sequence (arrows, F-keys) — discard it
                 while select.select([sys.stdin], [], [], 0.005)[0]:
                     sys.stdin.read(1)
@@ -177,7 +177,7 @@ def rcon_console(config):
         stop_event.set()
         if sock:
             try: sock.close()
-            except: pass
+            except Exception: pass
 
 # ==========================================
 # DASHBOARD
@@ -449,7 +449,7 @@ def print_categorized_help():
             ("daemon <run|start|stop|restart>", T["help_daemon"]),
         ]),
         (T["help_cat_general"], [
-            ("update", T["help_update"]),
+            ("update [--check|--to X|--rollback]", T["help_update"]),
             ("version", T["help_version"]),
             ("language [fr|en]", T["help_language"]),
             ("help", T["help_help"]),
@@ -492,7 +492,12 @@ def main():
     subparsers.add_parser("version", help=T["help_version"])
     p_lang = subparsers.add_parser("language", help=T["help_language"])
     p_lang.add_argument("lang", nargs="?", choices=["fr", "en"], default=None)
-    subparsers.add_parser("update", help=T["help_update"])
+    p_update = subparsers.add_parser("update", help=T["help_update"])
+    g_update = p_update.add_mutually_exclusive_group()
+    g_update.add_argument("--check", action="store_true", help=T["help_update_check"])
+    g_update.add_argument("--to", metavar="VERSION", default=None, help=T["help_update_to"])
+    g_update.add_argument("--rollback", action="store_true", help=T["help_update_rollback"])
+    p_update.add_argument("--json", action="store_true", help=T["help_json"])
     subparsers.add_parser("deploy", help=T["help_deploy"])
     p_add = subparsers.add_parser("add", help=T["help_add"])
     p_add.add_argument("path", nargs="?", default=None, help=T["help_add_path"])
@@ -629,8 +634,7 @@ def main():
         return
 
     if args.action == "update":
-        print_res(*mc_update.perform_update())
-        return
+        return cmd_update(args)
 
     if args.action == "deploy":
         mc_deploy.run_deploy({})
@@ -1221,6 +1225,43 @@ def cmd_mod(args):
     if res["ok"] and res["code"] == "removed" and not args.json:
         res = dict(res, moved=len(res["moved"]))
     return _finish(res, args.json)
+
+
+def cmd_update(args):
+    """mc update [--check] [--to X] [--rollback] [--json]"""
+    as_json = getattr(args, "json", False)
+    if args.check:
+        res = mc_update.check()
+    elif args.rollback:
+        res = mc_update.rollback()
+    else:
+        def progress(ver):
+            if not as_json:
+                print(f"\033[90m{T['update_downloading'].format(ver=ver)}\033[0m")
+        res = mc_update.perform_update(args.to, progress=progress)
+    if as_json:
+        print(json.dumps({"schema": 1, **res}, indent=2, ensure_ascii=False))
+    else:
+        text = T.get(f"upd_{res['code']}", res["code"])
+        try:
+            text = text.format(**res)
+        except (KeyError, IndexError, ValueError):
+            pass
+        if res["code"] == "checked":
+            print_res(True, text)
+            if res.get("update_available"):
+                print_info(T["upd_available_hint"].format(latest=res["latest"]))
+            if res.get("rollback_available"):
+                print_info(T["upd_rollback_hint"])
+        else:
+            print_res(res["ok"], text)
+            if res["code"] in ("bad_signature", "not_listed", "bad_checksum", "bad_package"):
+                print_info(T["upd_refused_hint"])
+            elif res["code"] == "unsigned":
+                print_info(T["upd_unsigned_hint"])
+            if res["code"] in ("updated", "rolled_back") and not res.get("restarted"):
+                print_info(T["update_daemon_manual"])
+    return 0 if res["ok"] else 1
 
 def dispatch_daemon(daemon_action):
     if daemon_action == "run":

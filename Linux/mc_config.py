@@ -215,22 +215,23 @@ def smart_ask(prompt_text, key, config, default_val, is_int=False):
         return ans
 
 def install_mc_command():
-    print(f"\n\033[96m=========================================")
+    print("\n\033[96m=========================================")
     print(f"   {T['install_mc_header']}")
-    print(f"=========================================\033[0m")
+    print("=========================================\033[0m")
 
-    launcher_content = f'#!/bin/sh\nexec python3 "{BASE_DIR}/mc_cli.py" "$@"\n'
+    python_exe = sys.executable or "python3"
+    launcher_content = f'#!/bin/sh\nexec "{python_exe}" "{BASE_DIR}/mc_cli.py" "$@"\n'
     launcher_path = os.path.join(BASE_DIR, "mc")
 
     with open(launcher_path, 'w', encoding='utf-8') as f:
         f.write(launcher_content)
-    os.chmod(launcher_path, 0o755)
+    os.chmod(launcher_path, 0o755)  # nosec B103 - the mc launcher is an executable
 
     dest_path = "/usr/local/bin/mc"
     try:
         import shutil
         shutil.copy(launcher_path, dest_path)
-        os.chmod(dest_path, 0o755)
+        os.chmod(dest_path, 0o755)  # nosec B103 - the mc launcher is an executable
         print(f"\033[92m[{T['icon_ok']}]\033[0m {T['install_mc_ok']}")
         print(f"\033[90m[{T['icon_info']}]\033[0m {T['install_mc_new_term']}\033[0m")
     except PermissionError:
@@ -437,7 +438,7 @@ def set_value(config, name, key, raw):
         if mc_core.sync_server_properties(config):
             updated.append(T["config_updated_file"].format(file="server.properties"))
     if key == "port" and old != value:
-        ok, manual = mc_firewall.ensure_game_port_rule(value, old_port=old)
+        ok, manual = mc_firewall.ensure_game_port_rule(value, old_port=old, name=name)
         if ok:
             updated.append(T["firewall_ok"].format(port=value))
         else:
@@ -445,9 +446,9 @@ def set_value(config, name, key, raw):
     return "ok", updated
 
 def run_setup_performance(config):
-    print(f"\n\033[96m=========================================")
+    print("\n\033[96m=========================================")
     print(f"   {T['section_performance']}")
-    print(f"=========================================\033[0m")
+    print("=========================================\033[0m")
     detected_jar = detect_default_jar(config.get("dossier_serveur", ""))
     nb_cores = os.cpu_count()
     default_cpu_str = f"0-{nb_cores - 1}" if nb_cores else "0-3"
@@ -516,7 +517,8 @@ def ensure_provisioning(config, dossier_serveur):
     print(f"\n\033[93m--- {T['section_firewall']} ---\033[0m")
     port = config.get("port")
     ok, manual_cmd = mc_firewall.ensure_game_port_rule(
-        port, old_port=previous_port if previous_port != port else None
+        port, old_port=previous_port if previous_port != port else None,
+        name=config.get("nom_serveur")
     )
     if ok:
         print(f"\033[92m[{T['icon_ok']}]\033[0m {T['firewall_ok'].format(port=port)}")
@@ -547,9 +549,9 @@ def run_setup(target=None):
         return
     name, dossier_serveur = resolved
 
-    print(f"\033[96m=========================================")
+    print("\033[96m=========================================")
     print(f"   {T['setup_header']}")
-    print(f"=========================================\033[0m")
+    print("=========================================\033[0m")
     config = load_config(dossier_serveur)
     config["dossier_serveur"] = dossier_serveur
 
@@ -672,9 +674,9 @@ def run_systemctl(action):
     return subprocess.run(base, capture_output=True, text=True)
 
 def install_daemon_service(user=None):
-    print(f"\n\033[96m=========================================")
+    print("\n\033[96m=========================================")
     print(f"   {T['daemon_inst_header']}")
-    print(f"=========================================\033[0m")
+    print("=========================================\033[0m")
 
     if user is None:
         user = os.environ.get("SUDO_USER") or os.environ.get("USER") or "root"

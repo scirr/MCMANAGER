@@ -92,7 +92,7 @@ def _port_in_use(port) -> bool:
     """True if anything already listens on this TCP port (bind test)."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(("0.0.0.0", int(port)))
+            s.bind(("0.0.0.0", int(port)))  # nosec B104 - probes the public game port
         return False
     except OSError:
         return True
@@ -329,6 +329,8 @@ def send_discord_webhook(config, payload, force=False):
     url = config.get("webhook_url", "")
     if not url:
         return False, T["no_webhook"]
+    if not url.startswith("https://"):
+        return False, T["webhook_error"].format(e="https:// URL required")
 
     try:
         data = json.dumps(payload).encode("utf-8")
@@ -341,7 +343,7 @@ def send_discord_webhook(config, payload, force=False):
             },
             method="POST"
         )
-        urllib.request.urlopen(req, timeout=10)
+        urllib.request.urlopen(req, timeout=10)  # nosec B310 - https enforced above
         return True, "OK"
     except Exception as e:
         return False, T["webhook_error"].format(e=e)

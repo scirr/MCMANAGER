@@ -9,7 +9,6 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import mc_lang
-from mc_validate import valid_port
 
 
 def _switch_lang(lang):

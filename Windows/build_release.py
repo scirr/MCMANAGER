@@ -33,6 +33,7 @@ PACKAGE_FILES = [
     "mc_lang.py",
     "mc_validate.py",
     "mc_update.py",
+    "mc_sig.py",
     "install.bat",
     "uninstall.bat",
     "webhook_templates.json",
