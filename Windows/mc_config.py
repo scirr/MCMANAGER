@@ -78,11 +78,10 @@ def webhooks_path(dossier_serveur):
     return os.path.join(dossier_serveur, "webhooks.json")
 
 def load_config(dossier_serveur):
-    path = config_path(dossier_serveur)
-    if not os.path.exists(path):
-        return {}
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    config = mc_servers.read_json(config_path(dossier_serveur), {})
+    if not isinstance(config, dict):
+        raise mc_servers.DataFileError(config_path(dossier_serveur), "not a JSON object")
+    return config
 
 def save_config(config):
     dossier_serveur = config["dossier_serveur"]
@@ -95,9 +94,11 @@ def save_config(config):
 
 def _load_templates():
     lang = mc_lang.current_language()
-    if os.path.exists(WEBHOOK_TEMPLATES_FILE):
-        with open(WEBHOOK_TEMPLATES_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+    try:
+        data = mc_servers.read_json(WEBHOOK_TEMPLATES_FILE)
+    except mc_servers.DataFileError:
+        data = None
+    if data:
         # Bilingual file: {"fr": {...}, "en": {...}}
         if isinstance(data, dict) and ("fr" in data or "en" in data):
             return data.get(lang) or data.get("fr") or {}
@@ -107,13 +108,17 @@ def _load_templates():
 def load_webhooks(dossier_serveur):
     templates = _load_templates()
     path = webhooks_path(dossier_serveur)
-    if not os.path.exists(path):
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(templates, f, indent=4, ensure_ascii=False)
+    try:
+        webhooks = mc_servers.read_json(path)
+    except mc_servers.DataFileError:
+        # A hand-edited webhooks.json with a typo must not block a start or a
+        # stop: fall back to the built-in templates and leave the file alone.
         return templates
-
-    with open(path, 'r', encoding='utf-8') as f:
-        webhooks = json.load(f)
+    if webhooks is None:
+        mc_servers._atomic_write_json(path, templates)
+        return templates
+    if not isinstance(webhooks, dict):
+        return templates
 
     updated = False
     for key, default_val in templates.items():
@@ -122,8 +127,7 @@ def load_webhooks(dossier_serveur):
             updated = True
 
     if updated:
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(webhooks, f, indent=4, ensure_ascii=False)
+        mc_servers._atomic_write_json(path, webhooks)
 
     return webhooks
 

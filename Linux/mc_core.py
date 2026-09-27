@@ -63,10 +63,70 @@ def get_server_pid(config) -> int | None:
     except Exception:
         return None
 
-def is_pid_running(pid: int) -> bool:
-    # Reap the child first if it is ours and already exited — otherwise the
-    # zombie would keep answering os.kill(pid, 0) forever (the daemon never
-    # wait()s on the servers it spawns).
+def _write_pid_file(config, pid):
+    try:
+        with open(pid_file_path(config), 'w') as f:
+            f.write(str(pid))
+    except Exception:
+        pass
+
+def _remove_pid_file(config):
+    try:
+        os.remove(pid_file_path(config))
+    except FileNotFoundError:
+        pass
+    except Exception:
+        pass
+
+# /proc helpers. Every one of them returns None when the information cannot be
+# read (process gone, or owned by another user) so callers can tell "unknown"
+# apart from "different".
+
+def _proc_state(pid):
+    try:
+        with open(f"/proc/{pid}/stat") as f:
+            return f.read().rsplit(")", 1)[1].split()[0]
+    except Exception:
+        return None
+
+def _proc_cwd(pid):
+    try:
+        return os.path.realpath(os.readlink(f"/proc/{pid}/cwd"))
+    except Exception:
+        return None
+
+def _proc_name(pid):
+    try:
+        with open(f"/proc/{pid}/comm") as f:
+            return f.read().strip()
+    except Exception:
+        return None
+
+def _proc_argv0(pid):
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            first = f.read().split(b"\x00", 1)[0]
+        return os.path.basename(first.decode("utf-8", "replace"))
+    except Exception:
+        return None
+
+def _is_java(pid):
+    return "java" in ((_proc_name(pid) or "") + " " + (_proc_argv0(pid) or "")).lower()
+
+def _same_dir(a, b):
+    if not a or not b:
+        return False
+    return os.path.realpath(a) == os.path.realpath(b)
+
+def is_pid_running(pid: int, dossier=None) -> bool:
+    """True if `pid` is alive, not a zombie, and — when `dossier` is given — is
+    really this server (its working directory is the server folder).
+
+    PIDs get recycled after a reboot, and a zombie still answers kill(pid, 0):
+    neither may make us believe the server is up.
+    """
+    # Reap the child first if it is ours and already exited (the daemon spawns
+    # the servers, the CLI may too).
     try:
         os.waitpid(pid, os.WNOHANG)
     except (ChildProcessError, OSError):
@@ -76,33 +136,56 @@ def is_pid_running(pid: int) -> bool:
     except ProcessLookupError:
         return False
     except PermissionError:
-        return True
+        pass
     except Exception:
         return False
-    # Process exists but may be a zombie owned by another parent
-    try:
-        with open(f"/proc/{pid}/stat") as f:
-            state = f.read().rsplit(")", 1)[1].split()[0]
-        if state == "Z":
-            return False
-    except Exception:
-        return True
-    # PIDs get recycled after a reboot: a live PID belonging to another
-    # program must not make us believe the server is still up. Permissive on
-    # read failure (permissions) to keep the previous behaviour.
-    try:
-        with open(f"/proc/{pid}/cmdline", "rb") as f:
-            cmdline = f.read()
-        if cmdline and not any(m in cmdline for m in (b"java", b"run.sh", b"bash", b"sh")):
-            return False
-    except Exception:
-        pass
+    if _proc_state(pid) == "Z":
+        return False
+    if dossier:
+        cwd = _proc_cwd(pid)
+        if cwd is not None:
+            return _same_dir(cwd, dossier)
+    # Working directory unreadable (another user's process): fall back to the
+    # command line, permissive on read failure.
+    argv0 = _proc_argv0(pid)
+    if argv0 and not any(m in argv0 for m in ("java", "bash", "sh")):
+        return False
     return True
 
+def server_java_pids(dossier) -> list:
+    """Live (non-zombie) java processes whose working directory is this server
+    folder — the one reliable way to find a server's JVM, whatever its PID file
+    or its port say."""
+    found = []
+    if not dossier:
+        return found
+    target = os.path.realpath(dossier)
+    try:
+        entries = os.listdir("/proc")
+    except Exception:
+        return found
+    for entry in entries:
+        if not entry.isdigit():
+            continue
+        pid = int(entry)
+        if pid == os.getpid():
+            continue
+        cwd = _proc_cwd(pid)
+        if cwd != target or not _is_java(pid) or _proc_state(pid) in (None, "Z"):
+            continue
+        found.append(pid)
+    return sorted(found)
+
 def _port_in_use(port) -> bool:
-    """True if anything already listens on this TCP port (bind test)."""
+    """True if something already LISTENS on this TCP port.
+
+    SO_REUSEADDR mirrors how the JVM binds: without it, a socket lingering in
+    TIME_WAIT after a closed connection makes the port look busy for a minute
+    and blocks a perfectly safe start.
+    """
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind(("0.0.0.0", int(port)))
         return False
     except OSError:
@@ -110,44 +193,158 @@ def _port_in_use(port) -> bool:
     except Exception:
         return False
 
+def _listen_inodes(port):
+    """Socket inodes LISTENing on this TCP port, read from /proc/net/tcp{,6}."""
+    inodes = set()
+    for table in ("/proc/net/tcp", "/proc/net/tcp6"):
+        try:
+            with open(table) as f:
+                next(f, None)
+                for line in f:
+                    cols = line.split()
+                    if len(cols) > 9 and cols[3] == "0A" and int(cols[1].rsplit(":", 1)[1], 16) == int(port):
+                        inodes.add(cols[9])
+        except Exception:
+            continue
+    return inodes
+
 def _port_listener_pid(port) -> int | None:
-    """PID listening on the given TCP port, or None if unknown."""
-    import re
+    """PID listening on the given TCP port, or None if unknown.
+
+    Reads /proc directly (no dependency on 'ss'); only processes we are allowed
+    to inspect can be found — others yield None ("busy, owner unknown")."""
     try:
-        result = subprocess.run(
-            ["ss", "-lptnH", f"sport = :{int(port)}"],
-            capture_output=True, text=True, errors="replace", timeout=5
-        )
+        inodes = _listen_inodes(port)
     except Exception:
         return None
-    match = re.search(r"pid=(\d+)", result.stdout or "")
-    return int(match.group(1)) if match else None
+    if not inodes:
+        return None
+    wanted = {f"socket:[{i}]" for i in inodes}
+    try:
+        entries = os.listdir("/proc")
+    except Exception:
+        return None
+    for entry in entries:
+        if not entry.isdigit():
+            continue
+        fd_dir = f"/proc/{entry}/fd"
+        try:
+            fds = os.listdir(fd_dir)
+        except Exception:
+            continue
+        for fd in fds:
+            try:
+                if os.readlink(f"{fd_dir}/{fd}") in wanted:
+                    return int(entry)
+            except Exception:
+                continue
+    return None
+
+def port_occupant(port):
+    """(pid, program) of whatever listens on `port`, (None, None) if the port is
+    busy but its owner cannot be read, or None if the port is free."""
+    if not port or not _port_in_use(port):
+        return None
+    pid = _port_listener_pid(port)
+    if not pid:
+        return (None, None)
+    return (pid, _proc_name(pid) or "?")
 
 def is_server_running(config) -> bool:
+    dossier = config.get("dossier_serveur", "")
     pid = get_server_pid(config)
-    if pid and is_pid_running(pid):
+    if pid and is_pid_running(pid, dossier):
         return True
 
     # The recorded PID is gone, but the server itself may still be up under
-    # another PID (daemon restarted, wrapper script replaced by its java
-    # child...). Adopt whoever holds the game port so the state repairs itself
-    # instead of needing a manual server.pid fix — and so the always-on daemon
-    # never spawns a duplicate JVM that dies on the world DirectoryLock.
-    port = config.get("port")
-    if port:
-        listener = _port_listener_pid(port)
-        if listener and is_pid_running(listener):
-            try:
-                with open(pid_file_path(config), 'w') as f:
-                    f.write(str(listener))
-            except Exception:
-                pass
-            return True
+    # another PID (daemon restarted, run.sh wrapper replaced by its java
+    # child...). Adopt its JVM — identified by java + working directory, never
+    # by the port alone, which another program (another server, a sleep proxy)
+    # may legitimately hold.
+    java = server_java_pids(dossier)
+    if java:
+        _write_pid_file(config, java[0])
+        return True
 
-    pid_file = pid_file_path(config)
-    if os.path.exists(pid_file):
-        os.remove(pid_file)
+    _remove_pid_file(config)
     return False
+
+def proc_memory(pid):
+    """(rss_kb, swap_kb) of a process, or (None, None) if unreadable."""
+    rss = swap = None
+    try:
+        with open(f"/proc/{pid}/status") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    rss = int(line.split()[1])
+                elif line.startswith("VmSwap:"):
+                    swap = int(line.split()[1])
+    except Exception:
+        pass
+    return rss, swap
+
+def proc_cgroup(pid):
+    """The process's cgroup path (cgroup v2 unified line), or None."""
+    try:
+        with open(f"/proc/{pid}/cgroup") as f:
+            for line in f:
+                if line.startswith("0::"):
+                    return line.strip()[3:]
+            return None
+    except Exception:
+        return None
+
+def zombie_java_pids():
+    """[(pid, parent_pid)] of java processes left as zombies (never reaped)."""
+    out = []
+    try:
+        entries = os.listdir("/proc")
+    except Exception:
+        return out
+    for entry in entries:
+        if not entry.isdigit():
+            continue
+        try:
+            with open(f"/proc/{entry}/stat") as f:
+                raw = f.read()
+        except Exception:
+            continue
+        name = raw[raw.find("(") + 1:raw.rfind(")")]
+        rest = raw.rsplit(")", 1)[1].split()
+        if rest and rest[0] == "Z" and "java" in name.lower():
+            out.append((int(entry), int(rest[1])))
+    return out
+
+def java_major_version(version_line):
+    """'openjdk version "21.0.4" ...' -> 21 ; '"1.8.0_402"' -> 8 ; None if unknown."""
+    import re
+    m = re.search(r'version "(\d+)(?:\.(\d+))?', version_line or "")
+    if not m:
+        return None
+    major = int(m.group(1))
+    if major == 1 and m.group(2):
+        major = int(m.group(2))
+    return major
+
+def _server_alive(config) -> bool:
+    """Read-only liveness check (never rewrites server.pid)."""
+    dossier = config.get("dossier_serveur", "")
+    pid = get_server_pid(config)
+    if pid and is_pid_running(pid, dossier):
+        return True
+    return bool(server_java_pids(dossier))
+
+def wait_for_exit(config, timeout) -> bool:
+    """Wait until the server process has really exited (zombies count as
+    exited). The game port is released a moment BEFORE the JVM ends, so a
+    restart that only waits for the port would launch a second JVM that fails
+    on the world lock. Returns True if the process is gone."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if not _server_alive(config):
+            return True
+        time.sleep(1)
+    return not _server_alive(config)
 
 # ==========================================
 # MODE
@@ -197,14 +394,27 @@ def rcon_send_packet(sock, pkt_id, pkt_type, payload):
     packet = struct.pack("<iii", length, pkt_id, pkt_type) + payload_bytes
     sock.sendall(packet)
 
+def _recv_exact(sock, n):
+    """Read exactly n bytes, or return None if the peer closed the connection.
+    A bare recv() loop spins forever on a closed socket (recv returns b"")."""
+    data = b""
+    while len(data) < n:
+        chunk = sock.recv(n - len(data))
+        if not chunk:
+            return None
+        data += chunk
+    return data
+
 def rcon_recv_packet(sock):
-    raw_len = sock.recv(4)
+    raw_len = _recv_exact(sock, 4)
     if not raw_len:
         return None, None, None
     length = struct.unpack("<i", raw_len)[0]
-    data = b""
-    while len(data) < length:
-        data += sock.recv(length - len(data))
+    if length < 10 or length > 1 << 20:
+        return None, None, None
+    data = _recv_exact(sock, length)
+    if data is None:
+        return None, None, None
     pkt_id = struct.unpack("<i", data[0:4])[0]
     pkt_type = struct.unpack("<i", data[4:8])[0]
     payload = data[8:-2].decode("utf-8", errors="replace")
@@ -224,6 +434,9 @@ def rcon_handshake(host, port, password, ping_only=False):
         return False, T["rcon_conn_refused"]
     except Exception as e:
         return False, T["rcon_error_generic"].format(e=e)
+    if pkt_id is None:
+        sock.close()
+        return False, T["rcon_error_generic"].format(e="connection closed")
 
     if ping_only:
         sock.close()
@@ -380,8 +593,11 @@ def check_java():
             [java_exe, "-version"],
             capture_output=True, text=True, timeout=10
         )
-        version_line = (result.stderr or result.stdout).splitlines()[0]
-        return True, version_line
+        # Skip JVM notices such as "Picked up JAVA_TOOL_OPTIONS: ..." that can
+        # precede the version line.
+        lines = (result.stderr or result.stdout or "").splitlines()
+        version_line = next((l for l in lines if "version" in l), lines[0] if lines else "?")
+        return True, version_line.strip()
     except Exception:
         return False, "error"
 
@@ -436,6 +652,65 @@ def _sync_run_script_ram(dossier, ram):
     except Exception:
         pass  # a broken sync must never prevent the server from starting
 
+def sync_server_properties(config, apply=True):
+    """Make server.properties agree with config.json, the single source of truth
+    for the ports and RCON. A port changed by hand in config.json used to leave
+    the server listening on the old one while the registry, dashboard and
+    firewall showed the new one.
+
+    Only the keys MC Manager owns are touched; every other line is kept as is.
+    Returns the list of (key, old, new) changes, empty if already consistent.
+    """
+    dossier = config.get("dossier_serveur", "")
+    props = os.path.join(dossier, "server.properties")
+    if not dossier or not os.path.exists(props):
+        return []
+    wanted = {}
+    if config.get("port"):
+        wanted["server-port"] = str(config["port"])
+    if config.get("mcrcon_pass"):
+        wanted["enable-rcon"] = "true"
+        wanted["rcon.port"] = str(config.get("rcon_port", DEFAULT_RCON_PORT))
+        wanted["rcon.password"] = str(config["mcrcon_pass"])
+    if not wanted:
+        return []
+    try:
+        # surrogateescape keeps any non-UTF-8 byte of the file intact.
+        with open(props, "r", encoding="utf-8", errors="surrogateescape") as f:
+            lines = f.readlines()
+    except Exception:
+        return []
+
+    changes, seen, out = [], set(), []
+    for line in lines:
+        stripped = line.lstrip("\ufeff")
+        if "=" in stripped and not stripped.lstrip().startswith("#"):
+            key, _, value = stripped.partition("=")
+            key = key.strip()
+            if key in wanted:
+                seen.add(key)
+                value = value.rstrip("\r\n")
+                if value != wanted[key]:
+                    changes.append((key, value, wanted[key]))
+                    line = f"{key}={wanted[key]}\n"
+        out.append(line)
+    for key, value in wanted.items():
+        if key not in seen:
+            if out and not out[-1].endswith("\n"):
+                out[-1] += "\n"
+            out.append(f"{key}={value}\n")
+            changes.append((key, None, value))
+    if not changes or not apply:
+        return changes
+    try:
+        tmp = props + ".tmp"
+        with open(tmp, "w", encoding="utf-8", errors="surrogateescape") as f:
+            f.writelines(out)
+        os.replace(tmp, props)
+    except Exception:
+        return []
+    return changes
+
 def start_server(config, send_webhook=True):
     import logging
     dossier = config.get("dossier_serveur", "")
@@ -450,9 +725,28 @@ def start_server(config, send_webhook=True):
     # would start a JVM that fails on the world DirectoryLock and then lingers,
     # eating GBs of RAM without ever serving anything.
     port = config.get("port")
-    if port and _port_in_use(port):
-        logging.error(f"Port {port} already in use, refusing to start a duplicate.")
+    occupant = port_occupant(port) if port else None
+    if occupant:
+        pid, prog = occupant
+        logging.error(f"Port {port} already in use by {prog} (PID {pid}), refusing to start.")
+        if pid:
+            return False, T["start_port_busy_by"].format(port=port, prog=prog, pid=pid)
         return False, T["start_port_busy"].format(port=port)
+
+    # config.json is the source of truth: push its ports/RCON into
+    # server.properties and the registry before launching.
+    for key, old, new in sync_server_properties(config):
+        shown_old, shown_new = old, new
+        if key == "rcon.password":
+            shown_old, shown_new = "***", "***"
+        if old is None:
+            shown_old = "-"
+        logging.warning(T["props_resynced"].format(key=key, old=shown_old, new=shown_new))
+    try:
+        import mc_servers
+        mc_servers.update_cached_ports(dossier, port=config.get("port"), rcon_port=config.get("rcon_port"))
+    except Exception:
+        pass
 
     java_ok, java_detail = check_java()
     if not java_ok:
@@ -515,8 +809,7 @@ def start_server(config, send_webhook=True):
         logging.error(f"Server process exited immediately (code {proc.returncode})")
         return False, T["start_crashed"].format(log=os.path.join(dossier, "logs", "latest.log"))
 
-    with open(pid_file_path(config), 'w') as f:
-        f.write(str(proc.pid))
+    _write_pid_file(config, proc.pid)
     logging.info(f"Server started PID={proc.pid}")
 
     display_ip = _display_address(config)
@@ -559,12 +852,44 @@ def start_server(config, send_webhook=True):
 # SERVER SHUTDOWN
 # ==========================================
 
-def stop_server(config, manual=True):
+STOP_TIMEOUT = 120     # seconds for a clean 'stop' before escalating
+TERM_TIMEOUT = 30      # after SIGTERM, before SIGKILL
+
+def _signal_server(config, sig):
+    """Send `sig` to this server's processes: the recorded PID (and its process
+    group when it leads one — the run.sh wrapper) plus every JVM running in the
+    server folder. Never anything identified by the port alone."""
+    dossier = config.get("dossier_serveur", "")
+    targets = set(server_java_pids(dossier))
+    pid = get_server_pid(config)
+    if pid and is_pid_running(pid, dossier):
+        targets.add(pid)
+        try:
+            if os.getpgid(pid) == pid:
+                os.killpg(pid, sig)
+        except Exception:
+            pass
+    for p in targets:
+        try:
+            os.kill(p, sig)
+        except Exception:
+            pass
+    return bool(targets)
+
+def stop_server(config, manual=True, wait=True, timeout=None):
+    """Stop the server cleanly and, by default, wait until its process is gone.
+
+    Sequence: warn players, 'save-all flush' (the world is on disk from here
+    on), 'stop' over RCON, wait; if the JVM hangs in its shutdown (seen: an
+    RCON thread blocking it forever while holding GBs of RAM), SIGTERM, then
+    SIGKILL — without data loss, the world was flushed first.
+    Returns (ok, message).
+    """
     if not is_server_running(config):
         return False, T["already_offline"]
 
     send_rcon(config, "say " + T["ingame_stopping"])
-    send_rcon(config, "save-all")
+    send_rcon(config, "save-all flush")
     if not send_rcon(config, "stop"):
         return False, T["stop_rcon_unreachable"]
 
@@ -578,7 +903,29 @@ def stop_server(config, manual=True):
         except Exception:
             pass
 
-    return True, T["stop_sent"]
+    if not wait:
+        return True, T["stop_sent"]
+
+    if timeout is None:
+        try:
+            timeout = int(config.get("stop_timeout", STOP_TIMEOUT))
+        except (TypeError, ValueError):
+            timeout = STOP_TIMEOUT
+    if wait_for_exit(config, timeout):
+        _remove_pid_file(config)
+        return True, T["stop_done"]
+
+    _signal_server(config, signal.SIGTERM)
+    if wait_for_exit(config, TERM_TIMEOUT):
+        _remove_pid_file(config)
+        return True, T["stop_done_term"].format(secs=timeout)
+
+    _signal_server(config, signal.SIGKILL)
+    gone = wait_for_exit(config, 10)
+    if gone:
+        _remove_pid_file(config)
+        return True, T["stop_done_kill"].format(secs=timeout + TERM_TIMEOUT)
+    return False, T["stop_still_running"]
 
 def send_start_webhook(config):
     """Send the server startup announcement to Discord, bypassing maintenance mode."""
@@ -604,25 +951,14 @@ def send_start_webhook(config):
     return send_discord_webhook(config, payload, force=True)
 
 def force_kill_server(config):
-    pid = get_server_pid(config)
-    if not pid:
-        # Stale or missing pid file: fall back to whoever holds the game port,
-        # so an orphan JVM (failed start that never exited, daemon restarted...)
-        # can still be killed with 'mc stop --force' instead of by hand.
-        port = config.get("port")
-        if port:
-            pid = _port_listener_pid(port)
-    if pid:
-        try:
-            os.killpg(pid, signal.SIGKILL)
-        except Exception:
-            try:
-                os.kill(pid, signal.SIGKILL)
-            except Exception:
-                pass
-    pid_file = pid_file_path(config)
-    if os.path.exists(pid_file):
-        os.remove(pid_file)
+    """SIGKILL this server's processes (identified by PID file and java + server
+    folder — never by the port, which a legitimate third-party program may
+    hold) and wait for them to be gone. Returns True if nothing survives."""
+    _signal_server(config, signal.SIGKILL)
+    gone = wait_for_exit(config, 10)
+    if gone:
+        _remove_pid_file(config)
+    return gone
 
 # ==========================================
 # BACKUP
@@ -656,7 +992,7 @@ def _get_level_name(dossier):
     prop_file = os.path.join(dossier, "server.properties")
     if os.path.exists(prop_file):
         try:
-            with open(prop_file, 'r', encoding='utf-8') as f:
+            with open(prop_file, 'r', encoding='utf-8-sig', errors='replace') as f:
                 for line in f:
                     if line.startswith("level-name="):
                         return line.strip().split("=", 1)[1] or "world"
@@ -692,8 +1028,10 @@ def backup_server(config, type_backup=None):
     try:
         if is_server_running(config):
             send_rcon(config, "save-off")
-            send_rcon(config, "save-all")
-            time.sleep(10)  # let the server flush chunks to disk before copying
+            # 'flush' makes the command return only once every chunk is on
+            # disk; the pause covers servers whose RCON replies early.
+            send_rcon(config, "save-all flush")
+            time.sleep(5)
 
         if os.path.exists(staging):
             shutil.rmtree(staging)

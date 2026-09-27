@@ -5,7 +5,7 @@
 import os
 
 # Single source of truth for the tool version (shown by `mc version`).
-VERSION = "2.4.8"
+VERSION = "2.4.9"
 
 _LANG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "language.txt")
 
@@ -13,7 +13,7 @@ _LANG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "language.
 def _read_saved_language():
     """Return the persisted language ('fr'/'en') or None if not chosen yet."""
     try:
-        with open(_LANG_FILE, "r", encoding="utf-8") as f:
+        with open(_LANG_FILE, "r", encoding="utf-8-sig") as f:
             value = f.read().strip().lower()
         return value if value in ("fr", "en") else None
     except Exception:
@@ -428,6 +428,13 @@ _FR = {
     # ── mc_daemon / mc_core (in-game, visible to players) ────────────────────
     "ingame_closing":         "Attention, fermeture imminente dans {mins} minute(s) ! Mettez-vous a l'abri.",
     "ingame_stopping":        "Arrêt du serveur en cours...",
+    "data_file_unreadable": "Fichier illisible : {path} ({detail})",
+    "data_file_fix": "Corrigez le JSON de {path} (ou restaurez-en une copie), puis relancez la commande.",
+    "status_config_unreadable": "CONFIG ILLISIBLE",
+    "unexpected_error": "Erreur inattendue : {e}",
+    "unexpected_error_log": "Détails enregistrés dans {path}. Signalez-la sur https://github.com/scirr/MCMANAGER/issues",
+    "editor_not_found": "Éditeur introuvable : {editor}. Définissez la variable EDITOR (ex. : set EDITOR=notepad).",
+    "doctor_label_config": "config.json",
 }
 
 _EN = {
@@ -831,6 +838,13 @@ _EN = {
     # ── mc_daemon / mc_core (in-game, visible to players) ────────────────────
     "ingame_closing":         "Warning: server closing in {mins} minute(s)! Find shelter.",
     "ingame_stopping":        "Server shutting down...",
+    "data_file_unreadable": "Unreadable file: {path} ({detail})",
+    "data_file_fix": "Fix the JSON in {path} (or restore a copy of it), then run the command again.",
+    "status_config_unreadable": "CONFIG UNREADABLE",
+    "unexpected_error": "Unexpected error: {e}",
+    "unexpected_error_log": "Details saved to {path}. Please report it at https://github.com/scirr/MCMANAGER/issues",
+    "editor_not_found": "Editor not found: {editor}. Set the EDITOR variable (e.g. set EDITOR=notepad).",
+    "doctor_label_config": "config.json",
 }
 
 # T is mutated in place (never reassigned) so that `from mc_lang import T` in

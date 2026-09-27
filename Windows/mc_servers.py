@@ -30,6 +30,32 @@ REGISTRY_DIR = os.path.dirname(REGISTRY_FILE)
 _EMPTY_REGISTRY = {"active": None, "servers": {}}
 
 
+class DataFileError(Exception):
+    """A JSON data file (servers.json, config.json...) exists but cannot be read.
+
+    Raised instead of silently returning an empty value: an unreadable registry
+    read as "no servers" used to stop supervision of every server, and the next
+    write would have erased the real file.
+    """
+    def __init__(self, path, detail):
+        super().__init__(f"{path}: {detail}")
+        self.path = path
+        self.detail = detail
+
+
+def read_json(path, default=None):
+    """Read a JSON file, tolerating a UTF-8 BOM (files saved by Windows editors
+    or PowerShell). Returns `default` if the file does not exist, raises
+    DataFileError if it exists but is not valid JSON."""
+    if not os.path.exists(path):
+        return copy.deepcopy(default)
+    try:
+        with open(path, 'r', encoding='utf-8-sig') as f:
+            return json.load(f)
+    except (ValueError, OSError) as e:  # JSONDecodeError and UnicodeDecodeError are ValueErrors
+        raise DataFileError(path, str(e)) from e
+
+
 def _atomic_write_json(path, data):
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     tmp_path = path + ".tmp"
@@ -87,13 +113,9 @@ def _same_dir(a, b):
 
 
 def load_registry():
-    if not os.path.exists(REGISTRY_FILE):
-        return copy.deepcopy(_EMPTY_REGISTRY)
-    try:
-        with open(REGISTRY_FILE, 'r', encoding='utf-8') as f:
-            registry = json.load(f)
-    except Exception:
-        return copy.deepcopy(_EMPTY_REGISTRY)
+    registry = read_json(REGISTRY_FILE, _EMPTY_REGISTRY)
+    if not isinstance(registry, dict):
+        raise DataFileError(REGISTRY_FILE, "not a JSON object")
     registry.setdefault("active", None)
     registry.setdefault("servers", {})
     registry.pop("next_id", None)  # legacy monotonic counter, no longer used
@@ -287,7 +309,10 @@ def stop_all_running():
         dossier = info.get("dossier_serveur", "")
         if not dossier or not os.path.exists(dossier):
             continue
-        config = mc_config.load_config(dossier)
+        try:
+            config = mc_config.load_config(dossier)
+        except DataFileError:
+            config = {}
         config["dossier_serveur"] = dossier
         if mc_core.is_server_running(config):
             print(T["stopping_server"].format(name=name))
@@ -303,8 +328,10 @@ def print_data_locations():
         dossier = info.get("dossier_serveur", "")
         backup = ""
         if dossier and os.path.exists(dossier):
-            config = mc_config.load_config(dossier)
-            backup = config.get("dossier_backup", "")
+            try:
+                backup = mc_config.load_config(dossier).get("dossier_backup", "")
+            except DataFileError:
+                backup = ""
         line = f"  - {name} : {dossier}"
         if backup:
             line += f"  (backup : {backup})"
@@ -321,9 +348,8 @@ def migrate_legacy_single_server():
         return
 
     try:
-        with open(legacy_config, 'r', encoding='utf-8') as f:
-            config = json.load(f)
-    except Exception:
+        config = read_json(legacy_config, {})
+    except DataFileError:
         save_registry(copy.deepcopy(_EMPTY_REGISTRY))
         return
 

@@ -17,13 +17,7 @@ from mc_lang import T
 
 
 def _check_port_in_use(port):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(1)
-        try:
-            s.bind(("0.0.0.0", int(port)))
-            return False
-        except OSError:
-            return True
+    return mc_core._port_in_use(port)
 
 
 def _check_daemon_service():
@@ -46,6 +40,40 @@ def _check_daemon_service():
     return running, (T["doctor_svc_running"] if running else T["doctor_svc_stopped"])
 
 
+def check_host():
+    """Checks that concern the machine, not one server."""
+    results = []
+    svc_ok, svc_detail = _check_daemon_service()
+    results.append(("ok" if svc_ok else "warn", T["doctor_label_service"], svc_detail,
+                     None if svc_ok else T["doctor_svc_fix"]))
+
+    unit_state, diffs = mc_config.check_service_unit()
+    if unit_state == "outdated":
+        detail = ", ".join(f"{k}={want}" for k, _have, want in diffs)
+        results.append(("warn", T["doctor_label_unit"], T["doctor_unit_outdated"].format(detail=detail),
+                         T["unit_reinstall_hint"].format(path=mc_config.BASE_DIR)))
+    elif unit_state == "ok":
+        results.append(("ok", T["doctor_label_unit"], T["unit_ok"], None))
+
+    java_ok, java_detail = mc_core.check_java()
+    major = mc_core.java_major_version(java_detail) if java_ok else None
+    if not java_ok:
+        results.append(("err", T["doctor_label_java"], java_detail, T["doctor_java_fix"]))
+    elif major is not None and major != 21:
+        results.append(("warn", T["doctor_label_java"], java_detail,
+                         T["doctor_java_not21"].format(major=major)))
+    else:
+        results.append(("ok", T["doctor_label_java"], java_detail, None))
+
+    zombies = mc_core.zombie_java_pids()
+    if zombies:
+        detail = ", ".join(f"{pid} (parent {ppid})" for pid, ppid in zombies)
+        results.append(("warn", T["doctor_label_zombies"], detail, T["doctor_zombies_fix"]))
+    else:
+        results.append(("ok", T["doctor_label_zombies"], T["doctor_zombies_none"], None))
+    return results
+
+
 def check_server(name, info):
     results = []
     dossier = info.get("dossier_serveur", "")
@@ -55,12 +83,27 @@ def check_server(name, info):
                          T["doctor_dir_fix"].format(name=name)))
         return results
 
-    config = mc_config.load_config(dossier)
+    try:
+        config = mc_config.load_config(dossier)
+    except mc_servers.DataFileError as e:
+        results.append(("err", T["doctor_label_config"], e.detail, T["data_file_fix"].format(path=e.path)))
+        return results
+    results.append(("ok", T["doctor_label_config"], T["doctor_config_ok"], None))
     config["dossier_serveur"] = dossier
 
-    java_ok, java_detail = mc_core.check_java()
-    results.append(("ok" if java_ok else "err", T["doctor_label_java"], java_detail,
-                     None if java_ok else T["doctor_java_fix"]))
+    drift = mc_core.sync_server_properties(config, apply=False)
+    if drift:
+        detail = ", ".join(
+            f"{k}: {'***' if k == 'rcon.password' else old} -> {'***' if k == 'rcon.password' else new}"
+            for k, old, new in drift)
+        results.append(("warn", T["doctor_label_props"], detail, T["doctor_props_fix"]))
+    else:
+        results.append(("ok", T["doctor_label_props"], T["doctor_props_ok"], None))
+    reg_port = info.get("port")
+    if reg_port is not None and config.get("port") is not None and str(reg_port) != str(config.get("port")):
+        results.append(("warn", T["doctor_label_registry"],
+                         T["doctor_registry_port"].format(reg=reg_port, cfg=config.get("port")),
+                         T["doctor_props_fix"]))
 
     rcon_configured = bool(config.get("mcrcon_pass"))
     results.append(("ok" if rcon_configured else "err", T["doctor_label_rcon_cfg"],
@@ -68,6 +111,20 @@ def check_server(name, info):
                      None if rcon_configured else T["doctor_rcon_cfg_fix"].format(name=name)))
 
     running = mc_core.is_server_running(config)
+    if running:
+        pid = mc_core.get_server_pid(config)
+        java = mc_core.server_java_pids(dossier) or ([pid] if pid else [])
+        for jpid in java:
+            cgroup = mc_core.proc_cgroup(jpid) or ""
+            if cgroup and mc_config.SERVICE_NAME not in cgroup:
+                results.append(("warn", T["doctor_label_cgroup"],
+                                T["doctor_cgroup_outside"].format(pid=jpid, cgroup=cgroup),
+                                T["doctor_cgroup_fix"]))
+            _rss, swap = mc_core.proc_memory(jpid)
+            if swap and swap > 100 * 1024:
+                results.append(("warn", T["doctor_label_swap"],
+                                T["doctor_swap_used"].format(pid=jpid, mb=swap // 1024),
+                                T["doctor_swap_fix"]))
     if running and rcon_configured:
         reachable, detail = mc_core.rcon_handshake(
             "127.0.0.1", config.get("rcon_port", mc_core.DEFAULT_RCON_PORT),
@@ -90,15 +147,16 @@ def check_server(name, info):
                              T["doctor_fw_present"].format(rule=name_rule) if present else T["doctor_fw_absent"],
                              None if present else mc_firewall.manual_command(port)))
 
-    svc_ok, svc_detail = _check_daemon_service()
-    results.append(("ok" if svc_ok else "warn", T["doctor_label_service"], svc_detail,
-                     None if svc_ok else T["doctor_svc_fix"]))
-
     if port and not running:
-        busy = _check_port_in_use(port)
-        results.append(("warn" if busy else "ok", T["doctor_label_port"],
-                         T["doctor_port_busy"] if busy else T["doctor_port_free"],
-                         T["doctor_port_busy_fix"] if busy else None))
+        occupant = mc_core.port_occupant(port)
+        if occupant and occupant[0]:
+            results.append(("warn", T["doctor_label_port"],
+                            T["status_port_held"].format(port=port, prog=occupant[1], pid=occupant[0]),
+                            T["doctor_port_busy_fix"]))
+        elif occupant:
+            results.append(("warn", T["doctor_label_port"], T["doctor_port_busy"], T["doctor_port_busy_fix"]))
+        else:
+            results.append(("ok", T["doctor_label_port"], T["doctor_port_free"], None))
 
     return results
 
@@ -112,27 +170,44 @@ def print_doctor_report(name, info, results):
 
 
 def run_doctor(target=None):
-    servers = mc_servers.list_servers()
+    """Print the report. Returns the exit code: 0 unless a check is in error
+    (warnings alone keep 0), 3 if the target cannot be resolved."""
+    try:
+        servers = mc_servers.list_servers()
+    except mc_servers.DataFileError as e:
+        mc_deploy.pr("err", T["data_file_unreadable"].format(path=e.path, detail=e.detail))
+        print(f"      \033[90m-> {T['data_file_fix'].format(path=e.path)}\033[0m")
+        return 1
     if not servers:
         mc_deploy.pr("warn", T["no_server_cfg_doctor"])
-        return
+        return 3
 
     if target is not None:
-        resolved = mc_servers.resolve_target(target)
+        resolved = mc_servers.resolve_target(target, require_folder=False)
         if not resolved:
-            return
+            return 3
         name, _ = resolved
         servers = {name: servers[name]}
 
-    any_issue = False
+    host = check_host()
+    print(f"\n\033[1m\033[96m{T['doctor_host_title']}\033[0m")
+    for status, label, detail, fix in host:
+        mc_deploy.pr(status, f"{label} : {detail}")
+        if fix:
+            print(f"      \033[90m-> {fix}\033[0m")
+    any_issue = any(status in ("warn", "err") for status, *_ in host)
+    any_error = any(status == "err" for status, *_ in host)
     for name, info in servers.items():
         results = check_server(name, info)
         print_doctor_report(name, info, results)
         if any(status in ("warn", "err") for status, *_ in results):
             any_issue = True
+        if any(status == "err" for status, *_ in results):
+            any_error = True
 
     print()
     if any_issue:
         mc_deploy.pr("warn", T["doctor_has_issues"])
     else:
         mc_deploy.pr("ok", T["doctor_all_ok"])
+    return 1 if any_error else 0

@@ -81,11 +81,10 @@ def webhooks_path(dossier_serveur):
     return os.path.join(dossier_serveur, "webhooks.json")
 
 def load_config(dossier_serveur):
-    path = config_path(dossier_serveur)
-    if not os.path.exists(path):
-        return {}
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    config = mc_servers.read_json(config_path(dossier_serveur), {})
+    if not isinstance(config, dict):
+        raise mc_servers.DataFileError(config_path(dossier_serveur), "not a JSON object")
+    return config
 
 def save_config(config):
     dossier_serveur = config["dossier_serveur"]
@@ -98,9 +97,11 @@ def save_config(config):
 
 def _load_templates():
     lang = mc_lang.current_language()
-    if os.path.exists(WEBHOOK_TEMPLATES_FILE):
-        with open(WEBHOOK_TEMPLATES_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+    try:
+        data = mc_servers.read_json(WEBHOOK_TEMPLATES_FILE)
+    except mc_servers.DataFileError:
+        data = None
+    if data:
         # Bilingual file: {"fr": {...}, "en": {...}}
         if isinstance(data, dict) and ("fr" in data or "en" in data):
             return data.get(lang) or data.get("fr") or {}
@@ -110,13 +111,17 @@ def _load_templates():
 def load_webhooks(dossier_serveur):
     templates = _load_templates()
     path = webhooks_path(dossier_serveur)
-    if not os.path.exists(path):
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(templates, f, indent=4, ensure_ascii=False)
+    try:
+        webhooks = mc_servers.read_json(path)
+    except mc_servers.DataFileError:
+        # A hand-edited webhooks.json with a typo must not block a start or a
+        # stop: fall back to the built-in templates and leave the file alone.
         return templates
-
-    with open(path, 'r', encoding='utf-8') as f:
-        webhooks = json.load(f)
+    if webhooks is None:
+        mc_servers._atomic_write_json(path, templates)
+        return templates
+    if not isinstance(webhooks, dict):
+        return templates
 
     updated = False
     for key, default_val in templates.items():
@@ -125,8 +130,7 @@ def load_webhooks(dossier_serveur):
             updated = True
 
     if updated:
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(webhooks, f, indent=4, ensure_ascii=False)
+        mc_servers._atomic_write_json(path, webhooks)
 
     return webhooks
 
@@ -477,6 +481,63 @@ WantedBy=multi-user.target
 """
 
 
+def _unit_directives(text):
+    """Map directive -> value for a unit file, ignoring comments and sections."""
+    out = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith(("#", ";", "[")) or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        out.setdefault(key.strip(), value.strip())
+    return out
+
+def check_service_unit():
+    """Compare the installed systemd unit with the one this version would write.
+
+    'mc update' only replaces program files, never the unit, so a release that
+    changes the unit (KillMode=process, for one) is not applied until
+    'sudo ./install.sh' is re-run. Returns (state, differing_directives) with
+    state in 'missing' / 'ok' / 'outdated'. User, the Python path and
+    environment lines are local choices and are not compared.
+    """
+    try:
+        with open(SERVICE_FILE, "r", encoding="utf-8") as f:
+            installed = _unit_directives(f.read())
+    except FileNotFoundError:
+        return "missing", []
+    except Exception:
+        return "missing", []
+    expected = _unit_directives(_service_unit_content(installed.get("User", "root")))
+    diffs = []
+    for key, value in expected.items():
+        if key in ("User", "Environment"):
+            continue
+        have = installed.get(key)
+        if key == "ExecStart":
+            # Only the daemon script matters, not which python runs it.
+            daemon_path = os.path.join(BASE_DIR, "mc_daemon.py")
+            if not have or not have.endswith(daemon_path):
+                diffs.append((key, have, value))
+            continue
+        if have != value:
+            diffs.append((key, have, value))
+    return ("outdated" if diffs else "ok"), diffs
+
+def print_unit_check():
+    state, diffs = check_service_unit()
+    if state == "ok":
+        print(f"\033[92m[{T['icon_ok']}]\033[0m {T['unit_ok']}")
+        return 0
+    if state == "missing":
+        print(f"\033[93m[{T['icon_warn']}]\033[0m {T['unit_missing']}")
+        return 1
+    print(f"\033[93m[{T['icon_warn']}]\033[0m {T['unit_outdated']}")
+    for key, have, want in diffs:
+        print(f"      {key}: {have if have is not None else '-'} -> {want}")
+    print(f"\033[90m[{T['icon_info']}]\033[0m {T['unit_reinstall_hint'].format(path=BASE_DIR)}")
+    return 1
+
 def run_systemctl(action):
     """Run 'systemctl <action>' on the service, elevating when needed.
 
@@ -528,5 +589,7 @@ if __name__ == "__main__":
         install_mc_command()
     elif "--install-daemon" in sys.argv:
         install_daemon_service()
+    elif "--check-unit" in sys.argv:
+        sys.exit(print_unit_check())
     else:
         run_setup()

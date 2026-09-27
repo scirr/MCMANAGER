@@ -248,14 +248,27 @@ def rcon_send_packet(sock, pkt_id, pkt_type, payload):
     packet = struct.pack("<iii", length, pkt_id, pkt_type) + payload_bytes
     sock.sendall(packet)
 
+def _recv_exact(sock, n):
+    """Read exactly n bytes, or return None if the peer closed the connection.
+    A bare recv() loop spins forever on a closed socket (recv returns b"")."""
+    data = b""
+    while len(data) < n:
+        chunk = sock.recv(n - len(data))
+        if not chunk:
+            return None
+        data += chunk
+    return data
+
 def rcon_recv_packet(sock):
-    raw_len = sock.recv(4)
+    raw_len = _recv_exact(sock, 4)
     if not raw_len:
         return None, None, None
     length = struct.unpack("<i", raw_len)[0]
-    data = b""
-    while len(data) < length:
-        data += sock.recv(length - len(data))
+    if length < 10 or length > 1 << 20:
+        return None, None, None
+    data = _recv_exact(sock, length)
+    if data is None:
+        return None, None, None
     pkt_id = struct.unpack("<i", data[0:4])[0]
     pkt_type = struct.unpack("<i", data[4:8])[0]
     payload = data[8:-2].decode("utf-8", errors="replace")
@@ -275,6 +288,9 @@ def rcon_handshake(host, port, password, ping_only=False):
         return False, T["rcon_conn_refused"]
     except Exception as e:
         return False, T["rcon_error_generic"].format(e=e)
+    if pkt_id is None:
+        sock.close()
+        return False, T["rcon_error_generic"].format(e="connection closed")
 
     if ping_only:
         sock.close()
@@ -380,8 +396,11 @@ def check_java():
             [java_exe, "-version"],
             capture_output=True, text=True, timeout=10
         )
-        version_line = (result.stderr or result.stdout).splitlines()[0]
-        return True, version_line
+        # Skip JVM notices such as "Picked up JAVA_TOOL_OPTIONS: ..." that can
+        # precede the version line.
+        lines = (result.stderr or result.stdout or "").splitlines()
+        version_line = next((l for l in lines if "version" in l), lines[0] if lines else "?")
+        return True, version_line.strip()
     except Exception:
         return False, "error"
 
