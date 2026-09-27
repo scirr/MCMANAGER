@@ -1,114 +1,109 @@
 # Releasing MC Manager
 
-Maintainer procedure for publishing a new version. Users receive it through
-`mc update`, which reads the **latest GitHub release**.
+Maintainer procedure. Users receive a release through `mc update`, which
+installs the **latest GitHub release** only after verifying its signature.
 
-Only one release exists at a time: publishing a new one deletes the previous
-releases and their tags, so `latest` is never ambiguous.
+Releases are built, signed and published by GitHub Actions
+(`.github/workflows/release.yml`). Publishing a version is: **push a tag.**
+Every release is kept; the newest one is marked *latest*.
 
 ---
 
-## Prerequisites
+## One-time setup
 
-**`create_release.ps1`** — the publishing script. It is deliberately **not in
-this repository** (maintainer-only tooling, and it once carried a token). It
-lives in the working copy root, `D:\Code\MCMANAGER\create_release.ps1`.
-**Keep a backup outside the repo** — losing it means rewriting it.
+The release signing key is an Ed25519 key pair:
 
-**A GitHub token** — Settings → Developer settings → Personal access tokens.
-Scope `repo` (classic) or *Contents: Read and write* (fine-grained). Set it once
-and forget it:
+- the **public key** is embedded in `Linux/mc_update.py` and
+  `Windows/mc_update.py` (`RELEASE_PUBLIC_KEY`, identical in both);
+- the **private key** exists only as the repository secret
+  `RELEASE_SIGNING_KEY` (Settings → Secrets and variables → Actions →
+  New repository secret), 64 hexadecimal characters. It is never committed
+  and never stored on a user's machine.
 
-```powershell
-[Environment]::SetEnvironmentVariable("GITHUB_TOKEN", "<your-token>", "User")
+To replace the key pair (lost or leaked private key):
+
+```bash
+pip install cryptography
+python tools/sign_release.py --generate
 ```
 
-Reopen the terminal afterwards. Never hardcode the token in the script.
+Put the printed public key in both `mc_update.py` files and the private key
+in the secret. Installations that still carry the old public key refuse
+updates signed with the new one: they must be updated once by hand
+(download the release ZIP and run the installer).
 
 ---
 
-## Steps
+## Publishing a version
 
-### 1. Bump the version — in three places, same value
+### 1. Bump the version — same value in both files
 
 | File | Field | Example |
 |---|---|---|
-| `Windows/mc_lang.py` | `VERSION` | `"2.4.8"` |
-| `Linux/mc_lang.py` | `VERSION` | `"2.4.8"` (identical) |
-| `create_release.ps1` | `$tag` | `"v2.4.8"` (`v` prefix) |
+| `Windows/mc_lang.py` | `VERSION` | `"2.7.0"` |
+| `Linux/mc_lang.py` | `VERSION` | `"2.7.0"` |
 
 Bug fix → bump the last digit. New feature → bump the middle one.
 
-### 1b. Write the release notes
+### 2. Write the release notes
 
 In `release-notes/vX.Y.Z.md`, following the previous files: what is fixed,
 improved or deprecated, the behaviour changes, and **what updating requires**
-(`mc update` alone, or `sudo ./install.sh` when the systemd unit changed).
-Keep it ASCII-only: it becomes `$bodyText` in `create_release.ps1`.
+(`mc update` alone, or `sudo ./install.sh` when the systemd unit or the
+installer changed). The file becomes the release description as is.
 
-### 2. Test
+### 3. Test locally
 
-```powershell
-cd Windows
-python -m unittest discover tests/
+```bash
+cd Linux && python3 -m unittest discover tests
+cd ../Windows && python -m unittest discover tests
 ```
 
-Everything must pass. The Linux suite runs the same way from `Linux/`, though
-its POSIX path tests only pass on Linux.
+CI runs the same suites on Linux and Windows, plus `ruff`, `bandit` and
+`pip-audit`, on every push.
 
-### 3. Build both packages
+### 4. Commit, push, tag
 
-```powershell
-cd Windows ; python build_release.py
-cd ..\Linux ; python build_release.py
-```
-
-Produces `dist/MCManager.zip` and `dist/MCManager-Linux.zip`. Both are
-bilingual — there is one package per platform, not per language.
-
-### 4. Commit and push
-
-```powershell
-cd ..
-git add -A
-git commit -m "fix(scope): what changed and why"
+```bash
+git commit -am "release: v2.7.0"
 git push origin main
+git tag v2.7.0
+git push origin v2.7.0
 ```
 
-### 5. Tag
+The tag starts the release workflow, which:
 
-```powershell
-git tag v2.4.8
-git push origin v2.4.8
-```
+1. runs the Linux and Windows test suites;
+2. checks that the tag, both `VERSION` values and `release-notes/<tag>.md` agree;
+3. builds `MCManager.zip` and `MCManager-Linux.zip`;
+4. writes `SHA256SUMS` and signs it (`SHA256SUMS.sig`) with `RELEASE_SIGNING_KEY`,
+   after checking the key matches the public key in the code;
+5. records a build provenance attestation;
+6. publishes the release with the notes, marked *latest*.
 
-### 6. Publish
-
-```powershell
-.\create_release.ps1
-```
-
-The script deletes every existing release and tag, creates the new release from
-`$tag`, and uploads the two ZIPs. Expected output ends with `Done.`
+A failure at any step publishes nothing.
 
 ---
 
-## The one rule that matters
+## The rules that matter
 
-**`VERSION` and `$tag` must describe the same version.**
+**The tag and both `VERSION` values must describe the same version.** The
+workflow refuses to publish otherwise. `mc update` compares the release tag
+with the installed `VERSION`: a mismatch would announce an update forever.
 
-`mc update` compares the release tag against the `VERSION` compiled into the
-package. If the tag is bumped but `mc_lang.py` is not, users download the update,
-still report the old version, and are told *again* that an update is available —
-**a notification loop with no way out**. Both `mc_lang.py` files must also stay
-identical to each other.
+**Never publish unsigned packages.** `mc update` refuses a release without
+`SHA256SUMS` and `SHA256SUMS.sig`, or whose signature or hashes do not match.
+
+**Changes to the systemd unit or to `install.sh`** are not applied by
+`mc update`, which only replaces program files. Say in the release notes that
+Linux users must re-run `sudo ./install.sh`. `mc update` and `mc doctor` also
+detect an outdated unit.
 
 ---
 
 ## Pushing without releasing
 
-For documentation or work in progress, step 4 alone is enough. No version bump,
-no build, no tag: nobody is notified and no release is touched.
+Commits without a tag are tested by CI but notify nobody and touch no release.
 
 ---
 
@@ -116,12 +111,9 @@ no build, no tag: nobody is notified and no release is touched.
 
 | Symptom | Cause |
 |---|---|
-| `GITHUB_TOKEN environment variable is not set` | Token missing from the environment; reopen the terminal after setting it. |
-| `401 Unauthorized` | Token expired or lacking the `repo` / Contents:write scope. |
-| Users are told about an update they already have | `VERSION` was not bumped along with `$tag`. Fix `mc_lang.py`, rebuild, republish. |
-| Garbled characters in the release notes | The script is read as ANSI, not UTF-8. Keep `$bodyText` ASCII-only. |
-| `Skipping missing asset` | `build_release.py` was not run, or was run before the version bump. |
-
-**Changes to the systemd unit** (`_service_unit_content` in `Linux/mc_config.py`)
-are not applied by `mc update`, which only replaces program files. Such a release
-must tell Linux users to re-run `sudo ./install.sh`.
+| Workflow: `VERSION is X, the tag is vY` | Bump both `mc_lang.py` files, move the tag (`git tag -f`, `git push -f origin vY`). |
+| Workflow: `release-notes/vY.md is missing` | Add the notes file, commit, move the tag. |
+| Workflow: `RELEASE_SIGNING_KEY is missing` | The repository secret is not set. |
+| Workflow: `does not match the public key embedded in the code` | The secret and `RELEASE_PUBLIC_KEY` come from different key pairs. |
+| Users: "Invalid signature" / "does not match its hash" | The release assets were replaced by hand. Re-run the workflow for the tag. |
+| Users are told about an update they already have | `VERSION` was not bumped with the tag. |
