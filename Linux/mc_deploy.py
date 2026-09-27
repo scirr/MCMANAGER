@@ -426,7 +426,7 @@ def setup_rcon(server_dir, config):
     is randomly generated — RCON grants full server control, so a guessable
     default like 'minecraft' must never be silently accepted."""
     pr("step", T["rcon_step"])
-    default_pass = config.get("mcrcon_pass") or secrets.token_hex(8)
+    default_pass = config.get("mcrcon_pass") or secrets.token_hex(16)
     rcon_pass = ask(T["rcon_pass_prompt"], default_pass, secret=True)
 
     game_port = config.get("port")

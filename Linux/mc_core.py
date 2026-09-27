@@ -208,6 +208,29 @@ def _listen_inodes(port):
             continue
     return inodes
 
+def listens_on_all_interfaces(port):
+    """True if something listens on 0.0.0.0 / :: for this TCP port (reachable
+    from outside unless a firewall blocks it), False if only on specific
+    addresses, None if nothing listens."""
+    found = None
+    for table in ("/proc/net/tcp", "/proc/net/tcp6"):
+        try:
+            with open(table) as f:
+                next(f, None)
+                for line in f:
+                    cols = line.split()
+                    if len(cols) < 4 or cols[3] != "0A":
+                        continue
+                    addr, _, hexport = cols[1].rpartition(":")
+                    if int(hexport, 16) != int(port):
+                        continue
+                    if set(addr) == {"0"}:
+                        return True
+                    found = False
+        except Exception:
+            continue
+    return found
+
 def _port_listener_pid(port) -> int | None:
     """PID listening on the given TCP port, or None if unknown.
 

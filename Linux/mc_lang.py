@@ -6,7 +6,7 @@ import os
 
 # Single source of truth for the tool version (shown by `mc version`).
 # Keep identical to Windows/mc_lang.py.
-VERSION = "2.7.0"
+VERSION = "2.8.0"
 
 _LANG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "language.txt")
 
@@ -635,6 +635,15 @@ _FR = {
     "doctor_port_native_sleep": "tenu par la veille native (serveur en veille)",
     "doctor_port_external_sleep": "port tenu par un outil de veille externe ({prog}, PID {pid}) ; 'mc sleep enable' le remplace nativement",
     "upd_unsigned_hint": "Les versions publiées avant la 2.7.0 ne sont pas signées. Pour revenir à la version précédente installée : mc update --rollback.",
+    "polkit_ok": "Règle polkit installée : {user} peut démarrer, arrêter et redémarrer le service sans sudo.",
+    "doctor_label_perms": "Droits",
+    "doctor_perms_fixed": "{file} était lisible par d'autres utilisateurs : ramené à 600",
+    "doctor_perms_open": "{file} est lisible par d'autres utilisateurs ({mode})",
+    "doctor_label_rcon_pass": "Mot de passe RCON",
+    "doctor_rcon_pass_short": "moins de 16 caractères",
+    "doctor_rcon_pass_fix": "mc config set mcrcon_pass $(openssl rand -hex 16) {name}   puis : mc stop {name} && mc resume {name}",
+    "doctor_rcon_public_nofw": "le port RCON {port} écoute sur toutes les interfaces et aucun pare-feu n'est actif : il est joignable depuis Internet",
+    "doctor_rcon_public_nofw_fix": "Activez un pare-feu (sudo ufw enable, en autorisant SSH et le port de jeu) : le port {port} restera fermé",
 }
 
 _EN = {
@@ -1244,6 +1253,15 @@ _EN = {
     "doctor_port_native_sleep": "held by native sleep mode (server sleeping)",
     "doctor_port_external_sleep": "port held by an external sleep tool ({prog}, PID {pid}); 'mc sleep enable' replaces it natively",
     "upd_unsigned_hint": "Versions published before 2.7.0 are not signed. To return to the previously installed version: mc update --rollback.",
+    "polkit_ok": "polkit rule installed: {user} can start, stop and restart the service without sudo.",
+    "doctor_label_perms": "Permissions",
+    "doctor_perms_fixed": "{file} was readable by other users: set back to 600",
+    "doctor_perms_open": "{file} is readable by other users ({mode})",
+    "doctor_label_rcon_pass": "RCON password",
+    "doctor_rcon_pass_short": "shorter than 16 characters",
+    "doctor_rcon_pass_fix": "mc config set mcrcon_pass $(openssl rand -hex 16) {name}   then: mc stop {name} && mc resume {name}",
+    "doctor_rcon_public_nofw": "RCON port {port} listens on every interface and no firewall is active: it is reachable from the internet",
+    "doctor_rcon_public_nofw_fix": "Enable a firewall (sudo ufw enable, allowing SSH and the game port): port {port} will stay closed",
 }
 
 # T is mutated in place (never reassigned) so that `from mc_lang import T` in

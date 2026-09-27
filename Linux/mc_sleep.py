@@ -24,9 +24,10 @@ import socket
 import struct
 import threading
 
-CLIENT_CLOSE_WAIT = 10     # seconds we let the client close first
+CLIENT_CLOSE_WAIT = 3      # seconds we let the client close first
 IO_TIMEOUT = 5
 MAX_CONNECTIONS = 32
+MAX_PER_IP = 4             # a single address cannot hold every slot
 
 
 # ── protocol primitives ──────────────────────────────────────────────────────
@@ -193,6 +194,8 @@ class SleepListener(threading.Thread):
         self._halt = threading.Event()
         self._sock = None
         self._slots = threading.BoundedSemaphore(MAX_CONNECTIONS)
+        self._per_ip = {}
+        self._per_ip_lock = threading.Lock()
         self.bound = threading.Event()
 
     def stop(self):
@@ -219,22 +222,42 @@ class SleepListener(threading.Thread):
         try:
             while not self._halt.is_set():
                 try:
-                    conn, _addr = sock.accept()
+                    conn, addr = sock.accept()
                 except socket.timeout:
                     continue
                 except OSError:
                     break
-                if not self._slots.acquire(blocking=False):
+                ip = addr[0]
+                if not self._take_ip(ip):
                     _reset(conn)
                     continue
-                threading.Thread(target=self._serve, args=(conn,), daemon=True).start()
+                if not self._slots.acquire(blocking=False):
+                    self._release_ip(ip)
+                    _reset(conn)
+                    continue
+                threading.Thread(target=self._serve, args=(conn, ip), daemon=True).start()
         finally:
             try:
                 sock.close()
             except Exception:
                 pass
 
-    def _serve(self, conn):
+    def _take_ip(self, ip):
+        with self._per_ip_lock:
+            if self._per_ip.get(ip, 0) >= MAX_PER_IP:
+                return False
+            self._per_ip[ip] = self._per_ip.get(ip, 0) + 1
+            return True
+
+    def _release_ip(self, ip):
+        with self._per_ip_lock:
+            left = self._per_ip.get(ip, 1) - 1
+            if left > 0:
+                self._per_ip[ip] = left
+            else:
+                self._per_ip.pop(ip, None)
+
+    def _serve(self, conn, ip=None):
         polite = False
         try:
             conn.settimeout(IO_TIMEOUT)
@@ -261,6 +284,8 @@ class SleepListener(threading.Thread):
             else:
                 _reset(conn)
             self._slots.release()
+            if ip is not None:
+                self._release_ip(ip)
 
     def _status(self, conn, protocol):
         packet_id, _data, _pos = read_packet(conn)       # Status Request

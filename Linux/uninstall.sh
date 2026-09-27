@@ -50,6 +50,10 @@ if [ -f /usr/local/bin/mc ]; then
 else
     echo "[OK] Global 'mc' command already absent."
 fi
+if [ -f /etc/polkit-1/rules.d/50-mc-manager.rules ]; then
+    rm -f /etc/polkit-1/rules.d/50-mc-manager.rules
+    echo "[OK] polkit rule removed."
+fi
 echo ""
 
 echo "[4/4] Cleaning generated files..."

@@ -533,6 +533,17 @@ journalctl -u mc_manager -f
 
 ---
 
+## Security
+
+- **Service control without sudo.** `install.sh` installs a polkit rule that lets the service user start, stop and restart `mc_manager.service` — nothing else. `mc daemon ...` and `mc update` use it and never prompt for a password.
+- **Hardened service.** The systemd unit drops every capability and privilege escalation (`NoNewPrivileges`, empty `CapabilityBoundingSet`), gets a private `/tmp` and devices, read-only system directories, protected kernel settings, modules, logs and control groups, and only IPv4/IPv6/local sockets. Check its exposure score with `systemd-analyze security mc_manager` (lower is better). `MemoryDenyWriteExecute` is deliberately not set: the Java JIT needs it.
+- **Secrets stay private.** `config.json`, `webhooks.json` and `servers.json` (RCON password, Discord webhook URL) are written readable by their owner only (`600`), and `mc doctor` tightens them if needed. `run/` (the service's request channel) is `700`.
+- **RCON is never exposed.** New servers get a 32-character RCON password. `mc doctor` reports an error if a firewall rule opens the RCON port, or if RCON listens on every interface with no firewall active, and warns about passwords shorter than 16 characters.
+- **Sleep listener limits.** At most 4 simultaneous connections per address and 32 in total; idle clients are cut after 3 seconds.
+- **Signed updates** — see [Updating MC Manager](#updating-mc-manager). Vulnerability reports: see [SECURITY.md](../SECURITY.md).
+
+---
+
 ## Configuration (`config.json`)
 
 Each server has its own `config.json` in its server folder. `mc edit config [target]` opens it.

@@ -27,6 +27,7 @@ This README is a high-level overview only. For installation steps and the comple
 - **Bilingual (FR/EN)** — A single build; the language is chosen on first launch and switchable anytime with `mc language`
 - **Scriptable** — Documented exit codes, `--json` output with a versioned schema, and commands (`mc active`, `mc players`, `mc rcon`, `mc config`, `mc freeze`) so tools never have to parse MC Manager's files (Linux)
 - **Signed updates** — `mc update` installs only packages whose Ed25519 signature and hashes check out, keeps the previous version for `mc update --rollback`; releases are built, signed and attested by CI
+- **Hardened** — polkit instead of sudo, sandboxed systemd service, secrets readable by their owner only, RCON exposure checks (Linux); see [SECURITY.md](SECURITY.md)
 - **Cross-platform** — Same logic, adapted natively for Linux and Windows
 
 ---

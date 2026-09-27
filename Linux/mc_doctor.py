@@ -39,6 +39,26 @@ def _check_daemon_service():
     return running, (T["doctor_svc_running"] if running else T["doctor_svc_stopped"])
 
 
+def check_private_file(path):
+    """Files holding secrets must be 0600. Tightening them is safe, so doctor
+    does it and says so; returns a result line, or None if nothing to say."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    if not st.st_mode & 0o077:
+        return None
+    name = os.path.basename(path)
+    if st.st_uid == os.geteuid() or os.geteuid() == 0:
+        try:
+            os.chmod(path, 0o600)
+            return ("ok", T["doctor_label_perms"], T["doctor_perms_fixed"].format(file=name), None)
+        except OSError:
+            pass
+    return ("warn", T["doctor_label_perms"], T["doctor_perms_open"].format(file=name, mode=oct(st.st_mode & 0o777)),
+            f"chmod 600 {path}")
+
+
 def _daemon_pid():
     try:
         import json
@@ -74,6 +94,16 @@ def check_host():
     else:
         results.append(("ok", T["doctor_label_java"], java_detail, None))
 
+    registry_perms = check_private_file(mc_servers.REGISTRY_FILE)
+    if registry_perms:
+        results.append(registry_perms)
+    run_dir = os.path.join(mc_config.BASE_DIR, "run")
+    try:
+        if os.stat(run_dir).st_mode & 0o077:
+            os.chmod(run_dir, 0o700)
+    except OSError:
+        pass
+
     zombies = mc_core.zombie_java_pids()
     if zombies:
         detail = ", ".join(f"{pid} (parent {ppid})" for pid, ppid in zombies)
@@ -99,6 +129,10 @@ def check_server(name, info):
         return results
     results.append(("ok", T["doctor_label_config"], T["doctor_config_ok"], None))
     config["dossier_serveur"] = dossier
+    for path in (mc_config.config_path(dossier), mc_config.webhooks_path(dossier)):
+        result = check_private_file(path)
+        if result:
+            results.append(result)
 
     drift = mc_core.sync_server_properties(config, apply=False)
     if drift:
@@ -125,6 +159,9 @@ def check_server(name, info):
     results.append(("ok" if rcon_configured else "err", T["doctor_label_rcon_cfg"],
                      T["doctor_rcon_cfg_ok"] if rcon_configured else T["doctor_rcon_cfg_miss"],
                      None if rcon_configured else T["doctor_rcon_cfg_fix"].format(name=name)))
+    if rcon_configured and len(str(config.get("mcrcon_pass"))) < 16:
+        results.append(("warn", T["doctor_label_rcon_pass"], T["doctor_rcon_pass_short"],
+                         T["doctor_rcon_pass_fix"].format(name=name)))
 
     running = mc_core.is_server_running(config)
     if running:
@@ -176,6 +213,11 @@ def check_server(name, info):
                             else T["doctor_rcon_exposed_fix_fwd"].format(port=rcon_port)))
         elif exposed is False:
             results.append(("ok", T["doctor_label_rcon_fw"], T["doctor_rcon_closed"].format(port=rcon_port), None))
+    elif rcon_port and mc_core.listens_on_all_interfaces(rcon_port):
+        # No firewall: RCON listening on every interface is reachable from outside.
+        results.append(("err", T["doctor_label_rcon_fw"],
+                        T["doctor_rcon_public_nofw"].format(port=rcon_port),
+                        T["doctor_rcon_public_nofw_fix"].format(port=rcon_port)))
 
     if port and not running:
         occupant = mc_core.port_occupant(port)

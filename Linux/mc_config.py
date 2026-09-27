@@ -1,4 +1,3 @@
-import json
 import os
 import subprocess
 import sys
@@ -128,11 +127,7 @@ def load_config(dossier_serveur):
 
 def save_config(config):
     dossier_serveur = config["dossier_serveur"]
-    path = config_path(dossier_serveur)
-    tmp_path = path + ".tmp"
-    with open(tmp_path, 'w', encoding='utf-8') as f:
-        json.dump(config, f, indent=4, ensure_ascii=False)
-    os.replace(tmp_path, path)
+    mc_servers._atomic_write_json(config_path(dossier_serveur), config)
     mc_servers.update_cached_ports(dossier_serveur, port=config.get("port"), rcon_port=config.get("rcon_port"))
 
 def _load_templates():
@@ -578,6 +573,9 @@ def _service_unit_content(user):
     shared = os.environ.get("MCMANAGER_DATA_DIR", "").strip()
     if shared:
         env_line = f'Environment="MCMANAGER_DATA_DIR={shared}"\n'
+    # A service running as the user needs no capability at all; root (install
+    # without sudo) keeps its own, or it could no longer reach users' files.
+    caps = "" if user == "root" else "CapabilityBoundingSet=\nAmbientCapabilities=\n"
     return f"""[Unit]
 Description=MC Manager Daemon
 After=network.target
@@ -593,10 +591,63 @@ RestartSec=10
 # default control-group mode, restarting the service would take the servers down
 # (leaving a stale server.pid) instead of just reloading the supervisor.
 KillMode=process
-
+# Hardening. Servers live anywhere under /home or /srv, so the filesystem stays
+# writable except system directories; the JVM needs W+X memory for its JIT, so
+# MemoryDenyWriteExecute is deliberately absent.
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=full
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+{caps}
 [Install]
 WantedBy=multi-user.target
 """
+
+POLKIT_RULE_FILE = "/etc/polkit-1/rules.d/50-mc-manager.rules"
+
+
+def _polkit_rule_content(user):
+    """Lets the service user start/stop/restart mc_manager.service, and
+    nothing else, without sudo."""
+    return f"""// Installed by MC Manager (install.sh). Allows '{user}' to start, stop and
+// restart the {SERVICE_NAME} service only.
+polkit.addRule(function(action, subject) {{
+    if (action.id == "org.freedesktop.systemd1.manage-units" &&
+        action.lookup("unit") == "{SERVICE_NAME}.service" &&
+        subject.user == "{user}") {{
+        var verb = action.lookup("verb");
+        if (verb == "start" || verb == "stop" || verb == "restart") {{
+            return polkit.Result.YES;
+        }}
+    }}
+}});
+"""
+
+
+def install_polkit_rule(user):
+    """Returns True if the rule was installed (polkit present, root)."""
+    folder = os.path.dirname(POLKIT_RULE_FILE)
+    if not os.path.isdir(folder) or user == "root":
+        return False
+    try:
+        with open(POLKIT_RULE_FILE, "w", encoding="utf-8") as f:
+            f.write(_polkit_rule_content(user))
+        os.chmod(POLKIT_RULE_FILE, 0o644)
+        return True
+    except OSError:
+        return False
 
 
 def _unit_directives(text):
@@ -657,21 +708,26 @@ def print_unit_check():
     return 1
 
 def run_systemctl(action):
-    """Run 'systemctl <action>' on the service, elevating when needed.
+    """Run 'systemctl <action>' on the service.
 
-    systemd delegates non-root calls to polkit, which asks for a password —
-    impossible over key-only SSH or from a script. Try sudo first, then fall
-    back to a direct call (works when a polkit rule already allows it).
+    As root: directly. Otherwise through polkit first — install.sh grants the
+    service user start/stop/restart on this unit only — and '--no-ask-password'
+    so nothing ever prompts; sudo is only the fallback for older installs.
     """
     base = ["systemctl", action, SERVICE_NAME]
-    if os.geteuid() != 0:
-        try:
-            result = subprocess.run(["sudo"] + base, capture_output=True, text=True)
-            if result.returncode == 0:
-                return result
-        except Exception:
-            pass
-    return subprocess.run(base, capture_output=True, text=True)
+    if os.geteuid() == 0:
+        return subprocess.run(base, capture_output=True, text=True)
+    result = subprocess.run(["systemctl", "--no-ask-password", action, SERVICE_NAME],
+                            capture_output=True, text=True)
+    if result.returncode == 0:
+        return result
+    try:
+        fallback = subprocess.run(["sudo"] + base, capture_output=True, text=True)
+        if fallback.returncode == 0:
+            return fallback
+    except Exception:
+        pass
+    return result
 
 def install_daemon_service(user=None):
     print("\n\033[96m=========================================")
@@ -692,6 +748,8 @@ def install_daemon_service(user=None):
         print(f"\033[90m[{T['icon_info']}]\033[0m {T['daemon_inst_rerun']}\033[0m")
         return
 
+    if install_polkit_rule(user):
+        print(f"\033[92m[{T['icon_ok']}]\033[0m {T['polkit_ok'].format(user=user)}")
     subprocess.run(["systemctl", "daemon-reload"], capture_output=True)
     subprocess.run(["systemctl", "enable", SERVICE_NAME], capture_output=True)
     result = subprocess.run(["systemctl", "restart", SERVICE_NAME], capture_output=True, text=True)
