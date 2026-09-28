@@ -19,7 +19,7 @@ sys.path.append(BASE_DIR)
 import mc_core
 import mc_config
 import mc_servers
-from mc_lang import T
+from mc_lang import T, VERSION
 from mc_validate import valid_port
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
@@ -76,6 +76,9 @@ def ask_yn(prompt, default=True):
         return default
     return val in ("o", "oui", "y", "yes")
 
+# Third-party APIs (PaperMC, Modrinth...) ask clients to identify themselves.
+USER_AGENT = f"MCManager/{VERSION} (https://github.com/scirr/MCMANAGER)"
+
 def _require_https(url):
     if not str(url).startswith("https://"):
         raise ValueError(f"refusing non-https URL: {url}")
@@ -84,7 +87,7 @@ def download(url, dest, label=""):
     pr("info", T["downloading"].format(label=f" {label}" if label else ""))
     try:
         _require_https(url)
-        req = urllib.request.Request(url, headers={"User-Agent": "MCManager/2.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(req, timeout=60) as r, open(dest, "wb") as f:  # nosec B310 - https checked
             total = int(r.headers.get("Content-Length", 0))
             done = 0
@@ -106,7 +109,7 @@ def download(url, dest, label=""):
 def fetch_json(url):
     try:
         _require_https(url)
-        req = urllib.request.Request(url, headers={"User-Agent": "MCManager/2.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(req, timeout=15) as r:  # nosec B310 - https only
             return json.loads(r.read().decode())
     except Exception as e:
@@ -260,20 +263,38 @@ def deploy_vanilla(server_dir, mc_version):
 
 # ─── Paper ───────────────────────────────────────────────────────────────────
 
+PAPER_API = "https://fill.papermc.io/v3/projects/paper"
+
+def pick_paper_build(builds):
+    """(build, warn) from the Fill v3 build list: the newest STABLE build, else
+    the newest build of any channel (warn=True). None when there is none."""
+    usable = [b for b in builds or []
+              if ((b.get("downloads") or {}).get("server:default") or {}).get("url")]
+    if not usable:
+        return None, False
+    stable = [b for b in usable if str(b.get("channel", "")).upper() == "STABLE"]
+    pool = stable or usable
+    return max(pool, key=lambda b: int(b.get("id", 0))), not stable
+
 def deploy_paper(server_dir, mc_version):
+    # PaperMC API v2 was retired: Fill v3 lists builds with their channel,
+    # download URL and SHA-256.
     pr("step", T["step_paper"])
-    builds = fetch_json(f"https://api.papermc.io/v2/projects/paper/versions/{mc_version}/builds")
-    if not builds or not builds.get("builds"):
+    builds = fetch_json(f"{PAPER_API}/versions/{mc_version}/builds")
+    if isinstance(builds, dict):
+        builds = builds.get("builds", [])
+    build, not_stable = pick_paper_build(builds)
+    if not build:
         pr("err", T["paper_not_available"].format(ver=mc_version))
         return None
-    latest = builds["builds"][-1]
-    build_num = latest["build"]
-    jar_name = latest["downloads"]["application"]["name"]
-    expected_sha256 = latest["downloads"]["application"].get("sha256")
-    url = (f"https://api.papermc.io/v2/projects/paper/versions/{mc_version}"
-           f"/builds/{build_num}/downloads/{jar_name}")
+    if not_stable:
+        pr("warn", T["paper_no_stable"].format(ver=mc_version, build=build.get("id"),
+                                               channel=build.get("channel", "?")))
+    download_info = build["downloads"]["server:default"]
+    jar_name = download_info.get("name") or f"paper-{mc_version}-{build.get('id')}.jar"
+    expected_sha256 = (download_info.get("checksums") or {}).get("sha256")
     dest = os.path.join(server_dir, jar_name)
-    if not download(url, dest, f"Paper {mc_version} build#{build_num}"):
+    if not download(download_info["url"], dest, f"Paper {mc_version} build#{build.get('id')}"):
         return None
     if not verify_checksum(dest, "sha256", expected_sha256):
         return None
@@ -307,7 +328,7 @@ def deploy_fabric(server_dir, mc_version):
 def _forge_maven_versions(mc_version):
     url = "https://files.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml"
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "MCManager/2.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
         with urllib.request.urlopen(req, timeout=15) as r:  # nosec B310 - https only
             content = r.read().decode()
         return re.findall(r"<version>(" + re.escape(mc_version) + r"-[^<]+)</version>", content)

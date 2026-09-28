@@ -76,7 +76,7 @@ def _require_https(url):
 
 def _get_json(url, timeout=NET_TIMEOUT):
     _require_https(url)
-    req = urllib.request.Request(url, headers={"User-Agent": "MCManager",
+    req = urllib.request.Request(url, headers={"User-Agent": f"MCManager/{VERSION} (https://github.com/scirr/MCMANAGER)",
                                                "Accept": "application/vnd.github+json"})
     with urllib.request.urlopen(req, timeout=timeout) as r:  # nosec B310 - https checked
         return json.loads(r.read().decode())
@@ -250,7 +250,7 @@ def _after_install():
 
 def _download(url, dest):
     _require_https(url)
-    req = urllib.request.Request(url, headers={"User-Agent": "MCManager"})
+    req = urllib.request.Request(url, headers={"User-Agent": f"MCManager/{VERSION} (https://github.com/scirr/MCMANAGER)"})
     with urllib.request.urlopen(req, timeout=60) as r, open(dest, "wb") as f:  # nosec B310 - https checked
         shutil.copyfileobj(r, f)
 

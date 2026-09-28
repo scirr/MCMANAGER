@@ -635,6 +635,7 @@ _FR = {
     "doctor_port_native_sleep": "tenu par la veille native (serveur en veille)",
     "doctor_port_external_sleep": "port tenu par un outil de veille externe ({prog}, PID {pid}) ; 'mc sleep enable' le remplace nativement",
     "upd_unsigned_hint": "Les versions publiées avant la 2.7.0 ne sont pas signées. Pour revenir à la version précédente installée : mc update --rollback.",
+    "paper_no_stable": "Aucun build Paper STABLE pour {ver} : utilisation du build {build} (canal {channel}), à tester avant de l'ouvrir aux joueurs.",
 }
 
 _EN = {
@@ -1244,6 +1245,7 @@ _EN = {
     "doctor_port_native_sleep": "held by native sleep mode (server sleeping)",
     "doctor_port_external_sleep": "port held by an external sleep tool ({prog}, PID {pid}); 'mc sleep enable' replaces it natively",
     "upd_unsigned_hint": "Versions published before 2.7.0 are not signed. To return to the previously installed version: mc update --rollback.",
+    "paper_no_stable": "No STABLE Paper build for {ver}: using build {build} ({channel} channel); test it before opening to players.",
 }
 
 # T is mutated in place (never reassigned) so that `from mc_lang import T` in
