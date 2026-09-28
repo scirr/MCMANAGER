@@ -438,7 +438,10 @@ def print_categorized_help():
             (f"edit config|webhooks [{tgt}]", T["help_edit"]),
             (f"image add|rm [{tgt}]", T["help_image"]),
             (f"datapack list|enable|disable [<pack>] [{tgt}]", T["help_datapack"]),
-            (f"mod list|add|remove [<mod>] [{tgt}]", T["help_mod"]),
+            (f"mod list|add|remove|update [<mod>] [{tgt}]", T["help_mod"]),
+            ("modpack install|update|info <source>", T["help_modpack"]),
+            (f"upgrade <version|latest> [{tgt}]", T["help_upgrade"]),
+            ("java list|install|use|remove", T["help_java"]),
             (f"schedule H M H M [{tgt}]", T["help_schedule"]),
             (f"mode <{val}> [{tgt}]", T["help_mode"]),
             (f"resume [{tgt}]", T["help_resume"]),
@@ -553,11 +556,35 @@ def main():
     p_dp.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_mod = subparsers.add_parser("mod", help=T["help_mod"])
-    p_mod.add_argument("mod_action", choices=["list", "add", "remove"])
+    p_mod.add_argument("mod_action", choices=["list", "add", "remove", "update"])
     p_mod.add_argument("args", nargs="*", help=T["help_mod_args"])
     p_mod.add_argument("--server-only", action="store_true", help=T["help_mod_server_only"])
     p_mod.add_argument("--yes", action="store_true", help=T["help_mod_yes"])
+    p_mod.add_argument("--source", choices=["modrinth", "curseforge", "hangar"], default=None,
+                       help=T["help_mod_source"])
+    p_mod.add_argument("--all", action="store_true", help=T["help_mod_all"])
     p_mod.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_upgrade = subparsers.add_parser("upgrade", help=T["help_upgrade"])
+    p_upgrade.add_argument("version", help=T["help_upgrade_version"])
+    p_upgrade.add_argument("target", nargs="?", default=None, help=T["cli_target_help"])
+    p_upgrade.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_java = subparsers.add_parser("java", help=T["help_java"])
+    p_java.add_argument("java_action", choices=["list", "install", "use", "remove"])
+    p_java.add_argument("args", nargs="*", help=T["help_java_args"])
+    p_java.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_pack = subparsers.add_parser("modpack", help=T["help_modpack"])
+    p_pack.add_argument("pack_action", choices=["install", "update", "info"])
+    p_pack.add_argument("args", nargs="*", help=T["help_modpack_args"])
+    p_pack.add_argument("--name", default=None)
+    p_pack.add_argument("--dir", dest="folder", default=None)
+    p_pack.add_argument("--port", type=int, default=None)
+    p_pack.add_argument("--rcon-port", type=int, default=None)
+    p_pack.add_argument("--ram", default="6G")
+    p_pack.add_argument("--accept-eula", action="store_true", help=T["help_deploy_eula"])
+    p_pack.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_config = subparsers.add_parser("config", help=T["help_config"])
     p_config.add_argument("config_action", choices=["get", "set"])
@@ -706,6 +733,15 @@ def main():
 
     if args.action == "mod":
         return cmd_mod(args)
+
+    if args.action == "upgrade":
+        return cmd_upgrade(args)
+
+    if args.action == "java":
+        return cmd_java(args)
+
+    if args.action == "modpack":
+        return cmd_modpack(args)
 
     if args.action in ("freeze", "thaw"):
         return cmd_freeze_thaw(args, freeze_cmd)
@@ -1063,7 +1099,7 @@ def cmd_config(args):
         return EXIT_USAGE if status in ("unknown", "invalid") else EXIT_ERROR
     for line in detail:
         print_info(line)
-    print_res(True, T["config_set_ok"].format(key=args.key, value="***" if args.key == "mcrcon_pass" else config[args.key]))
+    print_res(True, T["config_set_ok"].format(key=args.key, value="***" if args.key in ("mcrcon_pass", "curseforge_api_key") else config[args.key]))
     if mc_core.is_server_running(config) and args.key in mc_config.RESTART_KEYS:
         print_info(T["config_restart_needed"])
     return EXIT_OK
@@ -1078,10 +1114,16 @@ def render(res):
     template = T.get(f"res_{res.get('code')}")
     if not template:
         return res.get("message") or res.get("code", "?")
-    data = {k: (", ".join(map(str, v)) if isinstance(v, (list, tuple)) else v) for k, v in res.items()}
+    class _Missing(dict):
+        def __missing__(self, key):
+            return "?"
+    data = _Missing({k: (", ".join(map(str, v)) if isinstance(v, (list, tuple)) else ("?" if v is None else v))
+                     for k, v in res.items()})
+    if "version" not in data and "mc_version" in data:
+        data["version"] = data["mc_version"]
     try:
-        return template.format(**data)
-    except (KeyError, IndexError, ValueError):
+        return template.format_map(data)
+    except (IndexError, ValueError):
         return template
 
 def _finish(res, as_json):
@@ -1219,9 +1261,17 @@ def cmd_datapack(args):
                                   first=args.first, last=args.last)
     return _finish(res, args.json)
 
+def _quiet(as_json):
+    """Route progress lines to stderr in --json mode."""
+    import contextlib
+    return contextlib.redirect_stdout(sys.stderr) if as_json else contextlib.nullcontext()
+
+
 def cmd_mod(args):
     import mc_content
-    wanted = 0 if args.mod_action == "list" else 1
+    import mc_modsources
+    action = args.mod_action
+    wanted = 0 if action == "list" or (action == "update" and args.all) else 1
     operands, target = _split_target(args.args, wanted)
     if operands is None or len(operands) < wanted:
         print_res(False, T["mod_usage"])
@@ -1230,9 +1280,14 @@ def cmd_mod(args):
     if not loaded:
         return code
     _name, config = loaded
-    if args.mod_action == "list":
+    if action == "list":
         res = mc_content.mod_list(config)
+        tracked = {e["file"]: e for e in mc_modsources.load_manifest(config).get("entries", {}).values()}
         if args.json:
+            for mod in res["mods"]:
+                entry = tracked.get(mod["file"])
+                if entry:
+                    mod.update(source=entry["source"], project=entry.get("slug"), version=entry.get("version"))
             return _finish(res, True)
         for mod in res["mods"]:
             where = []
@@ -1240,18 +1295,159 @@ def cmd_mod(args):
                 where.append(T["mod_where_server"])
             if mod["modpack"]:
                 where.append(T["mod_where_modpack"])
-            print(f"  {mod['file']:<50} {' + '.join(where)}")
+            entry = tracked.get(mod["file"])
+            origin = f"  [{entry['source']}:{entry.get('slug')} {entry.get('version')}]" if entry else ""
+            print(f"  {mod['file']:<50} {' + '.join(where)}{origin}")
         print_info(T["mod_count"].format(n=len(res["mods"])))
         return EXIT_OK
-    if args.mod_action == "add":
-        res = mc_content.mod_add(config, operands[0], server_only=args.server_only)
-    else:
-        res = mc_content.mod_remove(config, operands[0], confirm_blocks=args.yes)
-    if res["ok"] and res["code"] == "added" and not args.json:
-        res = dict(res, copies=len(res["copies"]))
-    if res["ok"] and res["code"] == "removed" and not args.json:
-        res = dict(res, moved=len(res["moved"]))
+    with _quiet(args.json):
+        if action == "add":
+            ref = operands[0]
+            if ref.endswith(".jar") and os.path.isfile(os.path.expanduser(ref)):
+                res = mc_content.mod_add(config, ref, server_only=args.server_only)
+            else:
+                res = mc_modsources.add(config, ref, source=args.source)
+        elif action == "remove":
+            res = mc_content.mod_remove(config, operands[0], confirm_blocks=args.yes)
+            if res["ok"]:
+                mc_modsources.forget(config, res["file"])
+        else:
+            res = mc_modsources.update(config, None if args.all else operands[0])
+    if not args.json:
+        if res["ok"] and res["code"] == "added":
+            res = dict(res, copies=len(res["copies"]))
+        if res["ok"] and res["code"] == "removed":
+            res = dict(res, moved=len(res["moved"]))
+        if res["code"] == "content_added":
+            res = dict(res, count=len(res["installed"]))
+        if res["code"] in ("content_updated", "content_update_partial"):
+            for line in res["updated"]:
+                print_info(line)
+            for line in res["failed"]:
+                print(f"\033[93m[!]\033[0m {line}")
+            res = dict(res, n_updated=len(res["updated"]), n_current=len(res["current"]))
     return _finish(res, args.json)
+
+
+def cmd_upgrade(args):
+    loaded, code = _load(args.target, args.json)
+    if not loaded:
+        return code
+    name, config = loaded
+    if not args.json:
+        print_info(T["upgrade_running"])
+    with _quiet(args.json):
+        res = mc_api.upgrade(name, config, args.version)
+    code = _finish(res, args.json)
+    if res["ok"] and res["code"] == "upgraded" and not args.json:
+        if res.get("mods_hint"):
+            print_info(T["upgrade_mods_hint"].format(server=name))
+        if res.get("java_warning"):
+            print_info(T["upgrade_java_warning"])
+    return code
+
+
+def cmd_java(args):
+    import mc_java
+    action = args.java_action
+    if action == "list":
+        runtimes = mc_java.installed()
+        servers = []
+        for srv, info in mc_servers.list_servers().items():
+            try:
+                cfg = mc_config.load_config(info.get("dossier_serveur", ""))
+            except mc_servers.DataFileError:
+                continue
+            servers.append({"server": srv, "java": cfg.get("java") or cfg.get("java_major") or "system",
+                            "minecraft": cfg.get("mc_version")})
+        if args.json:
+            print_json({"schema": mc_api.SCHEMA_VERSION, "runtimes": {str(k): v for k, v in runtimes.items()},
+                        "servers": servers})
+            return EXIT_OK
+        if runtimes:
+            for major, path in sorted(runtimes.items()):
+                print(f"  Java {major:<4} {path}")
+        else:
+            print_info(T["java_none_installed"])
+        for entry in servers:
+            print(f"  {entry['server']:<20} Minecraft {entry['minecraft'] or '?':<10} Java {entry['java']}")
+        return EXIT_OK
+    if action in ("install", "remove"):
+        if len(args.args) != 1 or not args.args[0].isdigit():
+            print_res(False, T["java_usage"])
+            return EXIT_USAGE
+        with _quiet(args.json):
+            res = mc_java.install(args.args[0]) if action == "install" else mc_java.remove(args.args[0])
+        return _finish(res, args.json)
+    operands, target = _split_target(args.args, 1)
+    if not operands:
+        print_res(False, T["java_usage"])
+        return EXIT_USAGE
+    loaded, code = _load(target, args.json)
+    if not loaded:
+        return code
+    name, config = loaded
+    with _quiet(args.json):
+        res = mc_java.use(config, operands[0])
+    if res["ok"]:
+        mc_config.save_config(config)
+        if mc_core.is_server_running(config):
+            res = dict(res, restart_required=True)
+    return _finish(dict(res, server=name), args.json)
+
+
+def cmd_modpack(args):
+    action = args.pack_action
+    if action == "info":
+        if len(args.args) != 1:
+            print_res(False, T["modpack_usage"])
+            return EXIT_USAGE
+        import mc_modpack
+        with _quiet(args.json):
+            res = mc_modpack.info(args.args[0], _curseforge_key())
+        if res["ok"] and not args.json:
+            print(T["modpack_info_line"].format(**{k: (v if v is not None else "?") for k, v in res.items()}))
+            return EXIT_OK
+        return _finish(res, args.json)
+    if action == "install":
+        if len(args.args) != 1:
+            print_res(False, T["modpack_usage"])
+            return EXIT_USAGE
+        if not args.json:
+            print_info(T["modpack_installing"])
+        with _quiet(args.json):
+            res = mc_api.modpack_install(args.args[0], args.name, args.folder, args.port, args.rcon_port,
+                                         args.ram, args.accept_eula, _curseforge_key())
+        if res["code"] == "eula_required":
+            _finish(res, args.json)
+            return EXIT_USAGE
+        return _finish(res, args.json)
+    operands, target = _split_target(args.args, 0)
+    if operands is None:
+        print_res(False, T["modpack_usage"])
+        return EXIT_USAGE
+    loaded, code = _load(target, args.json)
+    if not loaded:
+        return code
+    name, config = loaded
+    with _quiet(args.json):
+        res = mc_api.modpack_update(name, config, _curseforge_key(config))
+    return _finish(res, args.json)
+
+
+def _curseforge_key(config=None):
+    """The CurseForge API key: the server's, else any server's, else the
+    CURSEFORGE_API_KEY environment variable."""
+    if config and config.get("curseforge_api_key"):
+        return config["curseforge_api_key"]
+    for info in mc_servers.list_servers().values():
+        try:
+            key = mc_config.load_config(info.get("dossier_serveur", "")).get("curseforge_api_key")
+        except mc_servers.DataFileError:
+            continue
+        if key:
+            return key
+    return os.environ.get("CURSEFORGE_API_KEY")
 
 
 def cmd_update(args):

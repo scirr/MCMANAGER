@@ -299,7 +299,10 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc sleep enable\|disable\|status\|wake [target] [--after 2h]` | Automatic sleep when nobody plays; wakes when a known player joins |
 | `mc sleep allow\|deny <player> [target]` | Let a player who never joined before wake the server (or stop letting them) |
 | `mc datapack list\|enable\|disable [<pack>] [target]` | Manage datapacks live (`--before P`, `--after P`, `--first`, `--last` to order) |
-| `mc mod list\|add\|remove [<mod>] [target]` | Manage mods, AutoModpack copy included; removal goes to quarantine |
+| `mc mod list\|add\|remove\|update [<mod>] [target]` | Manage mods and plugins: add a `.jar` or a name from Modrinth/CurseForge/Hangar (dependencies included), update, remove to quarantine; AutoModpack copy included |
+| `mc modpack install\|update\|info <source>` | Create a server from a modpack (Modrinth `.mrpack` or slug, `curseforge:<slug>`, `ftb:<id>`), update it, or describe it |
+| `mc upgrade <version\|latest> [target]` | Move a server to another Minecraft version: backup first, refused while running, for a downgrade, or when the loader does not exist for that version |
+| `mc java list\|install\|use\|remove` | Java runtimes (Eclipse Temurin) managed per server |
 | `mc use <name/number>` | Change the active server (argument required) |
 | `mc configure [target]` | Reconfigure an already registered server (also guarantees RCON/AutoModpack) |
 | `mc remove <name/number>` | Unregister a server from the registry (deletes NO files) |
@@ -433,6 +436,58 @@ mc mod remove create                      # moved to mods_quarantine/<date>/, ne
 ## Starting through the service
 
 `mc start`, `mc switch` and wake-ups are carried out **by the service** whenever it is running: the server is never a child of your terminal, so it stays inside the service's limits (memory, swap, `KillMode=process`) and survives the terminal closing. When the service is not running, `mc start` launches the server directly and says so.
+
+---
+
+## Server types
+
+`mc deploy` installs: **Vanilla, Paper, Folia, Purpur, Fabric, Quilt, Forge, NeoForge, Spigot** (compiled with BuildTools; needs `git`, takes a few minutes), and the proxies **Velocity, Waterfall, BungeeCord**. Every download is checked against the hash its publisher gives. Proxies have no world and no RCON: MC Manager writes their port into `velocity.toml` / `config.yml` and stops them with `SIGTERM`.
+
+### Upgrading Minecraft (`mc upgrade`)
+
+```bash
+mc stop survival
+mc upgrade 1.21.4 survival      # or: mc upgrade latest survival
+mc mod update --all survival
+mc resume survival
+```
+
+Refused while the server runs, for a downgrade (a world cannot go back), and when the loader is not published for that version. The world is backed up first; the previous server jar is kept in `.mcmanager/previous-jars/`.
+
+### Java
+
+Every server runs on its own **Eclipse Temurin** runtime, the version its Minecraft version requires (Mojang's own metadata: Java 8, 17, 21, 25...), downloaded once into `java/` in the MC Manager folder and verified by its SHA-256. The system Java is no longer needed.
+
+```bash
+mc java list                    # runtimes, and which server uses which
+mc java use auto survival       # back to the version Minecraft requires
+mc java use 21 survival         # force a version
+mc java use system survival     # use the system Java
+```
+
+### Mods and plugins by name
+
+```bash
+mc mod add lithium              # Modrinth (mods) — required dependencies installed too
+mc mod add luckperms            # Paper/Purpur/Velocity: Hangar, then Modrinth
+mc mod add jei --source curseforge
+mc mod update --all
+```
+
+MC Manager picks the newest release built for the server's loader and Minecraft version, verifies its hash, refuses client-only mods, and keeps mods that players do not need out of the AutoModpack modpack. What was installed by name is tracked in `.mcmanager/content.json`, so `mc mod update` can replace it (the old file goes to quarantine). CurseForge needs a free API key: `mc config set curseforge_api_key <key>` (or `CURSEFORGE_API_KEY`).
+
+### Modpacks
+
+```bash
+mc modpack info cobblemon-fabric
+mc modpack install cobblemon-fabric --accept-eula [--name N --port P --ram 8G]
+mc modpack install ./MyPack.mrpack --accept-eula
+mc modpack install curseforge:all-the-mods-10 --accept-eula
+mc modpack install ftb:126 --accept-eula
+mc modpack update survival
+```
+
+`install` creates a new server: the right loader and version, the server-side files only (client-only files are skipped), the pack's overrides, its own Java. `update` backs the world up, sets the old version's files aside in `mods_quarantine/`, and installs the new version; the world and your own additions are kept.
 
 ---
 

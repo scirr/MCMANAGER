@@ -396,6 +396,38 @@ def is_open_now(config, now=None):
     start, end = schedule_minutes(config)
     return is_open_hours(now.hour * 60 + now.minute, start, end)
 
+PROXY_LOADERS = ("Velocity", "Waterfall", "BungeeCord")
+
+def is_proxy(config):
+    """Velocity, Waterfall and BungeeCord forward players to servers: no world, no RCON,
+    stopped with SIGTERM, port set in their own config file."""
+    return config.get("loader") in PROXY_LOADERS
+
+def sync_proxy_port(config):
+    """Write the configured port into velocity.toml / BungeeCord config.yml.
+    Returns True if the file was changed."""
+    import re
+    dossier, port = config.get("dossier_serveur", ""), config.get("port")
+    if not port:
+        return False
+    if config.get("loader") == "Velocity":
+        path, pattern, repl = (os.path.join(dossier, "velocity.toml"),
+                               r'(?m)^(\s*bind\s*=\s*")[^"]*(")', rf'\g<1>0.0.0.0:{port}\g<2>')
+    else:
+        path, pattern, repl = (os.path.join(dossier, "config.yml"),
+                               r"(?m)^(\s*host:\s*)\S+", rf"\g<1>0.0.0.0:{port}")
+    try:
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+    except OSError:
+        return False
+    new = re.sub(pattern, repl, text, count=1)
+    if new == text:
+        return False
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(new)
+    return True
+
 def guess_loader_and_version(config) -> tuple:
     loader = config.get("loader")
     mc_version = config.get("mc_version")
@@ -608,7 +640,12 @@ def _build_embed(tpl, variables: dict, display_ip: str = None) -> dict:
 # SERVER STARTUP
 # ==========================================
 
-def find_java():
+def find_java(config=None):
+    """The server's own runtime (mc java) when it has one, else the system Java."""
+    if config and config.get("java") != "system":
+        managed = config.get("java_path")
+        if managed and os.access(managed, os.X_OK):
+            return managed
     java = shutil.which("java")
     if java:
         return java
@@ -625,8 +662,8 @@ def find_java():
                 return exe
     return "java"
 
-def check_java():
-    java_exe = find_java()
+def check_java(config=None):
+    java_exe = find_java(config)
     if java_exe == "java" and not shutil.which("java"):
         return False, "not found"
     try:
@@ -789,10 +826,13 @@ def start_server(config, send_webhook=True):
     except Exception:
         pass
 
-    java_ok, java_detail = check_java()
+    java_ok, java_detail = check_java(config)
     if not java_ok:
         logging.error(f"Java not found: {java_detail}")
         return False, T["java_not_found_start"]
+
+    if is_proxy(config):
+        sync_proxy_port(config)
 
     cpu_str = config.get("cpu_affinity", DEFAULT_CPU)
     try:
@@ -803,7 +843,7 @@ def start_server(config, send_webhook=True):
     ram = config.get("ram_allocation", DEFAULT_RAM)
     java_flags = config.get("java_flags", DEFAULT_JAVA_FLAGS)
     jar_name = config.get("jar_name", DEFAULT_JAR_NAME)
-    java_exe = find_java()
+    java_exe = find_java(config)
 
     logging.info(f"Launching Java: {java_exe}")
     logging.info(f"Folder: {dossier}")
@@ -824,13 +864,22 @@ def start_server(config, send_webhook=True):
         launch_args = [java_exe] + java_flags.split() + [
             f"-Xms{ram}", f"-Xmx{ram}",
             "-jar", os.path.join(dossier, jar_name),
-            "nogui"
         ]
+        if not is_proxy(config):
+            launch_args.append("nogui")
+
+    # run.sh (Forge/NeoForge) calls plain 'java': put the server's runtime
+    # first on PATH so it is the one used.
+    env = dict(os.environ)
+    if os.path.isabs(java_exe):
+        env["JAVA_HOME"] = os.path.dirname(os.path.dirname(java_exe))
+        env["PATH"] = os.path.dirname(java_exe) + os.pathsep + env.get("PATH", "")
 
     try:
         proc = subprocess.Popen(
             launch_args,
             cwd=dossier,
+            env=env,
             start_new_session=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -940,6 +989,17 @@ def stop_server(config, manual=True, wait=True, timeout=None, reason=None, quiet
     """
     if not is_server_running(config):
         return False, T["already_offline"]
+
+    if is_proxy(config):
+        # Proxies have no RCON and no world: SIGTERM is their clean shutdown.
+        _signal_server(config, signal.SIGTERM)
+        if wait_for_exit(config, TERM_TIMEOUT):
+            _remove_pid_file(config)
+            return True, T["stop_done"]
+        _signal_server(config, signal.SIGKILL)
+        wait_for_exit(config, 10)
+        _remove_pid_file(config)
+        return True, T["stop_done_kill"].format(secs=TERM_TIMEOUT)
 
     send_rcon(config, "say " + T["ingame_stopping"])
     send_rcon(config, "save-all flush")

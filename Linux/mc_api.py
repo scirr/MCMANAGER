@@ -530,3 +530,132 @@ def wake(name, config):
     config.pop("stop_reason", None)
     mc_config.save_config(config)
     return start(name, config)
+
+
+# ── content: server software, Java, modpacks, mods by name (2.9) ────────────
+
+def _java_for(config, mc_version, loader):
+    """Path of the Java to run installers and the server with, installing the
+    right Temurin when needed. Falls back to the system Java if the download
+    is impossible (offline)."""
+    import mc_java
+    import mc_software
+    if config.get("java") == "system":
+        return mc_core.find_java(config), None
+    major = mc_software.java_for(loader, mc_version)
+    res = mc_java.install(major)
+    if res["ok"]:
+        config["java_major"], config["java_path"] = major, res["path"]
+        return res["path"], None
+    return mc_core.find_java(config), res
+
+
+def upgrade(name, config, target="latest", progress=None):
+    """Move a server to another Minecraft version (or the newest proxy build):
+    refuses while running, refuses a downgrade (worlds cannot go back),
+    refuses when the loader is not published for that version, and backs the
+    world up first."""
+    import mc_http
+    import mc_software
+    loader = mc_software.canonical(config.get("loader")) or mc_software.canonical(
+        mc_core.guess_loader_and_version(config)[0])
+    if not loader:
+        return result(False, "unknown_loader", server=name)
+    if mc_core.is_server_running(config):
+        return result(False, "server_running", server=name)
+    current = config.get("mc_version")
+    proxy = loader in mc_software.PROXIES
+    try:
+        if proxy:
+            target = "proxy"
+        else:
+            if target in (None, "latest"):
+                target = mc_software.latest_release()
+            if current and mc_software.version_key(target) < mc_software.version_key(current):
+                return result(False, "downgrade_refused", server=name, current=current, target=target)
+            if current == target:
+                return result(True, "already_on_version", server=name, version=target)
+            ok, loader_version = mc_software.available(loader, target)
+            if not ok:
+                return result(False, loader_version, server=name, loader=loader, version=target)
+    except mc_http.HttpError as e:
+        return result(False, "source_unreachable", detail=e.detail)
+
+    if not proxy:
+        ok, msg = mc_core.backup_server(config, "upgrade")
+        if not ok and msg != mc_core.T["no_world_found"]:
+            return result(False, "backup_failed", server=name, message=msg)
+    java, java_problem = _java_for(config, target, loader)
+    old_jar = config.get("jar_name")
+    res = mc_software.install(config["dossier_serveur"], loader, target if not proxy else None,
+                              None if proxy else loader_version, java, progress)
+    if not res["ok"]:
+        return dict(res, server=name)
+    if old_jar and old_jar != res["jar_name"] and old_jar.endswith(".jar"):
+        old_path = os.path.join(config["dossier_serveur"], old_jar)
+        if os.path.exists(old_path):
+            keep = os.path.join(config["dossier_serveur"], ".mcmanager", "previous-jars")
+            os.makedirs(keep, exist_ok=True)
+            os.replace(old_path, os.path.join(keep, old_jar))
+    config.update(loader=loader, jar_name=res["jar_name"], loader_version=res.get("loader_version"))
+    if not proxy:
+        config["mc_version"] = target
+    mc_config.save_config(config)
+    mc_core.sync_server_properties(config)
+    return result(True, "upgraded", server=name, loader=loader, previous=current, version=config.get("mc_version"),
+                  jar=res["jar_name"], java_warning=bool(java_problem),
+                  mods_hint=loader in mc_software.MOD_LOADERS + mc_software.PLUGIN_LOADERS)
+
+
+def modpack_install(source, name=None, folder=None, port=None, rcon_port=None, ram="6G",
+                    accept_eula=False, curseforge_key=None, progress=None):
+    """Create a new server from a modpack."""
+    import mc_deploy
+    import mc_modpack
+    if not accept_eula:
+        return result(False, "eula_required")
+    if not name:
+        meta = mc_modpack.info(source, curseforge_key)
+        if not meta["ok"]:
+            return meta
+        name = meta.get("title") or "modpack"
+    slug = mc_servers.slugify(name, mc_servers.list_servers().keys())
+    folder = os.path.abspath(os.path.expanduser(folder or os.path.join(mc_servers.DATA_ROOT, slug, "Server")))
+    if mc_deploy._dir_has_server(folder):
+        return result(False, "folder_not_empty", path=folder)
+    port, rcon_port, error = mc_deploy.allocate_ports(port, rcon_port)
+    if error:
+        return result(False, error[0], port=error[1])
+
+    java_config = {}
+
+    def java_resolver(mc_version, loader):
+        return _java_for(java_config, mc_version, loader)[0]
+
+    created = not os.path.exists(folder)
+    res = mc_modpack.install_into(folder, source, curseforge_key, java_resolver, progress)
+    if not res["ok"]:
+        if created and os.path.isdir(folder) and not os.listdir(folder):
+            os.rmdir(folder)
+        return res
+    mc_deploy.write_eula(folder)
+    extra = {"modpack": res["modpack"], "loader_version": res.get("loader_version")}
+    extra.update({k: v for k, v in java_config.items() if k in ("java_path", "java_major")})
+    done = mc_deploy.finalize_new_server(name, folder, res["loader"], res["mc_version"], res["jar_name"],
+                                         port, rcon_port, ram, extra)
+    return dict(done, code="pack_deployed", title=res.get("title"), pack_version=res.get("version"),
+                files=res.get("files"))
+
+
+def modpack_update(name, config, curseforge_key=None, progress=None):
+    import mc_modpack
+    if mc_core.is_server_running(config):
+        return result(False, "server_running", server=name)
+    ok, msg = mc_core.backup_server(config, "modpack")
+    if not ok and msg != mc_core.T["no_world_found"]:
+        return result(False, "backup_failed", server=name, message=msg)
+    java = _java_for(config, config.get("mc_version"), config.get("loader"))[0]
+    res = mc_modpack.update(config, curseforge_key or config.get("curseforge_api_key"), java, progress)
+    if res["ok"] and res["code"] == "pack_updated":
+        mc_config.save_config(config)
+    return dict(res, server=name)

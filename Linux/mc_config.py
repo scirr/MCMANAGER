@@ -390,6 +390,7 @@ SETTABLE_KEYS = {
     "dossier_backup":        (str, lambda v: bool(str(v).strip())),
     "backup_retention_days": (int, _int_min(0)),
     "stop_timeout":          (int, _int_min(10)),
+    "curseforge_api_key":    (str, lambda v: len(str(v).strip()) >= 20),
 }
 # Changes that only take effect when the server restarts.
 RESTART_KEYS = {"port", "rcon_port", "mcrcon_pass", "ram_allocation", "cpu_affinity", "jar_name"}
@@ -499,15 +500,20 @@ def ensure_provisioning(config, dossier_serveur):
 
     print(f"\n\033[93m--- {T['section_prereq']} ---\033[0m")
 
-    if not config.get("mcrcon_pass"):
+    import mc_core
+    if mc_core.is_proxy(config):
+        # Velocity/Waterfall/BungeeCord: no RCON, no server.properties; the
+        # port goes into their own config file at every start.
+        config["activer_automodpack"] = 0
+    elif not config.get("mcrcon_pass"):
         print(f"\033[90m[{T['icon_info']}]\033[0m {T['rcon_not_configured']}")
         config, rcon_pass, rcon_port = mc_deploy.setup_rcon(dossier_serveur, config)
+        mc_deploy.generate_server_properties(dossier_serveur, config, rcon_pass, rcon_port)
     else:
         print(f"\033[92m[{T['icon_ok']}]\033[0m {T['rcon_already_ok']}")
         rcon_pass = config.get("mcrcon_pass", "")
         rcon_port = config.get("rcon_port", 25575)
-
-    mc_deploy.generate_server_properties(dossier_serveur, config, rcon_pass, rcon_port)
+        mc_deploy.generate_server_properties(dossier_serveur, config, rcon_pass, rcon_port)
 
     print(f"\n\033[93m--- {T['section_firewall']} ---\033[0m")
     port = config.get("port")

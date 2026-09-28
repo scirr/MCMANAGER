@@ -182,8 +182,12 @@ def datapack_set(config, name, enable=True, before=None, after=None, first=False
 # ── mods ─────────────────────────────────────────────────────────────────────
 
 def mod_dirs(config):
-    """(server mods dir, host-modpack mods dir or None)."""
+    """(server mods dir, host-modpack mods dir or None). Plugin servers
+    (Paper, Purpur, Folia, Spigot, proxies) use plugins/ and have no modpack."""
     dossier = config["dossier_serveur"]
+    import mc_software
+    if mc_software.canonical(config.get("loader")) in mc_software.PLUGIN_LOADERS:
+        return os.path.join(dossier, "plugins"), None
     host = os.path.join(dossier, HOST_MODPACK_MODS)
     return os.path.join(dossier, "mods"), (host if os.path.isdir(host) else None)
 

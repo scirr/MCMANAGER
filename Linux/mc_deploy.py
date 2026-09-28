@@ -352,7 +352,7 @@ def deploy_forge(server_dir, mc_version):
     pr("info", T["forge_installing"])
     try:
         result = subprocess.run(
-            [mc_core.find_java(), "-jar", installer_name, "--installServer"],
+            [_installer_java(mc_version), "-jar", installer_name, "--installServer"],
             cwd=server_dir, capture_output=True, text=True, timeout=300
         )
         if result.returncode != 0:
@@ -413,7 +413,7 @@ def deploy_neoforge(server_dir, mc_version):
     pr("info", T["neoforge_installing"])
     try:
         result = subprocess.run(
-            [mc_core.find_java(), "-jar", installer_name, "--install-server", "."],
+            [_installer_java(mc_version), "-jar", installer_name, "--install-server", "."],
             cwd=server_dir, capture_output=True, text=True, timeout=300
         )
         if result.returncode != 0:
@@ -548,18 +548,53 @@ def setup_automodpack(server_dir, config, mc_version, srv_name):
     return config
 
 
+# ─── Other server types (mc_software) ───────────────────────────────────────
+
+def _installer_java(mc_version, loader="Forge"):
+    """The Temurin runtime Minecraft `mc_version` needs (downloaded once into
+    the application's java/ folder), else the system Java."""
+    import mc_java
+    import mc_software
+    res = mc_java.install(mc_software.java_for(loader, mc_version))
+    return res["path"] if res["ok"] else mc_core.find_java()
+
+
+def _software(loader):
+    """deploy_<loader>(server_dir, mc_version) built on mc_software.install."""
+    def deploy(server_dir, mc_version):
+        import mc_software
+        pr("step", T["step_software"].format(loader=loader))
+        if loader == "Spigot":
+            pr("info", T["spigot_buildtools"])
+        res = mc_software.install(server_dir, loader, mc_version, java=_installer_java(mc_version, loader))
+        if not res["ok"]:
+            pr("err", T["software_failed"].format(loader=loader, ver=mc_version,
+                                                  detail=res.get("detail") or res["code"]))
+            return None
+        if res.get("unstable"):
+            pr("warn", T["software_unstable"].format(loader=loader))
+        return "@run.sh" if res["jar_name"] == "run.sh" else res["jar_name"]
+    return deploy
+
+
 # ─── Entry point ─────────────────────────────────────────────────────────────
 
 SERVER_TYPES = {
-    "1": ("Vanilla",  deploy_vanilla),
-    "2": ("Paper",    deploy_paper),
-    "3": ("Fabric",   deploy_fabric),
-    "4": ("Forge",    deploy_forge),
-    "5": ("NeoForge", deploy_neoforge),
+    "1":  ("Vanilla",    deploy_vanilla),
+    "2":  ("Paper",      deploy_paper),
+    "3":  ("Fabric",     deploy_fabric),
+    "4":  ("Forge",      deploy_forge),
+    "5":  ("NeoForge",   deploy_neoforge),
+    "6":  ("Purpur",     _software("Purpur")),
+    "7":  ("Folia",      _software("Folia")),
+    "8":  ("Quilt",      _software("Quilt")),
+    "9":  ("Spigot",     _software("Spigot")),
+    "10": ("Velocity",   _software("Velocity")),
+    "11": ("Waterfall",  _software("Waterfall")),
+    "12": ("BungeeCord", _software("BungeeCord")),
 }
+PROXY_CHOICES = {"10", "11", "12"}
 
-NEEDS_JAVA = {"4", "5"}
-NEEDS_JAVA_NAMES = {"Forge", "NeoForge"}
 
 def run_deploy(config: dict) -> dict:
     print(f"\n{C['bold']}{C['cyan']}{'='*45}")
@@ -593,15 +628,7 @@ def run_deploy(config: dict) -> dict:
         return config
     srv_name, deploy_fn = SERVER_TYPES[srv_choice]
 
-    if srv_choice in NEEDS_JAVA:
-        java_ok, java_ver = mc_core.check_java()
-        if not java_ok:
-            pr("err", T["java_not_found_forge"])
-            pr("err", T["java_needed_forge"])
-            return config
-        pr("ok", T["java_detected"].format(ver=java_ver))
-
-    mc_version = pick_minecraft_version()
+    mc_version = "proxy" if srv_choice in PROXY_CHOICES else pick_minecraft_version()
     config["loader"] = srv_name
     config["mc_version"] = mc_version
 
@@ -640,6 +667,15 @@ def run_deploy(config: dict) -> dict:
     else:
         config["jar_name"] = jar
         pr("ok", T["jar_main"].format(jar=jar))
+
+    import mc_java
+    import mc_software
+    java = mc_java.install(mc_software.java_for(srv_name, mc_version))
+    if java["ok"]:
+        config["java_major"], config["java_path"] = java["major"], java["path"]
+        pr("ok", T["java_managed"].format(major=java["major"]))
+    else:
+        pr("warn", T["java_managed_failed"].format(major=java.get("major", "?")))
 
     config = mc_config.ensure_provisioning(config, server_dir)
 
@@ -708,6 +744,8 @@ def run_deploy_auto(name, loader="Paper", version=None, folder=None, port=None, 
     if not valid_ram(ram):
         return result(False, "invalid_ram", ram=ram)
 
+    if loader_name in ("Velocity", "Waterfall", "BungeeCord"):
+        version = "proxy"
     if not version:
         manifest = fetch_json("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json")
         if not manifest:
@@ -719,22 +757,9 @@ def run_deploy_auto(name, loader="Paper", version=None, folder=None, port=None, 
     if _dir_has_server(folder):
         return result(False, "folder_not_empty", path=folder)
 
-    taken = _registry_ports()
-    if port is None:
-        port = _free_port(25565, taken)
-    elif not valid_port(port) or mc_servers.find_port_conflict(port=port, rcon_port=port):
-        return result(False, "port_taken", port=port)
-    taken.add(int(port))
-    if rcon_port is None:
-        rcon_port = _free_port(25575, taken)
-    elif (not valid_port(rcon_port) or int(rcon_port) == int(port)
-          or mc_servers.find_port_conflict(port=rcon_port, rcon_port=rcon_port)):
-        return result(False, "port_taken", port=rcon_port)
-
-    if loader_name in NEEDS_JAVA_NAMES:
-        java_ok, _ = mc_core.check_java()
-        if not java_ok:
-            return result(False, "java_missing", loader=loader_name)
+    port, rcon_port, error = allocate_ports(port, rcon_port)
+    if error:
+        return result(False, error[0], port=error[1])
 
     created = not os.path.exists(folder)
     os.makedirs(folder, exist_ok=True)
@@ -745,12 +770,19 @@ def run_deploy_auto(name, loader="Paper", version=None, folder=None, port=None, 
         return result(False, "download_failed", loader=loader_name, version=version)
     write_eula(folder)
 
+    return finalize_new_server(name, folder, loader_name, version, jar, port, rcon_port, ram)
+
+
+def finalize_new_server(name, folder, loader, version, jar, port, rcon_port, ram="4G", extra=None):
+    """Write config.json, server.properties, firewall rule and registry entry
+    for a freshly installed server. Shared by 'mc deploy --yes' and
+    'mc modpack install'."""
     config = {
         "nom_serveur": name,
         "description_serveur": name,
         "dossier_serveur": folder,
         "dossier_backup": os.path.join(os.path.dirname(folder), "Backup"),
-        "loader": loader_name,
+        "loader": loader,
         "mc_version": version,
         "port": int(port),
         "rcon_port": int(rcon_port),
@@ -760,12 +792,38 @@ def run_deploy_auto(name, loader="Paper", version=None, folder=None, port=None, 
         "always_on": 1,
         "activer_automodpack": 0,
     }
+    config.update(extra or {})
+    if not config.get("java_path"):
+        import mc_java
+        import mc_software
+        res = mc_java.install(mc_software.java_for(loader, version))
+        if res["ok"]:
+            config["java_major"], config["java_path"] = res["major"], res["path"]
+    if mc_core.is_proxy(config):
+        config.pop("mcrcon_pass", None)
+        config.pop("rcon_port", None)
     config = mc_config.ensure_provisioning(config, folder)
-    slug = mc_servers.register_server(name, folder, port=config["port"], rcon_port=config["rcon_port"],
+    slug = mc_servers.register_server(name, folder, port=config["port"], rcon_port=config.get("rcon_port"),
                                       set_active=True)
     mc_config.save_config(config)
-    return result(True, "deployed", server=slug, loader=loader_name, version=version, path=folder,
-                  port=config["port"], rcon_port=config["rcon_port"], jar=config["jar_name"])
+    return {"ok": True, "code": "deployed", "server": slug, "loader": loader, "version": version,
+            "path": folder, "port": config["port"], "rcon_port": config.get("rcon_port"), "jar": config["jar_name"]}
+
+
+def allocate_ports(port=None, rcon_port=None):
+    """(port, rcon_port, error_code): the first free ones when not given."""
+    taken = _registry_ports()
+    if port is None:
+        port = _free_port(25565, taken)
+    elif not valid_port(port) or mc_servers.find_port_conflict(port=port, rcon_port=port):
+        return None, None, ("port_taken", port)
+    taken.add(int(port))
+    if rcon_port is None:
+        rcon_port = _free_port(25575, taken)
+    elif (not valid_port(rcon_port) or int(rcon_port) == int(port)
+          or mc_servers.find_port_conflict(port=rcon_port, rcon_port=rcon_port)):
+        return None, None, ("port_taken", rcon_port)
+    return int(port), int(rcon_port), None
 
 
 def _detect_existing_port(server_dir, fallback=25565):

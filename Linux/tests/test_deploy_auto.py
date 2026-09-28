@@ -24,6 +24,7 @@ class TestDeployAuto(unittest.TestCase):
             mock.patch.object(mc_servers, "DATA_ROOT", os.path.join(self.data, "Servers")),
             mock.patch("mc_firewall.ensure_game_port_rule", return_value=(True, None)),
             mock.patch("builtins.input", side_effect=AssertionError("must not prompt")),
+            mock.patch("mc_java.install", return_value={"ok": False, "code": "java_download_failed"}),
         ]
         for p in self.patches:
             p.start()

@@ -20,6 +20,8 @@ This README is a high-level overview only. For installation steps and the comple
 - **Discord webhooks** — Notifies players on server open, close, and shutdown events
 - **Maintenance mode** — Instantly pauses the daemon without stopping it
 - **Sleep mode** — Frees the server's memory when nobody plays; the server stays listed and wakes when a known player joins (Linux)
+- **Every server type** — Vanilla, Paper, Folia, Purpur, Fabric, Quilt, Forge, NeoForge, Spigot, and the Velocity/Waterfall/BungeeCord proxies; `mc upgrade` moves a server to a newer Minecraft version (Linux)
+- **Modpacks, mods and plugins by name** — Modrinth, CurseForge and FTB modpacks; mods and plugins from Modrinth, CurseForge and Hangar with their dependencies; a managed Java runtime per server (Linux)
 - **Custom domain** — Show players a friendly domain/link (from any DNS provider) instead of a bare IP
 - **AutoModpack integration** — Sends the connection key directly in the Discord embed
 - **CPU affinity** — Pins the server process to specific CPU cores
@@ -53,6 +55,11 @@ MC_Manager/
 │   ├── mc_validate.py  # pure validators
 │   ├── mc_api.py       # operations layer: states, start/stop/switch, sleep, freeze
 │   ├── mc_content.py   # datapacks and mods
+│   ├── mc_software.py  # server software installers (every loader and proxy)
+│   ├── mc_java.py      # Temurin runtimes per server
+│   ├── mc_modsources.py# mods/plugins by name (Modrinth, CurseForge, Hangar)
+│   ├── mc_modpack.py   # modpacks (Modrinth, CurseForge, FTB)
+│   ├── mc_http.py      # https downloads with hash checks
 │   ├── mc_sleep.py     # sleep listener (Minecraft status/login protocol)
 │   ├── mc_ipc.py       # request channel CLI -> daemon
 │   ├── mc_setup.py     # Java check
