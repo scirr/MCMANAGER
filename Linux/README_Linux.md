@@ -212,6 +212,17 @@ Steps:
 
 ---
 
+### Non-interactive deployment (scripts)
+
+```bash
+mc deploy --yes --accept-eula --name survival --loader Paper --version 1.21.1 \
+          [--dir PATH] [--port 25565] [--rcon-port 25575] [--ram 6G] [--json]
+```
+
+With `--yes`, nothing is asked: options not given take their default (latest Minecraft release, first free game and RCON ports, `~/MCManager/Servers/<name>/Server`, 4G). `--accept-eula` is mandatory — deploying accepts the [Minecraft EULA](https://aka.ms/MinecraftEULA) on your behalf. With `--json`, progress goes to stderr and stdout carries `{"ok", "code", "server", "port", "rcon_port", "path", ...}`. Exit codes: 0 deployed, 2 invalid options (EULA not accepted, unknown type...), 1 failure (download, port taken...).
+
+---
+
 ## Adding an existing server (`mc add`)
 
 To register a Minecraft server you already have — created before MC Manager, copied from another machine, etc. — without downloading anything:

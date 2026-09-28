@@ -20,7 +20,7 @@ import mc_core
 import mc_config
 import mc_servers
 from mc_lang import T, VERSION
-from mc_validate import valid_port
+from mc_validate import valid_port, valid_ram
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -559,6 +559,7 @@ SERVER_TYPES = {
 }
 
 NEEDS_JAVA = {"4", "5"}
+NEEDS_JAVA_NAMES = {"Forge", "NeoForge"}
 
 def run_deploy(config: dict) -> dict:
     print(f"\n{C['bold']}{C['cyan']}{'='*45}")
@@ -671,6 +672,100 @@ def run_deploy(config: dict) -> dict:
     pr("info", T["start_hint"])
 
     return config
+
+
+def _free_port(start, taken):
+    port = int(start)
+    while port in taken or mc_core._port_in_use(port):
+        port += 1
+    return port
+
+
+def _registry_ports():
+    taken = set()
+    for info in mc_servers.list_servers().values():
+        for key in ("port", "rcon_port"):
+            if info.get(key):
+                taken.add(int(info[key]))
+    return taken
+
+
+def run_deploy_auto(name, loader="Paper", version=None, folder=None, port=None, rcon_port=None,
+                    ram="4G", accept_eula=False):
+    """Non-interactive 'mc deploy --yes'. Returns a result dict; progress lines
+    are printed (the caller routes them to stderr in --json mode)."""
+    def result(ok, code, **data):
+        return {"ok": ok, "code": code, **data}
+
+    if not accept_eula:
+        return result(False, "eula_required")
+    if not name or not str(name).strip():
+        return result(False, "name_required")
+    types = {label.lower(): (label, fn) for label, fn in SERVER_TYPES.values()}
+    if str(loader).lower() not in types:
+        return result(False, "unknown_loader", loader=loader, loaders=[v[0] for v in SERVER_TYPES.values()])
+    loader_name, deploy_fn = types[str(loader).lower()]
+    if not valid_ram(ram):
+        return result(False, "invalid_ram", ram=ram)
+
+    if not version:
+        manifest = fetch_json("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json")
+        if not manifest:
+            return result(False, "version_lookup_failed")
+        version = manifest["latest"]["release"]
+
+    slug = mc_servers.slugify(name, mc_servers.list_servers().keys())
+    folder = os.path.abspath(os.path.expanduser(folder or os.path.join(mc_servers.DATA_ROOT, slug, "Server")))
+    if _dir_has_server(folder):
+        return result(False, "folder_not_empty", path=folder)
+
+    taken = _registry_ports()
+    if port is None:
+        port = _free_port(25565, taken)
+    elif not valid_port(port) or mc_servers.find_port_conflict(port=port, rcon_port=port):
+        return result(False, "port_taken", port=port)
+    taken.add(int(port))
+    if rcon_port is None:
+        rcon_port = _free_port(25575, taken)
+    elif (not valid_port(rcon_port) or int(rcon_port) == int(port)
+          or mc_servers.find_port_conflict(port=rcon_port, rcon_port=rcon_port)):
+        return result(False, "port_taken", port=rcon_port)
+
+    if loader_name in NEEDS_JAVA_NAMES:
+        java_ok, _ = mc_core.check_java()
+        if not java_ok:
+            return result(False, "java_missing", loader=loader_name)
+
+    created = not os.path.exists(folder)
+    os.makedirs(folder, exist_ok=True)
+    jar = deploy_fn(folder, version)
+    if not jar:
+        if created and not os.listdir(folder):
+            os.rmdir(folder)
+        return result(False, "download_failed", loader=loader_name, version=version)
+    write_eula(folder)
+
+    config = {
+        "nom_serveur": name,
+        "description_serveur": name,
+        "dossier_serveur": folder,
+        "dossier_backup": os.path.join(os.path.dirname(folder), "Backup"),
+        "loader": loader_name,
+        "mc_version": version,
+        "port": int(port),
+        "rcon_port": int(rcon_port),
+        "mcrcon_pass": secrets.token_hex(16),
+        "ram_allocation": str(ram),
+        "jar_name": jar[1:] if jar.startswith("@") else jar,
+        "always_on": 1,
+        "activer_automodpack": 0,
+    }
+    config = mc_config.ensure_provisioning(config, folder)
+    slug = mc_servers.register_server(name, folder, port=config["port"], rcon_port=config["rcon_port"],
+                                      set_active=True)
+    mc_config.save_config(config)
+    return result(True, "deployed", server=slug, loader=loader_name, version=version, path=folder,
+                  port=config["port"], rcon_port=config["rcon_port"], jar=config["jar_name"])
 
 
 def _detect_existing_port(server_dir, fallback=25565):

@@ -498,7 +498,17 @@ def main():
     g_update.add_argument("--to", metavar="VERSION", default=None, help=T["help_update_to"])
     g_update.add_argument("--rollback", action="store_true", help=T["help_update_rollback"])
     p_update.add_argument("--json", action="store_true", help=T["help_json"])
-    subparsers.add_parser("deploy", help=T["help_deploy"])
+    p_deploy = subparsers.add_parser("deploy", help=T["help_deploy"])
+    p_deploy.add_argument("--name", help=T["help_deploy_name"])
+    p_deploy.add_argument("--loader", default="Paper", help=T["help_deploy_loader"])
+    p_deploy.add_argument("--version", dest="mc_version", default=None, help=T["help_deploy_version"])
+    p_deploy.add_argument("--dir", dest="folder", default=None, help=T["help_deploy_dir"])
+    p_deploy.add_argument("--port", type=int, default=None)
+    p_deploy.add_argument("--rcon-port", type=int, default=None)
+    p_deploy.add_argument("--ram", default="4G")
+    p_deploy.add_argument("--accept-eula", action="store_true", help=T["help_deploy_eula"])
+    p_deploy.add_argument("--yes", "-y", action="store_true", help=T["help_deploy_yes"])
+    p_deploy.add_argument("--json", action="store_true", help=T["help_json"])
     p_add = subparsers.add_parser("add", help=T["help_add"])
     p_add.add_argument("path", nargs="?", default=None, help=T["help_add_path"])
 
@@ -637,8 +647,10 @@ def main():
         return cmd_update(args)
 
     if args.action == "deploy":
-        mc_deploy.run_deploy({})
-        return
+        if not args.yes:
+            mc_deploy.run_deploy({})
+            return
+        return cmd_deploy_auto(args)
 
     if args.action == "add":
         mc_deploy.run_add({"dossier_serveur": args.path} if args.path else {})
@@ -1099,6 +1111,21 @@ def _split_target(values, wanted):
     if len(rest) > 1:
         return None, None
     return operands, (rest[0] if rest else None)
+
+def cmd_deploy_auto(args):
+    """'mc deploy --yes ...': no question asked; --json keeps stdout pure."""
+    import contextlib
+    target = sys.stderr if args.json else sys.stdout
+    with contextlib.redirect_stdout(target):
+        res = mc_deploy.run_deploy_auto(args.name, args.loader, args.mc_version, args.folder,
+                                        args.port, args.rcon_port, args.ram, args.accept_eula)
+    if res["code"] in ("eula_required", "name_required", "unknown_loader", "invalid_ram"):
+        if args.json:
+            print_json({"schema": mc_api.SCHEMA_VERSION, **res})
+        else:
+            print_res(False, render(res))
+        return EXIT_USAGE
+    return _finish(res, args.json)
 
 def cmd_switch(args):
     if not args.json:
