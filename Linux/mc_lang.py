@@ -644,6 +644,7 @@ _FR = {
     "doctor_rcon_pass_fix": "mc config set mcrcon_pass $(openssl rand -hex 16) {name}   puis : mc stop {name} && mc resume {name}",
     "doctor_rcon_public_nofw": "le port RCON {port} écoute sur toutes les interfaces et aucun pare-feu n'est actif : il est joignable depuis Internet",
     "doctor_rcon_public_nofw_fix": "Activez un pare-feu (sudo ufw enable, en autorisant SSH et le port de jeu) : le port {port} restera fermé",
+    "paper_no_stable": "Aucun build Paper STABLE pour {ver} : utilisation du build {build} (canal {channel}), à tester avant de l'ouvrir aux joueurs.",
 }
 
 _EN = {
@@ -1262,6 +1263,7 @@ _EN = {
     "doctor_rcon_pass_fix": "mc config set mcrcon_pass $(openssl rand -hex 16) {name}   then: mc stop {name} && mc resume {name}",
     "doctor_rcon_public_nofw": "RCON port {port} listens on every interface and no firewall is active: it is reachable from the internet",
     "doctor_rcon_public_nofw_fix": "Enable a firewall (sudo ufw enable, allowing SSH and the game port): port {port} will stay closed",
+    "paper_no_stable": "No STABLE Paper build for {ver}: using build {build} ({channel} channel); test it before opening to players.",
 }
 
 # T is mutated in place (never reassigned) so that `from mc_lang import T` in

@@ -457,6 +457,7 @@ _FR = {
     "upd_refused_hint": "Réessayez plus tard ; si l'erreur persiste, signalez-la : https://github.com/scirr/MCMANAGER/issues",
     "help_json": "Sortie JSON (pour les scripts)",
     "upd_unsigned_hint": "Les versions publiées avant la 2.7.0 ne sont pas signées. Pour revenir à la version précédente installée : mc update --rollback.",
+    "paper_no_stable": "Aucun build Paper STABLE pour {ver} : utilisation du build {build} (canal {channel}), à tester avant de l'ouvrir aux joueurs.",
 }
 
 _EN = {
@@ -889,6 +890,7 @@ _EN = {
     "upd_refused_hint": "Try again later; if the error persists, please report it: https://github.com/scirr/MCMANAGER/issues",
     "help_json": "JSON output (for scripts)",
     "upd_unsigned_hint": "Versions published before 2.7.0 are not signed. To return to the previously installed version: mc update --rollback.",
+    "paper_no_stable": "No STABLE Paper build for {ver}: using build {build} ({channel} channel); test it before opening to players.",
 }
 
 # T is mutated in place (never reassigned) so that `from mc_lang import T` in
