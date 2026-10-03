@@ -1005,6 +1005,7 @@ def start_server(config, send_webhook=True):
             send_discord_webhook(config, payload)
         except Exception:
             pass
+        _alert(config, "start")
     return True, T["server_launched"].format(ip=display_ip, pid=proc.pid)
 
 # ==========================================
@@ -1106,6 +1107,7 @@ def stop_server(config, manual=True, wait=True, timeout=None, reason=None, quiet
             send_discord_webhook(config, payload)
         except Exception:
             pass
+        _alert(config, "sleep" if reason == "sleep" else "stop", reason=reason or "user")
 
     if not wait:
         return True, T["stop_sent"]
@@ -1185,6 +1187,14 @@ def _prune_old_backups(dossier_backup, retention_days):
             shutil.rmtree(full, ignore_errors=True)
             removed += 1
     return removed
+
+
+def _alert(config, event, **info):
+    try:
+        import mc_alert
+        mc_alert.notify(config, event, **info)
+    except Exception:
+        pass
 
 
 def _get_level_name(dossier):

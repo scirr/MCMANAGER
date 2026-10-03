@@ -319,6 +319,7 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc announce [target]` | Manually send the opening announcement to Discord |
 | `mc fingerprint [target]` | Show the server's AutoModpack key (fingerprint) |
 | `mc backup [target]` | Run a manual ZIP backup |
+| `mc alert add <type> [options] [target]` / `list` / `remove <name>` / `test [name]` | Alert channels: `email`, `telegram`, `ntfy`, `webhook`, `discord` |
 | `mc image add <path> [target]` | Set the server icon (64×64 PNG, converted automatically) |
 | `mc image rm [target]` | Remove the server icon |
 | `mc edit config [target]` | Edit `config.json` in `$EDITOR` (default: nano) |
@@ -635,6 +636,7 @@ Each server has its own `config.json` in its server folder. `mc edit config [tar
 | `domaine` | Server domain/link shown to players (optional) | `"play.myserver.com"` |
 | `webhook_url` | Discord Webhook URL | `"https://discord.com/api/webhooks/..."` |
 | `backup_retention_days` | Days to keep daily backup folders (0 = unlimited) | `30` |
+| `alerts` | Alert channels (managed by `mc alert`, secrets inside: the file is 0600) | `[]` |
 | `activer_automodpack` | AutoModpack enabled (1) or not (0) | `1` |
 | `cle_automodpack` | AutoModpack certificate fingerprint — **detected automatically, never enter manually** | `"403e6792a7..."` |
 | `mode_maintenance` | Maintenance active (1) or not (0) — set via `mc mode maintenance` / `mc resume` | `0` |
@@ -714,6 +716,28 @@ Backup types:
 The world is safely frozen with `save-off` during the backup (with a 10 s flush delay), then `save-on` is sent when done. All world dimensions (`world`, `world_nether`, `world_the_end` — following `level-name`) are included.
 
 **Retention:** set `backup_retention_days` in `config.json` (also asked by `mc configure`) to automatically delete daily backup folders older than N days after each backup. `0` (default) keeps everything forever.
+
+---
+
+## Alerts (`mc alert`)
+
+Besides the Discord announcements (`webhook_url`), a server can notify other channels. Events: `start`, `stop` (with its reason), `crash`, `crash_loop`, `backup_failed`, `update`, `sleep`, `wake`. Each channel picks the events it wants (`--events crash,backup_failed`, default all). Like the Discord announcements, alerts stay silent while the server is in maintenance.
+
+```
+mc alert add email --smtp-host smtp.example.org --smtp-port 587 --user mc@example.org --password-file ~/.smtp-pass --from mc@example.org --to me@example.org,ops@example.org
+mc alert add telegram --token 123456:ABC... --chat -1001234567890 --events crash,crash_loop
+mc alert add ntfy --topic my-mc-alerts [--ntfy-server https://ntfy.example.org] [--token tk_...]
+mc alert add webhook --url https://hooks.example.org/mc [--header "X-Key: 1"] [--secret S]
+mc alert add discord --url https://discord.com/api/webhooks/... --name ops
+mc alert list
+mc alert test            # every channel, filters ignored; or: mc alert test telegram
+mc alert remove telegram
+```
+
+- **E-mail** uses SMTP with STARTTLS (certificate checked); login is optional.
+- **webhook** posts `{"schema":1,"event","server","title","message","reason","detail","time"}`; with `--secret` an `X-MCManager-Signature: sha256=<hmac>` header lets the receiver authenticate it.
+- URLs must be `https://` (plain `http://` only towards the local machine). Tokens and passwords are stored in `config.json` (0600) and masked in `mc alert list`; the legacy Discord webhook appears there as `discord`.
+- A channel that fails never delays or breaks a start, stop or backup: the failure is written to the daemon log.
 
 ---
 

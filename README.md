@@ -61,6 +61,8 @@ MC_Manager/
 │   ├── mc_modpack.py   # modpacks (Modrinth, CurseForge, FTB)
 │   ├── mc_http.py      # https downloads with hash checks
 │   ├── mc_crash.py     # crash-loop detection
+│   ├── mc_s3.py        # S3 client (AWS Signature V4, stdlib)
+│   ├── mc_alert.py     # alert channels (e-mail, Telegram, ntfy, webhook, Discord)
 │   ├── mc_sleep.py     # sleep listener (Minecraft status/login protocol)
 │   ├── mc_ipc.py       # request channel CLI -> daemon
 │   ├── mc_setup.py     # Java check
@@ -136,6 +138,7 @@ mc deploy
 | `mc console` | Attach to the interactive RCON console |
 | `mc logs` | Show recent server logs |
 | `mc backup` | Manual ZIP backup |
+| `mc alert add\|list\|remove\|test` | Alerts by e-mail, Telegram, ntfy, webhook or Discord, filtered per event — Linux |
 | `mc open` / `mc resume` | Open the server folder / resume from maintenance |
 | `mc announce` | Send the startup Discord webhook manually |
 | `mc mode <schedule\|always\|maintenance>` | Switch the daemon operating mode |

@@ -544,7 +544,10 @@ def wake(name, config):
     config["mode_maintenance"] = 0
     config.pop("stop_reason", None)
     mc_config.save_config(config)
-    return start(name, config)
+    started = start(name, config)
+    if started["ok"]:
+        mc_core._alert(config, "wake")
+    return started
 
 
 # ── content: server software, Java, modpacks, mods by name (2.9) ────────────
@@ -617,6 +620,7 @@ def upgrade(name, config, target="latest", progress=None):
         config["mc_version"] = target
     mc_config.save_config(config)
     mc_core.sync_server_properties(config)
+    mc_core._alert(config, "update", detail=f"{current or '?'} -> {config.get('mc_version') or res['jar_name']}")
     return result(True, "upgraded", server=name, loader=loader, previous=current, version=config.get("mc_version"),
                   jar=res["jar_name"], java_warning=bool(java_problem),
                   mods_hint=loader in mc_software.MOD_LOADERS + mc_software.PLUGIN_LOADERS)
@@ -673,4 +677,66 @@ def modpack_update(name, config, curseforge_key=None, progress=None):
     res = mc_modpack.update(config, curseforge_key or config.get("curseforge_api_key"), java, progress)
     if res["ok"] and res["code"] == "pack_updated":
         mc_config.save_config(config)
+        mc_core._alert(config, "update")
     return dict(res, server=name)
+
+
+# ── alerts (2.10) ───────────────────────────────────────────────────────────
+
+def alert_list(name, config):
+    import mc_alert
+    channels = mc_alert.listing(config)
+    return result(True, "alert_list", server=name, channels=channels, count=len(channels),
+                  events=list(mc_alert.EVENTS))
+
+
+def alert_add(name, config, kind, params, events=None, channel_name=None):
+    import mc_alert
+    if kind not in mc_alert.TYPES:
+        return result(False, "bad_type", type=kind)
+    wanted = mc_alert.parse_events(events)
+    if wanted is None:
+        return result(False, "bad_events", events=events, valid=", ".join(mc_alert.EVENTS))
+    params = {k: v for k, v in params.items() if v not in (None, "")}
+    if kind == "email":
+        params.setdefault("port", 587)
+        if isinstance(params.get("to"), str):
+            params["to"] = [a.strip() for a in params["to"].split(",") if a.strip()]
+    problem = mc_alert.validate(kind, params)
+    if problem:
+        return result(False, problem, type=kind)
+    if channel_name:
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,32}", channel_name) or channel_name == "discord":
+            return result(False, "bad_channel_name", channel=channel_name)
+        if any(c.get("name") == channel_name for c in mc_alert.channels(config)):
+            return result(False, "channel_exists", channel=channel_name)
+    channel = {"name": channel_name or mc_alert.next_name(config, kind), "type": kind,
+               "events": wanted, **params}
+    config.setdefault("alerts", []).append(channel)
+    mc_config.save_config(config)
+    return result(True, "alert_added", server=name, channel=channel["name"], type=kind, events=wanted)
+
+
+def alert_remove(name, config, channel_name):
+    import mc_alert
+    found = next((c for c in mc_alert.channels(config) if c.get("name") == channel_name), None)
+    if not found:
+        return result(False, "channel_not_found", channel=channel_name)
+    config["alerts"] = [c for c in config["alerts"] if c is not found]
+    if not config["alerts"]:
+        config.pop("alerts")
+    mc_config.save_config(config)
+    return result(True, "alert_removed", server=name, channel=channel_name)
+
+
+def alert_test(name, config, channel_name=None):
+    import mc_alert
+    found, sent = mc_alert.test_channels(config, channel_name)
+    if not found:
+        return result(False, "channel_not_found", channel=channel_name)
+    if not sent:
+        return result(False, "no_channel", server=name)
+    checks = [{"channel": n, "ok": ok, "detail": "" if ok else detail} for n, ok, detail in sent]
+    ok = all(c["ok"] for c in checks)
+    return result(ok, "alert_tested" if ok else "alert_test_failed", server=name, checks=checks,
+                  failed=", ".join(c["channel"] for c in checks if not c["ok"]))

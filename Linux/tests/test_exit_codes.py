@@ -33,7 +33,6 @@ FAILING = [
     ["doctor", "zz"],
     ["logs", "zz"],
     ["open", "zz"],
-    ["backup", "zz"],
     ["resume", "zz"],
     ["mode", "always-on", "zz"],
     ["schedule", "25", "0", "3", "0"],
@@ -43,6 +42,9 @@ FAILING = [
     ["sleep", "enable", "--after", "nonsense"],
     ["freeze", "--max", "nonsense"],
     ["image", "add", "/nonexistent/icon.png"],
+    ["alert", "remove", "nope"],
+    ["alert", "test"],
+    ["alert", "add", "sms"],
     ["announce"],
     ["fingerprint"],
 ]

@@ -424,6 +424,7 @@ def print_categorized_help():
             (f"rcon \"<cmd>\" [{tgt}]", T["help_rcon"]),
             (f"players [{tgt}] [--json]", T["help_players"]),
             (f"backup [{tgt}]", T["help_backup"]),
+            (f"alert add|list|remove|test [{tgt}]", T["help_alert"]),
             (f"freeze [{tgt}] [-- <cmd>]", T["help_freeze"]),
             (f"thaw [{tgt}]", T["help_thaw"]),
             (f"sleep enable|disable|status|wake [{tgt}] [--after 2h]", T["help_sleep"]),
@@ -624,6 +625,7 @@ def build_parser():
     p_stop.add_argument("--quiet", "-q", action="store_true", help=T["help_stop_quiet"])
     subparsers.add_parser("console", parents=[target_parser], help=T["help_console"])
     subparsers.add_parser("backup", parents=[target_parser], help=T["help_backup"])
+    _add_exploitation_parsers(subparsers)
     subparsers.add_parser("open", parents=[target_parser], help=T["help_open"])
     subparsers.add_parser("resume", parents=[target_parser], help=T["help_resume"])
     subparsers.add_parser("announce", parents=[target_parser], help=T["help_announce"])
@@ -677,6 +679,8 @@ def main():
         cut = argv.index("--")
         argv, freeze_cmd = argv[:cut], argv[cut + 1:]
     args = parser.parse_args(argv)
+    if args.action == "alert":
+        return cmd_alert(args)
 
     if args.action not in ("daemon", "update") and not getattr(args, "json", False):
         show_update_notice()
@@ -1522,6 +1526,111 @@ def cmd_update(args):
             if res["code"] in ("updated", "rolled_back") and not res.get("restarted"):
                 print_info(T["update_daemon_manual"])
     return 0 if res["ok"] else 1
+
+# ==========================================
+# ALERTS (2.10)
+# ==========================================
+
+USAGE_CODES = {"bad_type", "bad_events", "bad_channel_name", "bad_url", "missing_host", "missing_addresses",
+               "bad_port", "missing_telegram", "missing_topic", "key_not_found"}
+
+
+def _add_exploitation_parsers(subparsers):
+    p_alert = subparsers.add_parser("alert", help=T["help_alert"])
+    p_alert.add_argument("alert_action", choices=["add", "list", "remove", "test"])
+    p_alert.add_argument("args", nargs="*", help=T["help_alert_args"])
+    p_alert.add_argument("--name", default=None, help=T["help_alert_name"])
+    p_alert.add_argument("--events", default=None, metavar="LIST", help=T["help_alert_events"])
+    p_alert.add_argument("--smtp-host", default=None)
+    p_alert.add_argument("--smtp-port", default=None)
+    p_alert.add_argument("--user", default=None)
+    p_alert.add_argument("--password", default=None)
+    p_alert.add_argument("--password-file", default=None, metavar="FILE")
+    p_alert.add_argument("--from", dest="sender", default=None)
+    p_alert.add_argument("--to", default=None, metavar="ADDRESSES")
+    p_alert.add_argument("--token", default=None)
+    p_alert.add_argument("--chat", default=None)
+    p_alert.add_argument("--topic", default=None)
+    p_alert.add_argument("--ntfy-server", default=None, metavar="URL")
+    p_alert.add_argument("--url", default=None)
+    p_alert.add_argument("--header", action="append", default=None, metavar="NAME:VALUE")
+    p_alert.add_argument("--secret", default=None)
+    p_alert.add_argument("--json", action="store_true", help=T["help_json"])
+
+
+def _read_secret_file(path):
+    with open(os.path.expanduser(path), "r", encoding="utf-8") as f:
+        return f.read().strip()
+
+
+def _finish_checked(res, as_json):
+    code = _finish(res, as_json)
+    if not res["ok"] and res["code"] in USAGE_CODES:
+        return EXIT_USAGE
+    return code
+
+
+def _alert_params(kind, args):
+    password = args.password
+    if args.password_file:
+        password = _read_secret_file(args.password_file)
+    headers = {}
+    for item in args.header or []:
+        key, _, value = item.partition(":")
+        headers[key.strip()] = value.strip()
+    if kind == "email":
+        return dict(host=args.smtp_host, port=args.smtp_port, user=args.user, password=password,
+                    sender=args.sender, to=args.to)
+    if kind == "telegram":
+        return dict(token=args.token, chat_id=args.chat)
+    if kind == "ntfy":
+        return dict(topic=args.topic, server=args.ntfy_server, token=args.token)
+    return dict(url=args.url, headers=headers or None, secret=args.secret)
+
+
+def cmd_alert(args):
+    action = args.alert_action
+    wanted = 1 if action in ("add", "remove") else 0
+    rest = list(args.args)
+    if action == "test" and rest:
+        wanted = 1
+    operands, target = _split_target(rest, wanted)
+    if operands is None or len(operands) < wanted:
+        print_res(False, T["alert_usage"])
+        return EXIT_USAGE
+    loaded, code = _load(target, args.json)
+    if not loaded:
+        return code
+    name, config = loaded
+    if action == "list":
+        res = mc_api.alert_list(name, config)
+        if args.json:
+            return _finish(res, True)
+        for ch in res["channels"]:
+            where = ch.get("url") or ch.get("topic") or ch.get("host") or ch.get("chat_id") or ""
+            print(f"  {ch['name']:<16} {ch['type']:<9} {','.join(ch.get('events') or ['*']):<24} {where}")
+        if not res["channels"]:
+            print_info(T["alert_none"])
+        return EXIT_OK
+    if action == "add":
+        try:
+            params = _alert_params(operands[0], args)
+        except OSError as e:
+            return _finish_checked(mc_api.result(False, "key_not_found", path=str(e.filename)), args.json)
+        res = mc_api.alert_add(name, config, operands[0], params, args.events, args.name)
+    elif action == "remove":
+        res = mc_api.alert_remove(name, config, operands[0])
+    else:
+        res = mc_api.alert_test(name, config, operands[0] if operands else None)
+        if not args.json:
+            for c in res.get("checks", []):
+                line = T["alert_check_ok" if c["ok"] else "alert_check_ko"].format(channel=c["channel"], detail=c["detail"])
+                if c["ok"]:
+                    print_info(line)
+                else:
+                    print(f"\033[93m[!]\033[0m {line}")
+    return _finish_checked(res, args.json)
+
 
 def dispatch_daemon(daemon_action):
     if daemon_action == "run":
