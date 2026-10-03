@@ -60,6 +60,11 @@ _FALLBACK_WEBHOOKS = {
             "title": "🔁 {nom} laisse la place",
             "color": 3447003,
             "description": "Le serveur s'arrête pour laisser place à un autre serveur."
+        },
+        "crash_loop": {
+            "title": "🚨 {nom} ne démarre plus",
+            "color": 15158332,
+            "description": "Le serveur s'est arrêté de lui-même ({count} échec(s) récents) : les relances automatiques sont suspendues.\n```\n{errors}\n```"
         }
     },
     "en": {
@@ -106,6 +111,11 @@ _FALLBACK_WEBHOOKS = {
             "title": "🔁 {nom} makes way",
             "color": 3447003,
             "description": "The server is stopping to make way for another server."
+        },
+        "crash_loop": {
+            "title": "🚨 {nom} no longer starts",
+            "color": 15158332,
+            "description": "The server stopped on its own ({count} recent failure(s)): automatic restarts are suspended.\n```\n{errors}\n```"
         }
     }
 }

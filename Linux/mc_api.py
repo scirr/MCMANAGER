@@ -19,6 +19,7 @@ sys.path.append(BASE_DIR)
 
 import mc_config
 import mc_core
+import mc_crash
 import mc_servers
 from mc_lang import T
 
@@ -31,13 +32,15 @@ STOP_REASONS = ("user", "sleep", "update", "maintenance", "switch")
 # Explicit states derived from the process, the port and config.json.
 #   running          process alive, game port listening and RCON answering
 #   starting         process alive, still starting (RCON opens at "Done")
+#   crashed          not running, died during startup or in a crash loop: the
+#                    daemon no longer relaunches it ('mc resume' does)
 #   stopped          not running, the daemon will start it (24/7, or opening hours)
 #   closed           not running, schedule mode outside opening hours
 #   stopped-by-user  not running, maintenance flag set by 'mc stop' (reason user)
 #   sleeping         not running, stopped with 'mc stop --reason sleep'
 #   maintenance      not running, maintenance for another reason
 #                    ('mc mode maintenance', --reason update/maintenance/switch)
-STATES = ("running", "starting", "stopped", "closed", "stopped-by-user", "sleeping", "maintenance")
+STATES = ("running", "starting", "crashed", "stopped", "closed", "stopped-by-user", "sleeping", "maintenance")
 
 FROZEN_MARKER = ".mcmanager_frozen"
 DEFAULT_FREEZE_MAX = 3600
@@ -104,6 +107,8 @@ def server_state(config, now=None):
         if reason == "user":
             return "stopped-by-user"
         return "maintenance"
+    if mc_crash.is_crashed(config):
+        return "crashed"
     return "stopped" if _should_be_open(config, now) else "closed"
 
 
@@ -167,6 +172,14 @@ def server_snapshot(name, info, active_name=None):
         elif occupant:
             snap["port_holder"] = {"pid": occupant[0], "program": occupant[1]}
     snap["sleep"] = sleep_info(config)
+    if state == "crashed":
+        marker = mc_crash.read(config) or {}
+        snap["crash"] = {
+            "since": marker.get("since"),
+            "failures": len(marker.get("failures", [])),
+            "startup": bool(marker.get("startup")),
+            "errors": mc_crash.recent_errors(dossier),
+        }
     return snap
 
 

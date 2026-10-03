@@ -889,6 +889,11 @@ def start_server(config, send_webhook=True):
     time.sleep(3)
     if proc.poll() is not None:
         logging.error(f"Server process exited immediately (code {proc.returncode})")
+        try:
+            import mc_crash
+            mc_crash.record_failure(config, startup=True)
+        except Exception:
+            pass
         return False, T["start_crashed"].format(log=os.path.join(dossier, "logs", "latest.log"))
 
     _write_pid_file(config, proc.pid)

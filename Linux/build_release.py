@@ -38,6 +38,7 @@ PACKAGE_FILES = [
     "mc_ipc.py",
     "mc_sleep.py",
     "mc_content.py",
+    "mc_crash.py",
     "install.sh",
     "uninstall.sh",
     "webhook_templates.json",
