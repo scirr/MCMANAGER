@@ -11,6 +11,7 @@ sys.path.append(BASE_DIR)
 import mc_setup
 import mc_config
 import mc_core
+import mc_crash
 import mc_deploy
 import mc_image
 import mc_servers
@@ -196,6 +197,8 @@ def render_server_box(name, info, active_name):
         statut = T["status_online"].format(pid=pid)
     elif en_ligne:
         statut = T["status_online_nopid"]
+    elif mc_crash.is_crashed(config):
+        statut = T["status_crashed"]
     else:
         statut = T["status_offline"]
 
@@ -226,7 +229,12 @@ def render_server_box(name, info, active_name):
         f"{T['field_dir']}  : {dossier}",
         f"{T['field_port']}     : {port}",
     ]
-    return _box(title, marker, field_lines)
+    box = _box(title, marker, field_lines)
+    if not en_ligne and mc_crash.is_crashed(config):
+        box += f"\n  \033[91m{T['status_crash_errors']}\033[0m"
+        box += "".join(f"\n  \033[90m{line[:200]}\033[0m" for line in mc_crash.recent_errors(dossier))
+        box += f"\n  \033[90m-> {T['status_crash_fix']}\033[0m"
+    return box
 
 def print_dashboard(target=None, with_cheatsheet=False):
     servers = mc_servers.list_servers()
@@ -673,6 +681,7 @@ def main():
         print_res(True, T["mode_set"].format(mode=mode_labels.get(args.value, args.value)))
 
     elif args.action == "resume":
+        was_crashed = mc_crash.clear(config)
         config = mc_config.resume_mode(config)
         save_config(config)
         mode_labels = {
@@ -685,7 +694,8 @@ def main():
         # bring it up on its own — say so, otherwise 'resume' looks like a
         # no-op and users chain a needless (and now refused) 'mc start'.
         if not mc_core.is_server_running(config):
-            print(f"\033[90m[i]\033[0m {T['resume_restart_hint']}")
+            hint = "resume_crash_cleared" if was_crashed else "resume_restart_hint"
+            print(f"\033[90m[i]\033[0m {T[hint]}")
 
     elif args.action == "schedule":
         invalid = None

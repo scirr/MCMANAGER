@@ -153,6 +153,19 @@ def is_server_running(config) -> bool:
 # MODE
 # ==========================================
 
+def log_has_done(config, since=None):
+    """True when the current log shows the server finished starting ('Done (').
+    `since` is the epoch the process started: an older log belongs to a
+    previous run."""
+    path = os.path.join(config.get("dossier_serveur", ""), "logs", "latest.log")
+    try:
+        if since is not None and os.path.getmtime(path) < since - 5:
+            return False
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            return any("Done (" in line for line in f)
+    except OSError:
+        return False
+
 def effective_mode(config) -> str:
     if config.get("mode_maintenance", 0) == 1:
         return "maintenance"
@@ -536,6 +549,11 @@ def start_server(config, send_webhook=True):
     time.sleep(3)
     if proc.poll() is not None:
         logging.error(f"Server process exited immediately (code {proc.returncode})")
+        try:
+            import mc_crash
+            mc_crash.record_failure(config, startup=True)
+        except Exception:
+            pass
         return False, T["start_crashed"].format(log=os.path.join(dossier, "logs", "latest.log"))
 
     with open(pid_file_path(config), 'w') as f:

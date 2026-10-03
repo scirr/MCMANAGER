@@ -88,6 +88,9 @@ _FR = {
     "status_online":        "EN LIGNE (PID {pid})",
     "status_online_nopid":  "EN LIGNE",
     "status_offline":       "HORS LIGNE",
+    "status_crashed": "PLANTÉ (relances arrêtées)",
+    "status_crash_errors": "Dernières erreurs du log :",
+    "status_crash_fix": "Corrigez la cause, puis relancez avec : mc resume",
     "mode_schedule":        "Horaires",
     "mode_always_on":       "24h/24",
     "mode_maintenance":     "Maintenance",
@@ -126,6 +129,7 @@ _FR = {
     "maintenance_activated": "Maintenance activée. Tapez 'mc resume' pour redémarrer.",
     "mode_set":              "Mode : {mode}",
     "maintenance_disabled":  "Maintenance désactivée. Mode actuel : {mode}",
+    "resume_crash_cleared": "État de plantage effacé : le serveur est relancé par le daemon.",
     "schedule_updated":      "Horaires mis à jour, mode passé sur 'schedule'.",
 
     # ── mc_cli — daemon ───────────────────────────────────────────────────────
@@ -521,6 +525,9 @@ _EN = {
     "status_online":        "ONLINE (PID {pid})",
     "status_online_nopid":  "ONLINE",
     "status_offline":       "OFFLINE",
+    "status_crashed": "CRASHED (restarts stopped)",
+    "status_crash_errors": "Last errors from the log:",
+    "status_crash_fix": "Fix the cause, then restart with: mc resume",
     "mode_schedule":        "Scheduled",
     "mode_always_on":       "24/7",
     "mode_maintenance":     "Maintenance",
@@ -559,6 +566,7 @@ _EN = {
     "maintenance_activated": "Maintenance enabled. Type 'mc resume' to restart.",
     "mode_set":              "Mode: {mode}",
     "maintenance_disabled":  "Maintenance disabled. Current mode: {mode}",
+    "resume_crash_cleared": "Crash state cleared: the daemon is restarting the server.",
     "schedule_updated":      "Schedule updated, mode set to 'schedule'.",
 
     # ── mc_cli — daemon ───────────────────────────────────────────────────────

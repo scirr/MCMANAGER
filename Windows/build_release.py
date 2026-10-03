@@ -29,6 +29,7 @@ PACKAGE_FILES = [
     "mc_setup.py",
     "mc_firewall.py",
     "mc_doctor.py",
+    "mc_crash.py",
     "mc_image.py",
     "mc_lang.py",
     "mc_validate.py",

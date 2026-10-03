@@ -37,6 +37,11 @@ _FALLBACK_WEBHOOKS = {
             "title": "🔴 Le serveur {nom} est fermé",
             "color": 16711680,
             "description": "Le serveur est hors ligne jusqu'à la prochaine ouverture."
+        },
+        "crash_loop": {
+            "title": "🚨 {nom} ne démarre plus",
+            "color": 15158332,
+            "description": "Le serveur s'est arrêté de lui-même ({count} échec(s) récents) : les relances automatiques sont suspendues.\n```\n{errors}\n```"
         }
     },
     "en": {
@@ -63,6 +68,11 @@ _FALLBACK_WEBHOOKS = {
             "title": "🔴 {nom} is now closed",
             "color": 16711680,
             "description": "The server is offline until the next scheduled opening."
+        },
+        "crash_loop": {
+            "title": "🚨 {nom} no longer starts",
+            "color": 15158332,
+            "description": "The server stopped on its own ({count} recent failure(s)): automatic restarts are suspended.\n```\n{errors}\n```"
         }
     }
 }

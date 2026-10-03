@@ -10,6 +10,7 @@ sys.path.append(BASE_DIR)
 
 import mc_config
 import mc_core
+import mc_crash
 import mc_servers
 from mc_lang import T
 
@@ -41,7 +42,76 @@ def _new_state():
         "midnight_backup_date": None,
         "warned": set(),
         "missing_logged": False,
+        "expected_up": False,
+        "launched_at": None,
+        "crash_logged": False,
     }
+
+
+def _watch_crash(name, config, state, en_ligne, now=None):
+    """Track whether the server stays up. An exit nobody asked for is recorded;
+    a startup failure, or repeated exits in a short time, mark it crashed so
+    the daemon stops relaunching it."""
+    now = now or time.time()
+    if en_ligne:
+        state["expected_up"] = True
+        if mc_crash.is_crashed(config) and mc_core.log_has_done(config, state["launched_at"]):
+            mc_crash.clear(config)
+            state["crash_logged"] = False
+            logging.info(f"[{name}] Server is up again, crash state cleared.")
+        return
+    if not state["expected_up"]:
+        return
+    state["expected_up"] = False
+    since = state["launched_at"]
+    startup = not mc_core.log_has_done(config, since)
+    state["launched_at"] = None
+    marker, newly = mc_crash.record_failure(config, startup, now)
+    logging.error(f"[{name}] Server exited unexpectedly "
+                  f"({'before startup finished' if startup else 'after startup'}); "
+                  f"{len(marker['failures'])} failure(s) in the last {mc_crash.WINDOW // 60} min.")
+    if newly:
+        logging.error(f"[{name}] Crash loop: automatic restarts stopped. Fix the cause, then run 'mc resume'.")
+        state["crash_logged"] = True
+        _announce_crash(name, config, marker)
+
+
+def _announce_crash(name, config, marker):
+    try:
+        nom = config.get("nom_serveur", name)
+        errors = mc_crash.recent_errors(config["dossier_serveur"], 5)
+        detail = "\n".join(errors)[-900:] or "-"
+        templates = mc_config.load_webhooks(config["dossier_serveur"])
+        tpl = templates.get("crash_loop") or mc_config.get_fallback_webhook("crash_loop")
+        variables = {"nom": nom, "count": len(marker.get("failures", [])), "errors": detail}
+        mc_core.send_discord_webhook(config, {"embeds": [mc_core._build_embed(tpl, variables)]})
+    except Exception as e:
+        logging.warning(f"[{name}] Crash announcement failed: {e}")
+
+
+def _may_start(name, config, state):
+    if mc_crash.may_start(config):
+        state["crash_logged"] = False
+        return True
+    if not state["crash_logged"] and mc_crash.is_crashed(config):
+        logging.warning(f"[{name}] Server is marked crashed: not restarting it. Run 'mc resume' once fixed.")
+        state["crash_logged"] = True
+    return False
+
+
+def _launch(name, config, state, **kwargs):
+    state["launched_at"] = time.time()
+    ok, message = mc_core.start_server(config, **kwargs)
+    if ok:
+        state["expected_up"] = True
+    else:
+        state["launched_at"] = None
+        marker = mc_crash.read(config)
+        if marker and marker.get("crashed") and not state["crash_logged"]:
+            logging.error(f"[{name}] Server died while starting: automatic restarts stopped. Fix the cause, then run 'mc resume'.")
+            state["crash_logged"] = True
+            _announce_crash(name, config, marker)
+    return ok, message
 
 def process_server_tick(name, dossier_serveur, state):
     config_file = mc_config.config_path(dossier_serveur)
@@ -65,6 +135,7 @@ def process_server_tick(name, dossier_serveur, state):
         state["last_error"] = None
     config["dossier_serveur"] = dossier_serveur
     if config.get("mode_maintenance", 0) == 1:
+        state["expected_up"] = False
         return
 
     maintenant = datetime.now()
@@ -72,14 +143,18 @@ def process_server_tick(name, dossier_serveur, state):
     en_ligne = mc_core.is_server_running(config)
     always_on = config.get("always_on", 1)
 
+    _watch_crash(name, config, state, en_ligne)
+
     if always_on == 1:
         if not en_ligne:
+            if not _may_start(name, config, state):
+                return
             # Routine restarts stay silent (a flapping server would spam Discord
             # every 30 s), but the first start after 'mc resume' is a reopening
             # and must be announced.
             announce = config.get("announce_next_start", 0) == 1
             logging.info(f"[{name}] Server offline in 24/7 mode. Restarting...")
-            ok, _ = mc_core.start_server(config, send_webhook=announce)
+            ok, _ = _launch(name, config, state, send_webhook=announce)
             if ok and announce:
                 config.pop("announce_next_start", None)
                 mc_config.save_config(config)
@@ -109,9 +184,9 @@ def process_server_tick(name, dossier_serveur, state):
             state["backup_milieu_fait"] = False
             state["warned"].clear()
 
-        if ouvert and not en_ligne:
+        if ouvert and not en_ligne and _may_start(name, config, state):
             logging.info(f"[{name}] Open time reached. Starting server...")
-            ok, _ = mc_core.start_server(config)
+            ok, _ = _launch(name, config, state)
             # This path already announces; just consume the one-shot resume flag
             # so it cannot fire again after a later switch to always-on.
             if ok and config.pop("announce_next_start", None):
@@ -143,6 +218,7 @@ def process_server_tick(name, dossier_serveur, state):
 
         if not ouvert and en_ligne:
             logging.info(f"[{name}] Starting nightly shutdown...")
+            state["expected_up"] = False
 
             mc_core.stop_server(config, manual=False)
 
