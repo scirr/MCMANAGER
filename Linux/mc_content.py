@@ -274,10 +274,82 @@ def _jars(folder):
         return []
 
 
+def _read_member(zf, name):
+    try:
+        return zf.read(name).decode("utf-8", "replace")
+    except KeyError:
+        return None
+
+
+def _toml_value(text, key):
+    m = re.search(r'^\s*' + key + r'\s*=\s*(?:"([^"]*)"|\'([^\']*)\')', text, re.M)
+    return (m.group(1) if m.group(1) is not None else m.group(2)) if m else None
+
+
+def _yaml_value(text, key):
+    m = re.search(r'^' + key + r'\s*:\s*[\'"]?([^\'"\r\n#]+?)[\'"]?\s*$', text, re.M)
+    return m.group(1) if m else None
+
+
+def jar_metadata(path):
+    """{id, name, version, loader} read from the jar's own descriptor
+    (fabric.mod.json, quilt.mod.json, neoforge.mods.toml, mods.toml,
+    paper-plugin.yml, plugin.yml, bungee.yml, velocity-plugin.json); every
+    value None when the jar declares none."""
+    meta = {"id": None, "name": None, "version": None, "loader": None}
+    try:
+        with zipfile.ZipFile(path) as zf:
+            manifest = _read_member(zf, "META-INF/MANIFEST.MF") or ""
+            fabric = _read_member(zf, "fabric.mod.json")
+            quilt = _read_member(zf, "quilt.mod.json")
+            toml = [(n, "neoforge" if "neoforge" in n else "forge") for n in
+                    ("META-INF/neoforge.mods.toml", "META-INF/mods.toml")]
+            if fabric:
+                data = json.loads(fabric)
+                meta.update(id=data.get("id"), name=data.get("name"), version=data.get("version"), loader="fabric")
+            elif quilt:
+                data = json.loads(quilt)
+                loader = data.get("quilt_loader") or {}
+                meta.update(id=loader.get("id"), name=(loader.get("metadata") or {}).get("name"),
+                            version=loader.get("version"), loader="quilt")
+            else:
+                for member, loader in toml:
+                    text = _read_member(zf, member)
+                    if text is not None:
+                        mods = text.split("[[mods]]", 1)[-1]
+                        meta.update(id=_toml_value(mods, "modId"), name=_toml_value(mods, "displayName"),
+                                    version=_toml_value(mods, "version"), loader=loader)
+                        break
+                else:
+                    for member, loader in (("paper-plugin.yml", "paper"), ("plugin.yml", "bukkit"),
+                                           ("bungee.yml", "bungeecord")):
+                        text = _read_member(zf, member)
+                        if text is not None:
+                            meta.update(id=_yaml_value(text, "name"), name=_yaml_value(text, "name"),
+                                        version=_yaml_value(text, "version"), loader=loader)
+                            break
+                    else:
+                        text = _read_member(zf, "velocity-plugin.json")
+                        if text is not None:
+                            data = json.loads(text)
+                            meta.update(id=data.get("id"), name=data.get("name"),
+                                        version=data.get("version"), loader="velocity")
+            if meta["version"] and str(meta["version"]).startswith("${"):
+                m = re.search(r"^Implementation-Version:\s*(\S+)", manifest, re.M)
+                meta["version"] = m.group(1) if m else None
+    except (OSError, ValueError, zipfile.BadZipFile, AttributeError):
+        pass
+    return {k: (str(v) if v is not None else None) for k, v in meta.items()}
+
+
 def mod_list(config):
     mods_dir, host_dir = mod_dirs(config)
     server, host = set(_jars(mods_dir)), set(_jars(host_dir))
-    mods = [{"file": f, "server": f in server, "modpack": f in host} for f in sorted(server | host)]
+    mods = []
+    for f in sorted(server | host):
+        path = os.path.join(mods_dir if f in server else host_dir, f)
+        mods.append({"file": f, "server": f in server, "modpack": f in host,
+                     **jar_metadata(path), "adds_blocks": defines_blocks(path)})
     return result(True, "ok", mods=mods, mods_dir=mods_dir, modpack_dir=host_dir)
 
 
@@ -301,12 +373,21 @@ def mod_add(config, source, server_only=False):
 
 
 def _find_mod(config, name):
+    """Mods matching `name`: file name, then identifier, then display name
+    (each exact, case-insensitive), then a fragment of any of them."""
     listing = mod_list(config)["mods"]
-    exact = [m for m in listing if m["file"] == name or m["file"] == name + ".jar"]
-    if exact:
-        return exact
     low = name.lower()
-    return [m for m in listing if low in m["file"].lower()]
+    tiers = (
+        lambda m: m["file"] == name or m["file"] == name + ".jar",
+        lambda m: (m["id"] or "").lower() == low,
+        lambda m: (m["name"] or "").lower() == low,
+        lambda m: any(low in (m[k] or "").lower() for k in ("file", "id", "name")),
+    )
+    for matches in tiers:
+        found = [m for m in listing if matches(m)]
+        if found:
+            return found
+    return []
 
 
 def mod_remove(config, name, confirm_blocks=False):
