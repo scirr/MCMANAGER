@@ -589,13 +589,13 @@ def rcon_responds(config):
                                 config["mcrcon_pass"], ping_only=True, timeout=2)
     return ok or detail == T["rcon_auth_failed"]
 
-def log_has_done(config, since=None):
+def log_has_done(config, since=None, slack=5):
     """True when the current log shows the server finished starting ('Done (').
     `since` is the epoch the process started: an older log belongs to a
     previous run."""
     path = os.path.join(config.get("dossier_serveur", ""), "logs", "latest.log")
     try:
-        if since is not None and os.path.getmtime(path) < since - 5:
+        if since is not None and os.path.getmtime(path) < since - slack:
             return False
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             return any("Done (" in line for line in f)
@@ -610,8 +610,13 @@ def server_ready(config):
         return True
     pid = get_server_pid(config)
     uptime = proc_uptime(pid) if pid else None
+    if uptime is None:
+        for jvm in server_java_pids(config.get("dossier_serveur", "")):
+            uptime = proc_uptime(jvm)
+            if uptime is not None:
+                break
     since = time.time() - uptime if uptime is not None else None
-    return log_has_done(config, since)
+    return log_has_done(config, since, slack=0)
 
 def startup_in_progress(config):
     return _server_alive(config) and not server_ready(config)
@@ -1088,13 +1093,25 @@ def stop_server(config, manual=True, wait=True, timeout=None, reason=None, quiet
                 return True, T["stop_done"]
             startup_term = True
 
-    if startup_term:
-        _signal_server(config, signal.SIGTERM)
-    else:
+    if not startup_term:
         send_rcon(config, "say " + T["ingame_stopping"])
         send_rcon(config, "save-all flush")
         if not send_rcon(config, "stop"):
-            return False, T["stop_rcon_unreachable"]
+            # The server looked ready but RCON refuses: never fail dry while the
+            # JVM lives. Wait for RCON, then fall back to SIGTERM.
+            if not _server_alive(config):
+                _remove_pid_file(config)
+                return True, T["stop_done"]
+            sent = (config.get("mcrcon_pass") and wait_for_rcon(config, STARTUP_WAIT)
+                    and send_rcon(config, "stop"))
+            if not sent:
+                if not _server_alive(config):
+                    _remove_pid_file(config)
+                    return True, T["stop_done"]
+                startup_term = True
+
+    if startup_term:
+        _signal_server(config, signal.SIGTERM)
 
     if manual and not quiet:
         try:
