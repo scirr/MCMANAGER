@@ -71,6 +71,19 @@ class TestDatapacks(unittest.TestCase):
         self.assertEqual(sent, ['datapack disable "file/plain"',
                                 'datapack enable "file/plain" after "file/terra.zip"'])
 
+    def test_first_goes_right_after_the_last_builtin_pack(self):
+        reply = "enabled: [vanilla (built-in)], [mod_data (built-in)], [file/terra.zip (world)]"
+        res, sent = self._set(reply, "plain", first=True)
+        self.assertEqual(sent, ['datapack enable "file/plain" after "mod_data"'])
+
+    def test_first_with_no_builtin_pack_is_the_raw_first(self):
+        res, sent = self._set("enabled: [file/terra.zip (world)]", "plain", first=True)
+        self.assertEqual(sent, ['datapack enable "file/plain" first'])
+
+    def test_before_vanilla_is_the_raw_first(self):
+        res, sent = self._set("enabled: [vanilla (built-in)]", "plain", before_vanilla=True)
+        self.assertEqual(sent, ['datapack enable "file/plain" first'])
+
     def test_worldgen_pack_requires_restart(self):
         res, sent = self._set("enabled: [vanilla (built-in)]", "terra")
         self.assertEqual((res["code"], res["restart_required"]), ("enabled", True))

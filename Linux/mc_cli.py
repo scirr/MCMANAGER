@@ -566,7 +566,8 @@ def build_parser():
     g_dp = p_dp.add_mutually_exclusive_group()
     g_dp.add_argument("--before", metavar="PACK")
     g_dp.add_argument("--after", metavar="PACK")
-    g_dp.add_argument("--first", action="store_true")
+    g_dp.add_argument("--first", action="store_true", help=T["help_dp_first"])
+    g_dp.add_argument("--before-vanilla", action="store_true", help=T["help_dp_before_vanilla"])
     g_dp.add_argument("--last", action="store_true")
     p_dp.add_argument("--json", action="store_true", help=T["help_json"])
 
@@ -1293,7 +1294,8 @@ def cmd_datapack(args):
         return EXIT_OK
     res = mc_content.datapack_set(config, operands[0], enable=args.dp_action == "enable",
                                   before=args.before, after=args.after,
-                                  first=args.first, last=args.last)
+                                  first=args.first, last=args.last,
+                                  before_vanilla=args.before_vanilla)
     return _finish(res, args.json)
 
 def _quiet(as_json):

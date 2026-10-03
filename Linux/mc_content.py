@@ -192,8 +192,11 @@ def _quarantine_pack(config, listing, name):
     return result(True, "quarantined", pack=pack["file"], quarantine=quarantine, restart_required=False)
 
 
-def datapack_set(config, name, enable=True, before=None, after=None, first=False, last=False):
-    """Enable (optionally at a position) or disable a pack, live, over RCON."""
+def datapack_set(config, name, enable=True, before=None, after=None, first=False, last=False,
+                 before_vanilla=False):
+    """Enable (optionally at a position) or disable a pack, live, over RCON.
+    'first' means right after the last built-in or mod pack, so vanilla does
+    not override it; 'before_vanilla' is Minecraft's own raw 'first'."""
     listing = datapack_list(config)
     if not listing["running"]:
         if enable:
@@ -229,8 +232,9 @@ def datapack_set(config, name, enable=True, before=None, after=None, first=False
         if other_id not in listing["enabled_order"]:
             return result(False, "anchor_not_enabled", anchor=anchor)
         position = f' {"before" if before else "after"} "{other_id}"'
-    elif first:
-        position = " first"
+    elif first or before_vanilla:
+        builtin = [p for p in listing["enabled_order"] if not p.startswith("file/")]
+        position = f' after "{builtin[-1]}"' if builtin and not before_vanilla else " first"
     elif last:
         position = " last"
 
