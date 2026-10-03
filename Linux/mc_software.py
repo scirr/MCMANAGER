@@ -31,6 +31,7 @@ FABRIC_META = "https://meta.fabricmc.net/v2/versions"
 QUILT_META = "https://meta.quiltmc.org/v3/versions"
 QUILT_INSTALLER = "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-installer"
 FORGE_MAVEN = "https://maven.minecraftforge.net/net/minecraftforge/forge"
+FORGE_PROMOS = "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json"
 NEOFORGE_API = "https://maven.neoforged.net/api/maven/latest/version/releases/net/neoforged/neoforge"
 NEOFORGE_MAVEN = "https://maven.neoforged.net/releases/net/neoforged/neoforge"
 BUILDTOOLS = "https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar"
@@ -153,8 +154,8 @@ def available(loader, mc_version):
         stable = [e for e in entries if (e.get("loader") or {}).get("stable", True)]
         return True, (stable or entries)[0]["loader"]["version"]
     if loader == "Forge":
-        versions = forge_versions(mc_version)
-        return (True, versions[-1].split("-", 1)[1]) if versions else (False, "loader_unavailable")
+        full = pick_forge_version(mc_version, forge_promos(), forge_versions(mc_version))
+        return (True, full.split("-", 1)[1]) if full else (False, "loader_unavailable")
     if loader == "NeoForge":
         try:
             data = mc_http.get_json(mc_http.url(NEOFORGE_API, filter=neoforge_prefix(mc_version)))
@@ -169,6 +170,28 @@ def available(loader, mc_version):
 def forge_versions(mc_version):
     xml = mc_http.get_text(f"{FORGE_MAVEN}/maven-metadata.xml")
     return re.findall(r"<version>(" + re.escape(mc_version) + r"-[^<]+)</version>", xml)
+
+
+def forge_promos():
+    try:
+        return mc_http.get_json(FORGE_PROMOS)
+    except mc_http.HttpError:
+        return None
+
+
+def pick_forge_version(mc_version, promos, maven_versions):
+    """'<mc>-<forge>': the recommended build, else the latest promoted one, else
+    the highest published on the maven. None when there is none."""
+    promos = (promos or {}).get("promos", {})
+    for kind in ("recommended", "latest"):
+        build = promos.get(f"{mc_version}-{kind}")
+        if build:
+            candidate = f"{mc_version}-{build}"
+            if not maven_versions or candidate in maven_versions:
+                return candidate
+    if not maven_versions:
+        return None
+    return max(maven_versions, key=lambda v: [int(n) for n in re.findall(r"\d+", v)])
 
 
 def neoforge_prefix(mc_version):

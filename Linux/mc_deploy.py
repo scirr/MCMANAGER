@@ -261,46 +261,6 @@ def deploy_vanilla(server_dir, mc_version):
     return jar
 
 
-# ─── Paper ───────────────────────────────────────────────────────────────────
-
-PAPER_API = "https://fill.papermc.io/v3/projects/paper"
-
-def pick_paper_build(builds):
-    """(build, warn) from the Fill v3 build list: the newest STABLE build, else
-    the newest build of any channel (warn=True). None when there is none."""
-    usable = [b for b in builds or []
-              if ((b.get("downloads") or {}).get("server:default") or {}).get("url")]
-    if not usable:
-        return None, False
-    stable = [b for b in usable if str(b.get("channel", "")).upper() == "STABLE"]
-    pool = stable or usable
-    return max(pool, key=lambda b: int(b.get("id", 0))), not stable
-
-def deploy_paper(server_dir, mc_version):
-    # PaperMC API v2 was retired: Fill v3 lists builds with their channel,
-    # download URL and SHA-256.
-    pr("step", T["step_paper"])
-    builds = fetch_json(f"{PAPER_API}/versions/{mc_version}/builds")
-    if isinstance(builds, dict):
-        builds = builds.get("builds", [])
-    build, not_stable = pick_paper_build(builds)
-    if not build:
-        pr("err", T["paper_not_available"].format(ver=mc_version))
-        return None
-    if not_stable:
-        pr("warn", T["paper_no_stable"].format(ver=mc_version, build=build.get("id"),
-                                               channel=build.get("channel", "?")))
-    download_info = build["downloads"]["server:default"]
-    jar_name = download_info.get("name") or f"paper-{mc_version}-{build.get('id')}.jar"
-    expected_sha256 = (download_info.get("checksums") or {}).get("sha256")
-    dest = os.path.join(server_dir, jar_name)
-    if not download(download_info["url"], dest, f"Paper {mc_version} build#{build.get('id')}"):
-        return None
-    if not verify_checksum(dest, "sha256", expected_sha256):
-        return None
-    return jar_name
-
-
 # ─── Fabric ──────────────────────────────────────────────────────────────────
 
 def deploy_fabric(server_dir, mc_version):
@@ -321,84 +281,6 @@ def deploy_fabric(server_dir, mc_version):
     if not os.path.exists(launch):
         shutil.copy2(dest, launch)
     return "fabric-server-launch.jar"
-
-
-# ─── Forge ───────────────────────────────────────────────────────────────────
-
-FORGE_MAVEN = "https://maven.minecraftforge.net/net/minecraftforge/forge"
-FORGE_PROMOS = "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json"
-
-def fetch_text(url):
-    try:
-        _require_https(url)
-        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-        with urllib.request.urlopen(req, timeout=15) as r:  # nosec B310 - https checked
-            return r.read().decode()
-    except Exception as e:
-        pr("err", T["api_error"].format(e=e))
-        return None
-
-def _forge_maven_versions(mc_version):
-    content = fetch_text(f"{FORGE_MAVEN}/maven-metadata.xml")
-    if content is None:
-        return None
-    return re.findall(r"<version>(" + re.escape(mc_version) + r"-[^<]+)</version>", content)
-
-def pick_forge_version(mc_version, promos, maven_versions):
-    promos = (promos or {}).get("promos", {})
-    for kind in ("recommended", "latest"):
-        build = promos.get(f"{mc_version}-{kind}")
-        if build:
-            candidate = f"{mc_version}-{build}"
-            if not maven_versions or candidate in maven_versions:
-                return candidate
-    if not maven_versions:
-        return None
-    return max(maven_versions, key=lambda v: [int(n) for n in re.findall(r"\d+", v)])
-
-def deploy_forge(server_dir, mc_version):
-    pr("step", T["step_forge"])
-    versions = _forge_maven_versions(mc_version)
-    if versions is None:
-        return None
-    promos = fetch_json(FORGE_PROMOS)
-    forge_ver = pick_forge_version(mc_version, promos, versions)
-    if not forge_ver:
-        pr("err", T["no_forge_versions"].format(ver=mc_version))
-        return None
-    pr("info", T["forge_selected"].format(ver=forge_ver))
-    installer_name = f"forge-{forge_ver}-installer.jar"
-    url = f"{FORGE_MAVEN}/{forge_ver}/{installer_name}"
-    installer_path = os.path.join(server_dir, installer_name)
-    if not download(url, installer_path, f"Forge {forge_ver} installer"):
-        return None
-    pr("info", T["forge_installing"])
-    try:
-        result = subprocess.run(
-            [_installer_java(mc_version), "-jar", installer_name, "--installServer"],
-            cwd=server_dir, capture_output=True, text=True, timeout=300
-        )
-        if result.returncode != 0:
-            pr("err", T["forge_failed"])
-            print(result.stderr[-2000:])
-            return None
-    except subprocess.TimeoutExpired:
-        pr("err", T["forge_timeout"])
-        return None
-    finally:
-        try:
-            os.remove(installer_path)
-            pr("info", T["forge_installer_del"])
-        except OSError:
-            pass
-
-    if os.path.exists(os.path.join(server_dir, "run.sh")):
-        pr("ok", T["forge_ok"])
-        return "@run.sh"
-
-    jars = [f for f in os.listdir(server_dir)
-            if f.endswith(".jar") and "forge" in f.lower() and "installer" not in f.lower()]
-    return jars[0] if jars else None
 
 
 # ─── NeoForge ────────────────────────────────────────────────────────────────
@@ -604,9 +486,9 @@ def _software(loader):
 
 SERVER_TYPES = {
     "1":  ("Vanilla",    deploy_vanilla),
-    "2":  ("Paper",      deploy_paper),
+    "2":  ("Paper",      _software("Paper")),
     "3":  ("Fabric",     deploy_fabric),
-    "4":  ("Forge",      deploy_forge),
+    "4":  ("Forge",      _software("Forge")),
     "5":  ("NeoForge",   deploy_neoforge),
     "6":  ("Purpur",     _software("Purpur")),
     "7":  ("Folia",      _software("Folia")),
