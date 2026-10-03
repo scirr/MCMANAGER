@@ -325,27 +325,50 @@ def deploy_fabric(server_dir, mc_version):
 
 # ─── Forge ───────────────────────────────────────────────────────────────────
 
-def _forge_maven_versions(mc_version):
-    url = "https://files.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml"
+FORGE_MAVEN = "https://maven.minecraftforge.net/net/minecraftforge/forge"
+FORGE_PROMOS = "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json"
+
+def fetch_text(url):
     try:
+        _require_https(url)
         req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-        with urllib.request.urlopen(req, timeout=15) as r:  # nosec B310 - https only
-            content = r.read().decode()
-        return re.findall(r"<version>(" + re.escape(mc_version) + r"-[^<]+)</version>", content)
-    except Exception:
-        return []
+        with urllib.request.urlopen(req, timeout=15) as r:  # nosec B310 - https checked
+            return r.read().decode()
+    except Exception as e:
+        pr("err", T["api_error"].format(e=e))
+        return None
+
+def _forge_maven_versions(mc_version):
+    content = fetch_text(f"{FORGE_MAVEN}/maven-metadata.xml")
+    if content is None:
+        return None
+    return re.findall(r"<version>(" + re.escape(mc_version) + r"-[^<]+)</version>", content)
+
+def pick_forge_version(mc_version, promos, maven_versions):
+    promos = (promos or {}).get("promos", {})
+    for kind in ("recommended", "latest"):
+        build = promos.get(f"{mc_version}-{kind}")
+        if build:
+            candidate = f"{mc_version}-{build}"
+            if not maven_versions or candidate in maven_versions:
+                return candidate
+    if not maven_versions:
+        return None
+    return max(maven_versions, key=lambda v: [int(n) for n in re.findall(r"\d+", v)])
 
 def deploy_forge(server_dir, mc_version):
     pr("step", T["step_forge"])
     versions = _forge_maven_versions(mc_version)
-    if not versions:
+    if versions is None:
+        return None
+    promos = fetch_json(FORGE_PROMOS)
+    forge_ver = pick_forge_version(mc_version, promos, versions)
+    if not forge_ver:
         pr("err", T["no_forge_versions"].format(ver=mc_version))
         return None
-    forge_ver = versions[-1]
     pr("info", T["forge_selected"].format(ver=forge_ver))
     installer_name = f"forge-{forge_ver}-installer.jar"
-    url = (f"https://files.minecraftforge.net/net/minecraftforge/forge"
-           f"/{forge_ver}/{installer_name}")
+    url = f"{FORGE_MAVEN}/{forge_ver}/{installer_name}"
     installer_path = os.path.join(server_dir, installer_name)
     if not download(url, installer_path, f"Forge {forge_ver} installer"):
         return None
