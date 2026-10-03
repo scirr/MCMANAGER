@@ -94,6 +94,8 @@ def _watch_crash(name, config, state, en_ligne, now=None):
         logging.error(f"[{name}] Crash loop: automatic restarts stopped. Fix the cause, then run 'mc resume'.")
         state["crash_logged"] = True
         _announce_crash(name, config, marker)
+    else:
+        mc_core._alert(config, "crash", detail="\n".join(mc_crash.recent_errors(config["dossier_serveur"], 3)))
 
 
 def _announce_crash(name, config, marker):
@@ -105,6 +107,7 @@ def _announce_crash(name, config, marker):
         tpl = templates.get("crash_loop") or mc_config.get_fallback_webhook("crash_loop")
         variables = {"nom": nom, "count": len(marker.get("failures", [])), "errors": detail}
         mc_core.send_discord_webhook(config, {"embeds": [mc_core._build_embed(tpl, variables)]})
+        mc_core._alert(config, "crash_loop", detail=detail)
     except Exception as e:
         logging.warning(f"[{name}] Crash announcement failed: {e}")
 
@@ -303,6 +306,7 @@ def process_server_tick(name, dossier_serveur, state):
             tpl = templates.get("fermeture_nuit") or mc_config.get_fallback_webhook("fermeture_nuit")
             payload = {"embeds": [mc_core._build_embed(tpl, {"nom": nom})]}
             mc_core.send_discord_webhook(config, payload)
+            mc_core._alert(config, "stop", reason="closing")
             logging.info(f"[{name}] Server stopped and backed up successfully.")
 
 

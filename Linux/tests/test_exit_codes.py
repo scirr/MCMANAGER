@@ -43,6 +43,13 @@ FAILING = [
     ["sleep", "enable", "--after", "nonsense"],
     ["freeze", "--max", "nonsense"],
     ["image", "add", "/nonexistent/icon.png"],
+    ["backup", "restore", "nope", "--yes"],
+    ["backup", "restore", "latest"],
+    ["backup", "remote", "test"],
+    ["backup", "remote", "remove", "nope"],
+    ["alert", "remove", "nope"],
+    ["alert", "test"],
+    ["alert", "add", "sms"],
     ["announce"],
     ["fingerprint"],
 ]

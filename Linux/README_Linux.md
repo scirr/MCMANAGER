@@ -327,6 +327,10 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc announce [target]` | Manually send the opening announcement to Discord |
 | `mc fingerprint [target]` | Show the server's AutoModpack key (fingerprint) |
 | `mc backup [target]` | Run a manual ZIP backup |
+| `mc backup list [target] [--json]` | List the backups, newest first |
+| `mc backup restore <id\|file\|latest> [target] [--yes]` | Replace the world with a backup (server stopped; safety backup first) |
+| `mc backup remote add <name> <url> [target]` / `remove <name>` / `list` / `test [name]` | Remote destinations: `sftp://`, `s3://`, `restic:` |
+| `mc alert add <type> [options] [target]` / `list` / `remove <name>` / `test [name]` | Alert channels: `email`, `telegram`, `ntfy`, `webhook`, `discord` |
 | `mc image add <path> [target]` | Set the server icon (64×64 PNG, converted automatically) |
 | `mc image rm [target]` | Remove the server icon |
 | `mc edit config [target]` | Edit `config.json` in `$EDITOR` (default: nano) |
@@ -691,7 +695,11 @@ Each server has its own `config.json` in its server folder. `mc edit config [tar
 | `mcrcon_pass` | RCON password | `"password"` |
 | `domaine` | Server domain/link shown to players (optional) | `"play.myserver.com"` |
 | `webhook_url` | Discord Webhook URL | `"https://discord.com/api/webhooks/..."` |
-| `backup_retention_days` | Days to keep daily backup folders (0 = unlimited) | `30` |
+| `backup_retention_days` | Days to keep backups (0 = unlimited); the newest backup is never deleted | `30` |
+| `backup_keep` | Number of backups to keep (0 = unlimited); the newest backup is never deleted | `14` |
+| `backup_encrypt_key_file` | Key file: archives sent to sftp/s3 are encrypted with `openssl enc -aes-256-cbc -pbkdf2` | `"/home/user/.mc-backup.key"` |
+| `backup_remotes` | Remote backup destinations (managed by `mc backup remote`, secrets inside: the file is 0600) | `[]` |
+| `alerts` | Alert channels (managed by `mc alert`, secrets inside: the file is 0600) | `[]` |
 | `activer_automodpack` | AutoModpack enabled (1) or not (0) | `1` |
 | `cle_automodpack` | AutoModpack certificate fingerprint — **detected automatically, never enter manually** | `"403e6792a7..."` |
 | `mode_maintenance` | Maintenance active (1) or not (0) — set via `mc mode maintenance` / `mc resume` | `0` |
@@ -769,9 +777,64 @@ Backup types:
 - `fermeture` → Nightly shutdown (schedule mode)
 - `midi` / `minuit` → Always-on mode
 
-The world is safely frozen with `save-off` during the backup (with a 10 s flush delay), then `save-on` is sent when done. All world dimensions (`world`, `world_nether`, `world_the_end` — following `level-name`) are included.
+All world dimensions (`world`, `world_nether`, `world_the_end` — following `level-name`) are included.
 
-**Retention:** set `backup_retention_days` in `config.json` (also asked by `mc configure`) to automatically delete daily backup folders older than N days after each backup. `0` (default) keeps everything forever.
+The world is frozen through the same mechanism as `mc freeze` (`save-off` + `save-all flush`) while it is copied, then saving is re-enabled before the archive is compressed and sent; a freeze set by someone else is left alone.
+
+**Retention:** `backup_keep` (number of archives) and `backup_retention_days` (age) are applied after each backup, separately or together (`mc config set backup_keep 14`). `0` disables a rule. The most recent backup is never deleted, whatever the rules say.
+
+### Listing and restoring
+
+```
+mc backup list
+mc stop
+mc backup restore backup_manuelle_2026-10-03_12-00-00 --yes
+mc resume
+```
+
+`mc backup restore` takes an id (see `mc backup list`), a file name, a path or `latest`. The server must be stopped for good (`mc stop`): a server the daemon would relaunch is refused. The current world is backed up first (`backup_pre-restore_...`, its path is printed), the archive is extracted aside and swapped in; if any step fails the previous world is put back. Without `--yes` the command asks for confirmation, and refuses when it cannot ask (scripts, `--json`). Dimensions that exist now but not in the archive are replaced too, so the world stays consistent.
+
+### Remote destinations
+
+```
+mc backup remote add vps sftp://backup@host.example:22/srv/mc --key ~/.ssh/id_ed25519
+mc backup remote add cloud s3://my-bucket/minecraft --access-key AKIA... --secret-key-file ~/.s3secret --region eu-west-3
+mc backup remote add minio s3://mc/backups --endpoint https://minio.lan:9000 --access-key ... --secret-key ...
+mc backup remote add restic restic:sftp:backup@host:/srv/restic --password-file ~/.restic-pass
+mc backup remote test
+```
+
+Every new backup is sent to each destination right after it is written; a failing destination is reported (and raises the `backup_failed` alert) but never cancels the local backup nor the other destinations.
+
+- **sftp**: uses the system `sftp` in batch mode (key authentication, no prompt); archives go to the given folder.
+- **s3**: requests signed with AWS Signature Version 4, implemented with the standard library. `--endpoint` targets S3-compatible services (path-style addressing, `--no-path-style` for virtual-hosted). Objects are stored as `prefix/<server>/<archive>`. A single upload is limited to 5 GiB. Keys may also come from `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
+- **restic**: if `restic` is installed, `restic backup` of the backup folder (the repository is initialised when missing). The password lives in a file kept at 0600 (`--password-file`, or `--password` which writes `.mcmanager/restic-<name>.pass` in the server folder). restic encrypts natively.
+
+Secrets are stored in `config.json`, which is always written 0600, and are masked in `mc backup remote list`.
+
+**Encryption of sent archives:** set `backup_encrypt_key_file` (`openssl rand -base64 48 > ~/.mc-backup.key; chmod 600 ~/.mc-backup.key`) and sftp/s3 archives are encrypted with `openssl enc -aes-256-cbc -pbkdf2` and uploaded as `.zip.enc`. If `openssl` is missing the archive is sent unencrypted, with a warning; if the key file is missing the upload is refused. Decrypt by hand with `openssl enc -d -aes-256-cbc -pbkdf2 -pass file:KEY -in x.zip.enc -out x.zip`, or point `mc backup restore` at the `.enc` file.
+
+---
+
+## Alerts (`mc alert`)
+
+Besides the Discord announcements (`webhook_url`), a server can notify other channels. Events: `start`, `stop` (with its reason), `crash`, `crash_loop`, `backup_failed`, `update`, `sleep`, `wake`. Each channel picks the events it wants (`--events crash,backup_failed`, default all). Like the Discord announcements, alerts stay silent while the server is in maintenance.
+
+```
+mc alert add email --smtp-host smtp.example.org --smtp-port 587 --user mc@example.org --password-file ~/.smtp-pass --from mc@example.org --to me@example.org,ops@example.org
+mc alert add telegram --token 123456:ABC... --chat -1001234567890 --events crash,crash_loop
+mc alert add ntfy --topic my-mc-alerts [--ntfy-server https://ntfy.example.org] [--token tk_...]
+mc alert add webhook --url https://hooks.example.org/mc [--header "X-Key: 1"] [--secret S]
+mc alert add discord --url https://discord.com/api/webhooks/... --name ops
+mc alert list
+mc alert test            # every channel, filters ignored; or: mc alert test telegram
+mc alert remove telegram
+```
+
+- **E-mail** uses SMTP with STARTTLS (certificate checked); login is optional.
+- **webhook** posts `{"schema":1,"event","server","title","message","reason","detail","time"}`; with `--secret` an `X-MCManager-Signature: sha256=<hmac>` header lets the receiver authenticate it.
+- URLs must be `https://` (plain `http://` only towards the local machine). Tokens and passwords are stored in `config.json` (0600) and masked in `mc alert list`; the legacy Discord webhook appears there as `discord`.
+- A channel that fails never delays or breaks a start, stop or backup: the failure is written to the daemon log.
 
 ---
 

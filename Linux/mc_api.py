@@ -544,7 +544,10 @@ def wake(name, config):
     config["mode_maintenance"] = 0
     config.pop("stop_reason", None)
     mc_config.save_config(config)
-    return start(name, config)
+    started = start(name, config)
+    if started["ok"]:
+        mc_core._alert(config, "wake")
+    return started
 
 
 # ── content: server software, Java, modpacks, mods by name (2.9) ────────────
@@ -617,6 +620,7 @@ def upgrade(name, config, target="latest", progress=None):
         config["mc_version"] = target
     mc_config.save_config(config)
     mc_core.sync_server_properties(config)
+    mc_core._alert(config, "update", detail=f"{current or '?'} -> {config.get('mc_version') or res['jar_name']}")
     return result(True, "upgraded", server=name, loader=loader, previous=current, version=config.get("mc_version"),
                   jar=res["jar_name"], java_warning=bool(java_problem),
                   mods_hint=loader in mc_software.MOD_LOADERS + mc_software.PLUGIN_LOADERS)
@@ -673,4 +677,315 @@ def modpack_update(name, config, curseforge_key=None, progress=None):
     res = mc_modpack.update(config, curseforge_key or config.get("curseforge_api_key"), java, progress)
     if res["ok"] and res["code"] == "pack_updated":
         mc_config.save_config(config)
+        mc_core._alert(config, "update")
+    return dict(res, server=name)
+
+
+# ── backups: list, restore, destinations (2.10) ─────────────────────────────
+
+def _backup_error(e):
+    return result(False, e.code, detail=e.detail, path=e.detail)
+
+
+def backup_list(name, config):
+    import mc_backup
+    backups = mc_backup.list_backups(config.get("dossier_backup", ""))
+    return result(True, "backup_list", server=name, backups=backups, count=len(backups),
+                  keep=int(config.get("backup_keep", 0) or 0),
+                  retention_days=int(config.get("backup_retention_days", 0) or 0),
+                  remotes=[r.get("name") for r in config.get("backup_remotes", [])])
+
+
+def backup_restore(name, config, ref):
+    """Replace the world with a backup. The server must be stopped for good
+    (running, or about to be relaunched by the daemon, is refused); the
+    current world is backed up first and the swap rolls back on failure."""
+    import mc_backup
+    entry = mc_backup.find_backup(config.get("dossier_backup", ""), ref)
+    if not entry:
+        return result(False, "backup_not_found", server=name, ref=ref)
+    state = server_state(config)
+    if state in ("running", "starting"):
+        return result(False, "server_running", server=name)
+    if state == "stopped":
+        return result(False, "stop_first", server=name)
+    try:
+        if entry["encrypted"]:
+            key = config.get("backup_encrypt_key_file")
+            if not key or not os.path.isfile(key):
+                return result(False, "encrypt_key_missing", detail=key or "")
+        else:
+            mc_backup.inspect_archive(entry["path"])
+    except mc_backup.BackupError as e:
+        return _backup_error(e)
+    ok, message = mc_core.backup_server(config, "pre-restore", housekeeping=False)
+    safety = None
+    if ok:
+        newest = mc_backup.list_backups(config.get("dossier_backup", ""))
+        safety = newest[0]["path"] if newest else None
+    elif message != mc_core.T["no_world_found"]:
+        return result(False, "safety_backup_failed", server=name, message=message)
+    level = mc_core._get_level_name(config["dossier_serveur"])
+    try:
+        restored = mc_backup.restore_archive(
+            entry["path"], config["dossier_serveur"],
+            extra_names=(level, f"{level}_nether", f"{level}_the_end"),
+            key_file=config.get("backup_encrypt_key_file"))
+    except mc_backup.BackupError as e:
+        return dict(_backup_error(e), safety=safety)
+    return result(True, "backup_restored", server=name, backup=entry["id"], restored=restored, safety=safety)
+
+
+def _remote_by_name(config, rname):
+    return next((r for r in config.get("backup_remotes", []) if r.get("name") == rname), None)
+
+
+def backup_remote_list(name, config):
+    import mc_backup
+    remotes = [dict(mc_backup.masked(r), target=mc_backup.describe(r)) for r in config.get("backup_remotes", [])]
+    return result(True, "backup_remote_list", server=name, remotes=remotes, count=len(remotes),
+                  encrypted=bool(config.get("backup_encrypt_key_file")))
+
+
+def backup_remote_add(name, config, rname, url, key=None, endpoint=None, region=None, access_key=None,
+                      secret_key=None, path_style=None, password=None, password_file=None):
+    import mc_alert
+    import mc_backup
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,32}", rname or ""):
+        return result(False, "bad_remote_name", remote=rname)
+    if _remote_by_name(config, rname):
+        return result(False, "remote_exists", remote=rname)
+    try:
+        kind, fields = mc_backup.parse_remote_url(url)
+    except mc_backup.BackupError:
+        return result(False, "bad_remote_url", url=url)
+    remote = {"name": rname, "type": kind, **fields}
+    if kind == "sftp" and key:
+        key = os.path.abspath(os.path.expanduser(key))
+        if not os.path.isfile(key):
+            return result(False, "key_not_found", path=key)
+        remote["key"] = key
+    elif kind == "s3":
+        access_key = access_key or os.environ.get("AWS_ACCESS_KEY_ID")
+        secret_key = secret_key or os.environ.get("AWS_SECRET_ACCESS_KEY")
+        if not access_key or not secret_key:
+            return result(False, "s3_credentials_missing")
+        remote.update(access_key=access_key, secret_key=secret_key, region=region or "us-east-1")
+        if endpoint:
+            if not mc_alert.valid_url(endpoint if "://" in endpoint else "https://" + endpoint):
+                return result(False, "bad_url", url=endpoint)
+            remote["endpoint"] = endpoint
+        if path_style is not None:
+            remote["path_style"] = bool(path_style)
+    elif kind == "restic":
+        if password_file:
+            password_file = os.path.abspath(os.path.expanduser(password_file))
+            if not os.path.isfile(password_file):
+                return result(False, "key_not_found", path=password_file)
+            os.chmod(password_file, 0o600)
+        elif password:
+            password_file = os.path.join(config["dossier_serveur"], ".mcmanager", f"restic-{rname}.pass")
+            mc_servers.write_private_file(password_file, password)
+        else:
+            return result(False, "restic_password_missing")
+        remote["password_file"] = password_file
+    config.setdefault("backup_remotes", []).append(remote)
+    mc_config.save_config(config)
+    return result(True, "backup_remote_added", server=name, remote=rname, type=kind,
+                  target=mc_backup.describe(remote))
+
+
+def backup_remote_remove(name, config, rname):
+    remote = _remote_by_name(config, rname)
+    if not remote:
+        return result(False, "remote_not_found", remote=rname)
+    config["backup_remotes"] = [r for r in config["backup_remotes"] if r is not remote]
+    if not config["backup_remotes"]:
+        config.pop("backup_remotes")
+    mc_config.save_config(config)
+    return result(True, "backup_remote_removed", server=name, remote=rname)
+
+
+def backup_remote_test(name, config, rname=None):
+    import mc_backup
+    remotes = config.get("backup_remotes", [])
+    if rname:
+        remotes = [r for r in remotes if r.get("name") == rname]
+        if not remotes:
+            return result(False, "remote_not_found", remote=rname)
+    if not remotes:
+        return result(False, "no_remote", server=name)
+    checks = []
+    for remote in remotes:
+        try:
+            mc_backup.check_remote(remote)
+            checks.append({"remote": remote["name"], "ok": True, "detail": ""})
+        except mc_backup.BackupError as e:
+            checks.append({"remote": remote["name"], "ok": False, "detail": str(e)})
+    ok = all(c["ok"] for c in checks)
+    return result(ok, "backup_remote_tested" if ok else "backup_remote_test_failed", server=name,
+                  checks=checks, failed=", ".join(c["remote"] for c in checks if not c["ok"]))
+
+
+# ── alerts (2.10) ───────────────────────────────────────────────────────────
+
+def alert_list(name, config):
+    import mc_alert
+    channels = mc_alert.listing(config)
+    return result(True, "alert_list", server=name, channels=channels, count=len(channels),
+                  events=list(mc_alert.EVENTS))
+
+
+def alert_add(name, config, kind, params, events=None, channel_name=None):
+    import mc_alert
+    if kind not in mc_alert.TYPES:
+        return result(False, "bad_type", type=kind)
+    wanted = mc_alert.parse_events(events)
+    if wanted is None:
+        return result(False, "bad_events", events=events, valid=", ".join(mc_alert.EVENTS))
+    params = {k: v for k, v in params.items() if v not in (None, "")}
+    if kind == "email":
+        params.setdefault("port", 587)
+        if isinstance(params.get("to"), str):
+            params["to"] = [a.strip() for a in params["to"].split(",") if a.strip()]
+    problem = mc_alert.validate(kind, params)
+    if problem:
+        return result(False, problem, type=kind)
+    if channel_name:
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,32}", channel_name) or channel_name == "discord":
+            return result(False, "bad_channel_name", channel=channel_name)
+        if any(c.get("name") == channel_name for c in mc_alert.channels(config)):
+            return result(False, "channel_exists", channel=channel_name)
+    channel = {"name": channel_name or mc_alert.next_name(config, kind), "type": kind,
+               "events": wanted, **params}
+    config.setdefault("alerts", []).append(channel)
+    mc_config.save_config(config)
+    return result(True, "alert_added", server=name, channel=channel["name"], type=kind, events=wanted)
+
+
+def alert_remove(name, config, channel_name):
+    import mc_alert
+    found = next((c for c in mc_alert.channels(config) if c.get("name") == channel_name), None)
+    if not found:
+        return result(False, "channel_not_found", channel=channel_name)
+    config["alerts"] = [c for c in config["alerts"] if c is not found]
+    if not config["alerts"]:
+        config.pop("alerts")
+    mc_config.save_config(config)
+    return result(True, "alert_removed", server=name, channel=channel_name)
+
+
+def alert_test(name, config, channel_name=None):
+    import mc_alert
+    found, sent = mc_alert.test_channels(config, channel_name)
+    if not found:
+        return result(False, "channel_not_found", channel=channel_name)
+    if not sent:
+        return result(False, "no_channel", server=name)
+    checks = [{"channel": n, "ok": ok, "detail": "" if ok else detail} for n, ok, detail in sent]
+    ok = all(c["ok"] for c in checks)
+    return result(ok, "alert_tested" if ok else "alert_test_failed", server=name, checks=checks,
+                  failed=", ".join(c["channel"] for c in checks if not c["ok"]))
+
+
+# ── players (2.10) ──────────────────────────────────────────────────────────
+
+def player_list(name, config, kind):
+    import mc_players
+    return dict(mc_players.list_entries(config, kind), server=name)
+
+
+def player_edit(name, config, kind, action, subject, reason=None):
+    import mc_players
+    return dict(mc_players.edit_list(config, kind, action, subject, reason=reason), server=name)
+
+
+def whitelist_enable(name, config, enabled):
+    import mc_players
+    return dict(mc_players.set_whitelist_enabled(config, enabled), server=name)
+
+
+def player_kick(name, config, player, reason=None):
+    import mc_players
+    return dict(mc_players.kick(config, player, reason=reason), server=name)
+
+
+def player_history(name, config, days=7):
+    import mc_players
+    sessions = mc_players.history(config["dossier_serveur"], days=max(1, days))
+    return result(True, "history", server=name, days=days, sessions=sessions)
+
+
+# ── worlds (2.10) ───────────────────────────────────────────────────────────
+
+def world_list(name, config):
+    import mc_world
+    return dict(mc_world.list_worlds(config), server=name)
+
+
+def world_export(name, config, output=None):
+    import mc_world
+    return dict(mc_world.export_world(config, output), server=name)
+
+
+def world_import(name, config, source, confirmed=False):
+    import mc_world
+    return dict(mc_world.import_world(config, source, confirmed=confirmed), server=name)
+
+
+def world_reset(name, config, dimension, confirmed=False, include_overworld=False):
+    import mc_world
+    return dict(mc_world.reset_dimension(config, dimension, confirmed=confirmed,
+                                         include_overworld=include_overworld), server=name)
+
+
+def world_pregen(name, config, radius, center=None):
+    """`radius` and `center` ("x,z") are the raw command-line texts."""
+    import mc_world
+    try:
+        parsed_radius = int(radius)
+        parsed_center = mc_world.parse_center(center) if center else None
+    except (TypeError, ValueError):
+        return result(False, "invalid_radius", server=name, radius=radius if radius is not None else "?")
+    return dict(mc_world.pregen(config, parsed_radius, parsed_center), server=name)
+
+
+def world_pregen_status(name, config):
+    import mc_world
+    return dict(mc_world.pregen_progress(config), server=name)
+
+
+# ── scheduled tasks (2.10) ──────────────────────────────────────────────────
+
+def task_list(name, config):
+    import mc_task
+    return dict(mc_task.list_tasks(config), server=name)
+
+
+def task_add(name, config, cron, action, command=None, warn=None, task_name=None):
+    import mc_task
+    return dict(mc_task.add_task(config, cron, action, command=command, warn=warn, name=task_name),
+                server=name)
+
+
+def task_remove(name, config, ref):
+    import mc_task
+    return dict(mc_task.remove_task(config, ref), server=name)
+
+
+def task_enable(name, config, ref, enabled=True):
+    import mc_task
+    return dict(mc_task.set_enabled(config, ref, enabled), server=name)
+
+
+def task_find(config, ref):
+    import mc_task
+    return mc_task.find_task(config, ref)
+
+
+def task_run(name, config, task, skip_warn=False):
+    """Run one task now and record its outcome."""
+    import mc_task
+    res = mc_task.execute(name, config, task, skip_warn=skip_warn)
+    mc_task.record_run(config, task.get("id"), res["ok"], res["code"])
     return dict(res, server=name)

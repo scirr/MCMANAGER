@@ -2,6 +2,7 @@ import os
 import signal
 import subprocess
 import json
+import logging
 import datetime
 import sys
 import shutil
@@ -1010,6 +1011,7 @@ def start_server(config, send_webhook=True):
             send_discord_webhook(config, payload)
         except Exception:
             pass
+        _alert(config, "start")
     return True, T["server_launched"].format(ip=display_ip, pid=proc.pid)
 
 # ==========================================
@@ -1115,15 +1117,19 @@ def stop_server(config, manual=True, wait=True, timeout=None, reason=None, quiet
         _signal_server(config, signal.SIGTERM)
 
     if manual and not quiet:
+        # The scheduler raises the maintenance flag before stopping, so that the
+        # daemon does not relaunch the server: its own stop is still announced.
+        scheduled = reason == "scheduled"
         try:
             nom = config.get("nom_serveur", "Minecraft")
             key = STOP_WEBHOOKS.get(reason, "stop")
             templates = mc_config.load_webhooks(config["dossier_serveur"])
             tpl = templates.get(key) or mc_config.get_fallback_webhook(key) or mc_config.get_fallback_webhook("stop")
             payload = {"embeds": [_build_embed(tpl, {"nom": nom})]}
-            send_discord_webhook(config, payload)
+            send_discord_webhook(config, payload, force=scheduled)
         except Exception:
             pass
+        _alert(config, "sleep" if reason == "sleep" else "stop", force=scheduled, reason=reason or "user")
 
     if not wait:
         return True, T["stop_sent"]
@@ -1182,27 +1188,27 @@ def force_kill_server(config):
 # ==========================================
 
 def _prune_old_backups(dossier_backup, retention_days):
-    """Delete daily backup folders (YYYY-MM-DD) older than retention_days.
+    """Delete backups older than retention_days (and their empty day folders).
 
-    0 or negative disables pruning. Non-date folders are never touched.
-    Returns the number of folders removed.
+    0 or negative disables pruning. The newest backup always survives and
+    non-date folders are never touched. Returns the number of day folders
+    removed.
     """
-    if retention_days <= 0 or not os.path.isdir(dossier_backup):
+    import mc_backup
+    if retention_days <= 0:
         return 0
-    cutoff = (datetime.datetime.now() - datetime.timedelta(days=retention_days)).date()
-    removed = 0
-    for entry in os.listdir(dossier_backup):
-        full = os.path.join(dossier_backup, entry)
-        if not os.path.isdir(full):
-            continue
-        try:
-            day = datetime.datetime.strptime(entry, "%Y-%m-%d").date()
-        except ValueError:
-            continue
-        if day < cutoff:
-            shutil.rmtree(full, ignore_errors=True)
-            removed += 1
-    return removed
+    return mc_backup.apply_retention(dossier_backup, 0, retention_days)["folders"]
+
+
+FREEZE_BACKUP_MAX = 1800
+
+
+def _alert(config, event, **info):
+    try:
+        import mc_alert
+        mc_alert.notify(config, event, **info)
+    except Exception:
+        pass
 
 
 def _get_level_name(dossier):
@@ -1217,7 +1223,7 @@ def _get_level_name(dossier):
             pass
     return "world"
 
-def backup_server(config, type_backup=None):
+def backup_server(config, type_backup=None, housekeeping=True):
     if type_backup is None:
         type_backup = T["backup_type_manual"]
     dossier = config.get("dossier_serveur", "")
@@ -1244,20 +1250,28 @@ def backup_server(config, type_backup=None):
 
     # An external tool froze the world ('mc freeze'): saving is already off
     # and the world flushed; leave the freeze to its owner.
-    frozen = os.path.exists(os.path.join(dossier, ".mcmanager_frozen"))
+    import mc_api
+    import mc_backup
+    owns_freeze = False
     try:
-        if is_server_running(config) and not frozen:
-            send_rcon(config, "save-off")
-            # 'flush' makes the command return only once every chunk is on
-            # disk; the pause covers servers whose RCON replies early.
-            send_rcon(config, "save-all flush")
-            time.sleep(5)
+        if is_server_running(config) and not mc_api.is_frozen(config):
+            ok, code = mc_api.freeze(config, FREEZE_BACKUP_MAX)
+            if not ok and code != "already_frozen":
+                return False, T["backup_error"].format(e=code)
+            owns_freeze = code == "frozen"
+            if owns_freeze:
+                # 'flush' makes the command return only once every chunk is on
+                # disk; the pause covers servers whose RCON replies early.
+                time.sleep(5)
 
         if os.path.exists(staging):
             shutil.rmtree(staging)
         os.makedirs(staging)
         for name in world_names:
             shutil.copytree(os.path.join(dossier, name), os.path.join(staging, name))
+        if owns_freeze:
+            mc_api.thaw(config)
+            owns_freeze = False
 
         with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zf:
             for root, dirs, files in os.walk(staging):
@@ -1265,15 +1279,22 @@ def backup_server(config, type_backup=None):
                     filepath = os.path.join(root, file)
                     arcname = os.path.relpath(filepath, staging)
                     zf.write(filepath, arcname)
-
-        _prune_old_backups(dossier_backup, int(config.get("backup_retention_days", 0) or 0))
-
-        return True, T["backup_ok"].format(btype=type_backup)
-
     except Exception as e:
+        _alert(config, "backup_failed", detail=str(e))
         return False, T["backup_error"].format(e=e)
     finally:
         shutil.rmtree(staging, ignore_errors=True)
-        if is_server_running(config) and not frozen:
-            send_rcon(config, "save-on")
+        if owns_freeze:
+            mc_api.thaw(config)
 
+    message = T["backup_ok"].format(btype=type_backup)
+    if not housekeeping:
+        return True, message
+    mc_backup.apply_retention(dossier_backup, config.get("backup_keep", 0), config.get("backup_retention_days", 0))
+    failed = [(n, d) for n, ok, d in mc_backup.push_all(
+        config, zip_name, warn=lambda code: logging.warning(T[f"backup_{code}"])) if not ok]
+    if failed:
+        detail = "; ".join(f"{n}: {d}" for n, d in failed)
+        _alert(config, "backup_failed", detail=detail)
+        message += " " + T["backup_remote_failed"].format(detail=detail)
+    return True, message

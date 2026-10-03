@@ -424,6 +424,9 @@ def print_categorized_help():
             (f"rcon \"<cmd>\" [{tgt}]", T["help_rcon"]),
             (f"players [{tgt}] [--json]", T["help_players"]),
             (f"backup [{tgt}]", T["help_backup"]),
+            (f"backup list|restore <ref> [{tgt}] [--yes]", T["help_backup_sub"]),
+            (f"backup remote add|remove|list|test [{tgt}]", T["help_backup_remote"]),
+            (f"alert add|list|remove|test [{tgt}]", T["help_alert"]),
             (f"freeze [{tgt}] [-- <cmd>]", T["help_freeze"]),
             (f"thaw [{tgt}]", T["help_thaw"]),
             (f"sleep enable|disable|status|wake [{tgt}] [--after 2h]", T["help_sleep"]),
@@ -636,7 +639,7 @@ def build_parser():
     p_stop.add_argument("--reason", choices=mc_api.STOP_REASONS, default=None, help=T["help_stop_reason_arg"])
     p_stop.add_argument("--quiet", "-q", action="store_true", help=T["help_stop_quiet"])
     subparsers.add_parser("console", parents=[target_parser], help=T["help_console"])
-    subparsers.add_parser("backup", parents=[target_parser], help=T["help_backup"])
+    _add_exploitation_parsers(subparsers)
     subparsers.add_parser("open", parents=[target_parser], help=T["help_open"])
     subparsers.add_parser("resume", parents=[target_parser], help=T["help_resume"])
     subparsers.add_parser("announce", parents=[target_parser], help=T["help_announce"])
@@ -731,6 +734,10 @@ def main():
         cut = argv.index("--")
         argv, freeze_cmd = argv[:cut], argv[cut + 1:]
     args = parser.parse_args(argv)
+    if args.action in ("backup", "alert"):
+        resolved_exit = _exploitation_dispatch(args)
+        if resolved_exit is not None:
+            return resolved_exit
 
     if args.action not in ("daemon", "update") and not getattr(args, "json", False):
         show_update_notice()
@@ -1597,6 +1604,244 @@ def cmd_update(args):
                 print_info(T["update_daemon_manual"])
     return 0 if res["ok"] else 1
 
+# ==========================================
+# BACKUPS AND ALERTS (2.10)
+# ==========================================
+
+BACKUP_SUBCOMMANDS = ("list", "restore", "remote")
+USAGE_CODES = {"bad_type", "bad_events", "bad_remote_name", "bad_remote_url", "bad_channel_name", "bad_url",
+               "missing_host", "missing_addresses", "bad_port", "missing_telegram", "missing_topic",
+               "s3_credentials_missing", "restic_password_missing", "key_not_found", "confirm_required"}
+
+
+def _add_exploitation_parsers(subparsers):
+    p_backup = subparsers.add_parser("backup", help=T["help_backup"])
+    p_backup.add_argument("args", nargs="*", help=T["help_backup_args"])
+    p_backup.add_argument("--yes", "-y", action="store_true", help=T["help_backup_yes"])
+    p_backup.add_argument("--key", default=None, metavar="FILE", help=T["help_backup_key"])
+    p_backup.add_argument("--endpoint", default=None, metavar="URL", help=T["help_backup_endpoint"])
+    p_backup.add_argument("--region", default=None)
+    p_backup.add_argument("--access-key", default=None)
+    p_backup.add_argument("--secret-key", default=None)
+    p_backup.add_argument("--secret-key-file", default=None, metavar="FILE")
+    p_backup.add_argument("--path-style", dest="path_style", action=argparse.BooleanOptionalAction, default=None)
+    p_backup.add_argument("--password", default=None)
+    p_backup.add_argument("--password-file", default=None, metavar="FILE", help=T["help_backup_password_file"])
+    p_backup.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_alert = subparsers.add_parser("alert", help=T["help_alert"])
+    p_alert.add_argument("alert_action", choices=["add", "list", "remove", "test"])
+    p_alert.add_argument("args", nargs="*", help=T["help_alert_args"])
+    p_alert.add_argument("--name", default=None, help=T["help_alert_name"])
+    p_alert.add_argument("--events", default=None, metavar="LIST", help=T["help_alert_events"])
+    p_alert.add_argument("--smtp-host", default=None)
+    p_alert.add_argument("--smtp-port", default=None)
+    p_alert.add_argument("--user", default=None)
+    p_alert.add_argument("--password", default=None)
+    p_alert.add_argument("--password-file", default=None, metavar="FILE")
+    p_alert.add_argument("--from", dest="sender", default=None)
+    p_alert.add_argument("--to", default=None, metavar="ADDRESSES")
+    p_alert.add_argument("--token", default=None)
+    p_alert.add_argument("--chat", default=None)
+    p_alert.add_argument("--topic", default=None)
+    p_alert.add_argument("--ntfy-server", default=None, metavar="URL")
+    p_alert.add_argument("--url", default=None)
+    p_alert.add_argument("--header", action="append", default=None, metavar="NAME:VALUE")
+    p_alert.add_argument("--secret", default=None)
+    p_alert.add_argument("--json", action="store_true", help=T["help_json"])
+
+
+def _read_secret_file(path):
+    with open(os.path.expanduser(path), "r", encoding="utf-8") as f:
+        return f.read().strip()
+
+
+def _finish_checked(res, as_json):
+    code = _finish(res, as_json)
+    if not res["ok"] and res["code"] in USAGE_CODES:
+        return EXIT_USAGE
+    return code
+
+
+def _exploitation_dispatch(args):
+    """Route the grouped 2.10 commands. Returns an exit code, or None when the
+    command is the historical 'mc backup [target]'."""
+    if args.action == "backup":
+        if args.args and args.args[0] in BACKUP_SUBCOMMANDS:
+            return cmd_backup(args)
+        if len(args.args) > 1:
+            print_res(False, T["backup_usage"])
+            return EXIT_USAGE
+        args.target = args.args[0] if args.args else None
+        return None
+    return cmd_alert(args)
+
+
+def _backup_remote_fields(args):
+    secret = args.secret_key
+    if args.secret_key_file:
+        secret = _read_secret_file(args.secret_key_file)
+    password = args.password
+    return dict(key=args.key, endpoint=args.endpoint, region=args.region, access_key=args.access_key,
+                secret_key=secret, path_style=args.path_style, password=password,
+                password_file=args.password_file)
+
+
+def _print_backup_list(res):
+    if not res["backups"]:
+        print_info(T["backup_none"])
+        return
+    for b in res["backups"]:
+        mark = " [enc]" if b["encrypted"] else ""
+        print(f"  {b['id']:<46} {b['created'].replace('T', ' ')}  {b['size'] / 1048576:>9.1f} MB{mark}")
+    print_info(T["backup_count"].format(n=res["count"], keep=res["keep"] or "-",
+                                        days=res["retention_days"] or "-"))
+
+
+def cmd_backup(args):
+    sub, rest = args.args[0], args.args[1:]
+    if sub == "remote":
+        return cmd_backup_remote(args, rest)
+    wanted = 1 if sub == "restore" else 0
+    operands, target = _split_target(rest, wanted)
+    if operands is None or len(operands) < wanted:
+        print_res(False, T["backup_usage"])
+        return EXIT_USAGE
+    loaded, code = _load(target, args.json)
+    if not loaded:
+        return code
+    name, config = loaded
+    if sub == "list":
+        res = mc_api.backup_list(name, config)
+        if args.json:
+            return _finish(res, True)
+        _print_backup_list(res)
+        return EXIT_OK
+    if not args.yes:
+        if args.json or not sys.stdin.isatty():
+            return _finish_checked(mc_api.result(False, "confirm_required"), args.json)
+        if not mc_deploy.ask_yn(T["backup_restore_confirm"].format(ref=operands[0], name=name), default=False):
+            print_res(False, T["backup_restore_cancelled"])
+            return EXIT_ERROR
+    if not args.json:
+        print_info(T["backup_restoring"])
+    with _quiet(args.json):
+        res = mc_api.backup_restore(name, config, operands[0])
+    if res["ok"] and not args.json and res.get("safety"):
+        print_info(T["backup_safety_kept"].format(path=res["safety"]))
+    return _finish_checked(res, args.json)
+
+
+def cmd_backup_remote(args, rest):
+    if not rest or rest[0] not in ("add", "remove", "list", "test"):
+        print_res(False, T["backup_remote_usage"])
+        return EXIT_USAGE
+    action, rest = rest[0], rest[1:]
+    wanted = {"add": 2, "remove": 1, "list": 0, "test": 0}[action]
+    if action == "test" and rest:
+        wanted = 1
+    operands, target = _split_target(rest, wanted)
+    if operands is None or len(operands) < wanted:
+        print_res(False, T["backup_remote_usage"])
+        return EXIT_USAGE
+    loaded, code = _load(target, args.json)
+    if not loaded:
+        return code
+    name, config = loaded
+    if action == "list":
+        res = mc_api.backup_remote_list(name, config)
+        if args.json:
+            return _finish(res, True)
+        for r in res["remotes"]:
+            print(f"  {r['name']:<16} {r['type']:<7} {r['target']}")
+        if not res["remotes"]:
+            print_info(T["backup_remote_none"])
+        if res["remotes"] and not res["encrypted"]:
+            print_info(T["backup_remote_clear"])
+        return EXIT_OK
+    if action == "add":
+        try:
+            fields = _backup_remote_fields(args)
+        except OSError as e:
+            return _finish_checked(mc_api.result(False, "key_not_found", path=str(e.filename)), args.json)
+        res = mc_api.backup_remote_add(name, config, operands[0], operands[1], **fields)
+    elif action == "remove":
+        res = mc_api.backup_remote_remove(name, config, operands[0])
+    else:
+        res = mc_api.backup_remote_test(name, config, operands[0] if operands else None)
+        if not args.json:
+            for c in res.get("checks", []):
+                line = T["backup_remote_check_ok" if c["ok"] else "backup_remote_check_ko"].format(
+                    remote=c["remote"], detail=c["detail"])
+                if c["ok"]:
+                    print_info(line)
+                else:
+                    print(f"\033[93m[!]\033[0m {line}")
+    return _finish_checked(res, args.json)
+
+
+def _alert_params(kind, args):
+    password = args.password
+    if args.password_file:
+        password = _read_secret_file(args.password_file)
+    headers = {}
+    for item in args.header or []:
+        key, _, value = item.partition(":")
+        headers[key.strip()] = value.strip()
+    if kind == "email":
+        return dict(host=args.smtp_host, port=args.smtp_port, user=args.user, password=password,
+                    sender=args.sender, to=args.to)
+    if kind == "telegram":
+        return dict(token=args.token, chat_id=args.chat)
+    if kind == "ntfy":
+        return dict(topic=args.topic, server=args.ntfy_server, token=args.token)
+    return dict(url=args.url, headers=headers or None, secret=args.secret)
+
+
+def cmd_alert(args):
+    action = args.alert_action
+    wanted = 1 if action in ("add", "remove") else 0
+    rest = list(args.args)
+    if action == "test" and rest:
+        wanted = 1
+    operands, target = _split_target(rest, wanted)
+    if operands is None or len(operands) < wanted:
+        print_res(False, T["alert_usage"])
+        return EXIT_USAGE
+    loaded, code = _load(target, args.json)
+    if not loaded:
+        return code
+    name, config = loaded
+    if action == "list":
+        res = mc_api.alert_list(name, config)
+        if args.json:
+            return _finish(res, True)
+        for ch in res["channels"]:
+            where = ch.get("url") or ch.get("topic") or ch.get("host") or ch.get("chat_id") or ""
+            print(f"  {ch['name']:<16} {ch['type']:<9} {','.join(ch.get('events') or ['*']):<24} {where}")
+        if not res["channels"]:
+            print_info(T["alert_none"])
+        return EXIT_OK
+    if action == "add":
+        try:
+            params = _alert_params(operands[0], args)
+        except OSError as e:
+            return _finish_checked(mc_api.result(False, "key_not_found", path=str(e.filename)), args.json)
+        res = mc_api.alert_add(name, config, operands[0], params, args.events, args.name)
+    elif action == "remove":
+        res = mc_api.alert_remove(name, config, operands[0])
+    else:
+        res = mc_api.alert_test(name, config, operands[0] if operands else None)
+        if not args.json:
+            for c in res.get("checks", []):
+                line = T["alert_check_ok" if c["ok"] else "alert_check_ko"].format(channel=c["channel"], detail=c["detail"])
+                if c["ok"]:
+                    print_info(line)
+                else:
+                    print(f"\033[93m[!]\033[0m {line}")
+    return _finish_checked(res, args.json)
+
+
 def dispatch_daemon(daemon_action):
     if daemon_action == "run":
         print(f"\033[90m[i]\033[0m {T['daemon_launching']}")
@@ -1632,12 +1877,12 @@ def dispatch_daemon(daemon_action):
 # PLAYERS / WORLDS / SCHEDULED TASKS (2.10)
 # ==========================================
 
-USAGE_CODES = {"invalid_name", "invalid_ip", "invalid_cron", "invalid_action", "invalid_warn",
-               "command_required", "command_not_allowed", "warn_not_allowed", "invalid_radius"}
+OPS_USAGE_CODES = {"invalid_name", "invalid_ip", "invalid_cron", "invalid_action", "invalid_warn",
+                   "command_required", "command_not_allowed", "warn_not_allowed", "invalid_radius"}
 
 def _finish_ops(res, as_json):
     code = _finish(res, as_json)
-    return EXIT_USAGE if not res["ok"] and res["code"] in USAGE_CODES else code
+    return EXIT_USAGE if not res["ok"] and res["code"] in OPS_USAGE_CODES else code
 
 def _human_size(n):
     value = float(n)
@@ -1658,7 +1903,6 @@ def _server_ops(args, wanted, usage):
     return operands, loaded[0], loaded[1]
 
 def cmd_player_list(args):
-    import mc_players
     kind = {"whitelist": "whitelist", "op": "op", "ban": "ban", "ban-ip": "banip"}[args.action]
     action = args.list_action
     wanted = 1 if action in ("add", "remove") else 0
@@ -1666,9 +1910,9 @@ def cmd_player_list(args):
     if operands is None:
         return config
     if action in ("on", "off"):
-        return _finish(dict(mc_players.set_whitelist_enabled(config, action == "on"), server=name), args.json)
+        return _finish(mc_api.whitelist_enable(name, config, action == "on"), args.json)
     if action == "list":
-        res = dict(mc_players.list_entries(config, kind), server=name)
+        res = mc_api.player_list(name, config, kind)
         if args.json:
             return _finish(res, True)
         if kind == "whitelist":
@@ -1680,17 +1924,16 @@ def cmd_player_list(args):
         if not res["entries"]:
             print_info(T["list_none"])
         return EXIT_OK
-    res = mc_players.edit_list(config, kind, action, operands[0], reason=getattr(args, "reason", None))
-    return _finish_ops(dict(res, server=name), args.json)
+    res = mc_api.player_edit(name, config, kind, action, operands[0], reason=getattr(args, "reason", None))
+    return _finish_ops(res, args.json)
 
 def cmd_kick(args):
-    import mc_players
     loaded, code = _load(args.target, args.json)
     if not loaded:
         return code
     name, config = loaded
-    res = mc_players.kick(config, args.player, reason=args.reason)
-    return _finish_ops(dict(res, server=name), args.json)
+    res = mc_api.player_kick(name, config, args.player, reason=args.reason)
+    return _finish_ops(res, args.json)
 
 def _human_span(seconds):
     if seconds is None:
@@ -1699,50 +1942,47 @@ def _human_span(seconds):
     return f"{hours}h{rest // 60:02d}" if hours else f"{rest // 60} min"
 
 def cmd_players_history(args):
-    import mc_players
     loaded, code = _load(args.target, args.json)
     if not loaded:
         return code
     name, config = loaded
-    sessions = mc_players.history(config["dossier_serveur"], days=max(1, args.days))
+    res = mc_api.player_history(name, config, days=args.days)
     if args.json:
-        print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "history", "server": name,
-                    "days": args.days, "sessions": sessions})
+        print_json({"schema": mc_api.SCHEMA_VERSION, **res})
         return EXIT_OK
-    for s in sessions:
+    for s in res["sessions"]:
         ip = f"  {s['ip']}" if args.show_ip and s["ip"] else ""
         print(f"  {s['join'].replace('T', ' ')}  {s['player']:<16} {_human_span(s['duration_s']):<10}{ip}".rstrip())
-    if not sessions:
+    if not res["sessions"]:
         print_info(T["history_none"])
     return EXIT_OK
 
 def cmd_world(args):
-    import mc_world
     action = args.world_action
     wanted = 0 if action in ("list", "export") or (action == "pregen" and args.status) else 1
     operands, name, config = _server_ops(args, wanted, "world_usage")
     if operands is None:
         return config
     if action == "list":
-        res = mc_world.list_worlds(config)
+        res = mc_api.world_list(name, config)
         if args.json:
-            return _finish(dict(res, server=name), True)
+            return _finish(res, True)
         for dim in res["dimensions"]:
             print(f"  {dim['id']:<24} {_human_size(dim['size_bytes'])}")
         if not res["dimensions"]:
             print_info(T["world_none"])
         return EXIT_OK
     if action == "export":
-        res = mc_world.export_world(config, args.output)
+        res = mc_api.world_export(name, config, args.output)
         if res["ok"] and not args.json:
             res = dict(res, size=_human_size(res["size_bytes"]))
-        return _finish(dict(res, server=name), args.json)
+        return _finish(res, args.json)
     if action in ("import", "reset"):
         def attempt(confirmed):
             if action == "import":
-                return mc_world.import_world(config, operands[0], confirmed=confirmed)
-            return mc_world.reset_dimension(config, operands[0], confirmed=confirmed,
-                                            include_overworld=args.include_overworld)
+                return mc_api.world_import(name, config, operands[0], confirmed=confirmed)
+            return mc_api.world_reset(name, config, operands[0], confirmed=confirmed,
+                                      include_overworld=args.include_overworld)
         res = attempt(args.yes)
         if res["code"] == "confirmation_required" and not args.json:
             question = T["world_confirm_import"] if action == "import" else T["world_confirm_reset"].format(dimension=operands[0])
@@ -1750,26 +1990,20 @@ def cmd_world(args):
                 res = attempt(True)
         if res["ok"] and res["code"] == "dimension_reset" and not args.json:
             res = dict(res, count=len(res["removed"]))
-        return _finish_ops(dict(res, server=name), args.json)
+        return _finish_ops(res, args.json)
     if args.status:
-        res = mc_world.pregen_progress(config)
+        res = mc_api.world_pregen_status(name, config)
     else:
-        try:
-            radius = int(operands[0])
-            center = mc_world.parse_center(args.center) if args.center else None
-        except ValueError:
-            return _finish_ops(mc_api.result(False, "invalid_radius", radius=operands[0] if operands else "?"), args.json)
-        res = mc_world.pregen(config, radius, center)
+        res = mc_api.world_pregen(name, config, operands[0] if operands else None, args.center)
     if res["ok"] and not args.json:
         print_res(True, render(res))
         if res.get("progress"):
             print_info(T["world_pregen_progress"])
             print(res["progress"])
         return EXIT_OK
-    return _finish_ops(dict(res, server=name), args.json)
+    return _finish_ops(res, args.json)
 
 def cmd_task(args):
-    import mc_task
     action = args.task_action
     wanted = 1 if action in ("remove", "run", "enable", "disable") else 0
     operands, name, config = _server_ops(args, wanted, "task_usage")
@@ -1779,15 +2013,15 @@ def cmd_task(args):
         if not args.cron or not args.task_kind:
             print_res(False, T["task_usage"])
             return EXIT_USAGE
-        res = mc_task.add_task(config, args.cron, args.task_kind, command=args.command,
-                               warn=args.warn, name=args.name)
+        res = mc_api.task_add(name, config, args.cron, args.task_kind, command=args.command,
+                              warn=args.warn, task_name=args.name)
         if res["ok"]:
             res = dict(res, id=res["task"]["id"], name=res["task"]["name"], next_run=res["task"]["next_run"] or "-")
-        return _finish_ops(dict(res, server=name), args.json)
+        return _finish_ops(res, args.json)
     if action == "list":
-        res = mc_task.list_tasks(config)
+        res = mc_api.task_list(name, config)
         if args.json:
-            return _finish(dict(res, server=name), True)
+            return _finish(res, True)
         for task in res["tasks"]:
             state = "" if task.get("enabled", True) else f" ({T['task_off']})"
             last = task.get("last_result") or {}
@@ -1800,21 +2034,20 @@ def cmd_task(args):
         return EXIT_OK
     if action in ("remove", "enable", "disable"):
         if action == "remove":
-            res = mc_task.remove_task(config, operands[0])
+            res = mc_api.task_remove(name, config, operands[0])
         else:
-            res = mc_task.set_enabled(config, operands[0], action == "enable")
+            res = mc_api.task_enable(name, config, operands[0], action == "enable")
         if res["ok"]:
             res = dict(res, name=res["task"]["name"])
-        return _finish(dict(res, server=name), args.json)
-    task = mc_task.find_task(config, operands[0])
+        return _finish(res, args.json)
+    task = mc_api.task_find(config, operands[0])
     if not task:
         return _finish(mc_api.result(False, "task_not_found", ref=operands[0]), args.json)
     if not args.json:
         print_info(T["task_running_now"].format(name=task["name"]))
     with _quiet(args.json):
-        res = mc_task.execute(name, config, task, skip_warn=args.now)
-    mc_task.record_run(config, task.get("id"), res["ok"], res["code"])
-    return _finish(dict(res, server=name), args.json)
+        res = mc_api.task_run(name, config, task, skip_warn=args.now)
+    return _finish(res, args.json)
 
 
 # ==========================================
