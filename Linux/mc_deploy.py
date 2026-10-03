@@ -485,13 +485,16 @@ def _software(loader):
     """deploy_<loader>(server_dir, mc_version) built on mc_software.install."""
     def deploy(server_dir, mc_version):
         import mc_software
+        import mc_cli
+        deploy.last_result = None
         pr("step", T["step_software"].format(loader=loader))
         if loader == "Spigot":
             pr("info", T["spigot_buildtools"])
         res = mc_software.install(server_dir, loader, mc_version, java=_installer_java(mc_version, loader))
         if not res["ok"]:
+            deploy.last_result = res
             pr("err", T["software_failed"].format(loader=loader, ver=mc_version,
-                                                  detail=res.get("detail") or res["code"]))
+                                                  detail=res.get("detail") or mc_cli.render(res)))
             return None
         if res.get("unstable"):
             pr("warn", T["software_unstable"].format(loader=loader))
@@ -689,6 +692,10 @@ def run_deploy_auto(name, loader="Paper", version=None, folder=None, port=None, 
     if not jar:
         if created and not os.listdir(folder):
             os.rmdir(folder)
+        failure = getattr(deploy_fn, "last_result", None)
+        if failure:
+            data = {k: v for k, v in failure.items() if k not in ("ok", "code")}
+            return result(False, failure["code"], **{"loader": loader_name, "version": version, **data})
         return result(False, "download_failed", loader=loader_name, version=version)
     write_eula(folder)
 

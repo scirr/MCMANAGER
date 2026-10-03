@@ -37,6 +37,12 @@ NEOFORGE_MAVEN = "https://maven.neoforged.net/releases/net/neoforged/neoforge"
 BUILDTOOLS = "https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar"
 BUNGEECORD = "https://ci.md-5.net/job/BungeeCord/lastSuccessfulBuild/artifact/bootstrap/target/BungeeCord.jar"
 
+BUILDTOOLS_HEAP = "-Xmx1500M"
+BUILDTOOLS_TIMEOUT = 45 * 60
+BUILDTOOLS_MIN_FREE = 3 * 1024 ** 3
+BUILDTOOLS_LOG = os.path.join("logs", "buildtools.log")
+_BUILDTOOLS_ERROR = re.compile(r"\[ERROR\]|Exception|Caused by")
+
 LOADERS = ("Vanilla", "Paper", "Folia", "Purpur", "Fabric", "Quilt", "Forge", "NeoForge",
            "Spigot", "Velocity", "Waterfall", "BungeeCord")
 PROXIES = ("Velocity", "Waterfall", "BungeeCord")
@@ -83,7 +89,7 @@ def _paper_builds(project, version):
     try:
         data = mc_http.get_json(f"{PAPER_FILL}/{project}/versions/{version}/builds")
     except mc_http.HttpError as e:
-        if e.status == 404:
+        if e.status in (400, 404):
             return []
         raise
     builds = data if isinstance(data, list) else data.get("builds", [])
@@ -103,6 +109,8 @@ def _paper_project_versions(project):
             data = mc_http.get_json(address)
         except mc_http.HttpError:
             continue
+        if not isinstance(data, dict):
+            continue
         versions = data.get("versions", [])
         flat = []
         if isinstance(versions, dict):
@@ -113,6 +121,11 @@ def _paper_project_versions(project):
         if flat:
             return sorted(set(flat), key=version_key)
     return []
+
+
+def recent_versions(project, limit=12):
+    """Minecraft versions the PaperMC project publishes, newest first."""
+    return list(reversed(_paper_project_versions(project)))[:limit]
 
 
 # ── availability ─────────────────────────────────────────────────────────────
@@ -247,7 +260,8 @@ def install(folder, loader, mc_version, loader_version=None, java="java", progre
                     return result(False, "loader_unavailable", loader=loader, mc_version=mc_version)
             builds = _paper_builds(project, version)
             if not builds:
-                return result(False, "loader_unavailable", loader=loader, mc_version=mc_version)
+                extra = {} if loader in PROXIES else {"versions": recent_versions(project)}
+                return result(False, "loader_unavailable", loader=loader, mc_version=mc_version, **extra)
             build, name, address, sha256, stable = builds[0]
             mc_http.download(address, os.path.join(folder, name), {"sha256": sha256}, progress=progress)
             return result(True, "installed", loader=loader, mc_version="proxy" if loader in PROXIES else mc_version,
@@ -324,17 +338,7 @@ def install(folder, loader, mc_version, loader_version=None, java="java", progre
                           loader_version=loader_version)
 
         if loader == "Spigot":
-            if not shutil.which("git"):
-                return result(False, "git_required", loader=loader, mc_version=mc_version)
-            with tempfile.TemporaryDirectory() as tmp:
-                tools = os.path.join(tmp, "BuildTools.jar")
-                mc_http.download(BUILDTOOLS, tools, progress=progress)
-                ok, detail = _run_installer([java, "-jar", tools, "--rev", mc_version, "--compile", "SPIGOT",
-                                             "--output-dir", folder], tmp, 3600)
-            jar = f"spigot-{mc_version}.jar"
-            if not ok or not os.path.exists(os.path.join(folder, jar)):
-                return result(False, "installer_failed", loader=loader, mc_version=mc_version, detail=detail)
-            return result(True, "installed", loader=loader, mc_version=mc_version, jar_name=jar, loader_version=None)
+            return _install_spigot(folder, mc_version, java, progress)
 
         if loader == "BungeeCord":
             jar = "BungeeCord.jar"
@@ -343,6 +347,70 @@ def install(folder, loader, mc_version, loader_version=None, java="java", progre
     except mc_http.HttpError as e:
         return result(False, "download_failed", loader=loader, mc_version=mc_version, detail=e.detail)
     return result(False, "unknown_loader", loader=loader)
+
+
+def _buildtools_cache():
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
+    return os.path.join(base, "mcmanager", "buildtools")
+
+
+def _free_bytes(path):
+    while path and not os.path.exists(path):
+        parent = os.path.dirname(path)
+        if parent == path:
+            break
+        path = parent
+    return shutil.disk_usage(path or ".").free
+
+
+def _buildtools_errors(log_path, limit=15):
+    try:
+        with open(log_path, encoding="utf-8", errors="replace") as f:
+            lines = [line.rstrip() for line in f if line.strip()]
+    except OSError:
+        return ""
+    hits = [line for line in lines if _BUILDTOOLS_ERROR.search(line)]
+    return "\n".join((hits or lines)[-limit:])
+
+
+def _run_buildtools(args, cwd, log_path, timeout):
+    """Whole BuildTools output goes to `log_path`. Returns (ok, error_lines)."""
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    try:
+        with open(log_path, "w", encoding="utf-8") as log:
+            proc = subprocess.run(args, cwd=cwd, stdout=log, stderr=subprocess.STDOUT, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return False, f"timed out after {timeout // 60} min\n" + _buildtools_errors(log_path)
+    except OSError as e:
+        return False, str(e)
+    if proc.returncode != 0:
+        return False, _buildtools_errors(log_path)
+    return True, ""
+
+
+def _install_spigot(folder, mc_version, java, progress):
+    """Compile Spigot with BuildTools. The work folder is kept between runs to
+    make them faster, but never after a failure: a half-finished one makes the
+    next run fail too."""
+    if not shutil.which("git"):
+        return result(False, "git_required", loader="Spigot", mc_version=mc_version)
+    cache = _buildtools_cache()
+    free = _free_bytes(cache)
+    if free < BUILDTOOLS_MIN_FREE:
+        return result(False, "disk_space", loader="Spigot", mc_version=mc_version,
+                      needed_gb=BUILDTOOLS_MIN_FREE // 1024 ** 3, free_gb=round(free / 1024 ** 3, 1))
+    os.makedirs(cache, exist_ok=True)
+    tools = os.path.join(cache, "BuildTools.jar")
+    mc_http.download(BUILDTOOLS, tools, progress=progress)
+    log_path = os.path.join(folder, BUILDTOOLS_LOG)
+    ok, detail = _run_buildtools([java, BUILDTOOLS_HEAP, "-jar", tools, "--rev", mc_version, "--compile", "SPIGOT",
+                                  "--output-dir", folder], cache, log_path, BUILDTOOLS_TIMEOUT)
+    jar = f"spigot-{mc_version}.jar"
+    if not ok or not os.path.exists(os.path.join(folder, jar)):
+        shutil.rmtree(cache, ignore_errors=True)
+        return result(False, "installer_failed", loader="Spigot", mc_version=mc_version,
+                      detail=f"{detail}\n(log: {log_path})".strip(), log=log_path)
+    return result(True, "installed", loader="Spigot", mc_version=mc_version, jar_name=jar, loader_version=None)
 
 
 def java_for(loader, mc_version):

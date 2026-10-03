@@ -1147,7 +1147,7 @@ def cmd_config(args):
 
 def render(res):
     """Text for an API result, from its code (strings 'res_<code>')."""
-    template = T.get(f"res_{res.get('code')}")
+    template = (res.get("versions") and T.get(f"res_{res.get('code')}_versions")) or T.get(f"res_{res.get('code')}")
     if not template:
         return res.get("message") or res.get("code", "?")
     class _Missing(dict):
