@@ -482,20 +482,26 @@ def print_categorized_help():
 
 NEEDS_ACTIVE_RESOLUTION = {"configure", "start", "stop", "console", "backup", "mode", "schedule", "edit", "resume", "open", "announce", "fingerprint"}
 
-def main():
-    prompt_language_if_unset()
+class _IntermixedParser(argparse.ArgumentParser):
+    """Accepts options between positionals ('mc sleep enable --after 5m srv'),
+    which plain argparse rejects when a positional is optional or variadic."""
+    _intermixing = False
 
-    # Only commands that actually launch the JVM need Java; verifying it for
-    # everything (status, doctor, logs, image, mode…) would block them and even
-    # make `doctor` — the tool meant to diagnose this — unusable when Java is missing.
-    if len(sys.argv) > 1 and sys.argv[1] in ("start", "resume"):
-        mc_setup.verify_and_install()
+    def parse_known_args(self, args=None, namespace=None):
+        if self._intermixing or any(isinstance(a, argparse._SubParsersAction) for a in self._actions):
+            return super().parse_known_args(args, namespace)
+        self._intermixing = True
+        try:
+            return self.parse_known_intermixed_args(args, namespace)
+        finally:
+            self._intermixing = False
 
-    mc_servers.migrate_legacy_single_server()
 
+def build_parser():
     parser = argparse.ArgumentParser(description="\033[96m=== MC Manager CLI ===\033[0m")
     parser.add_argument("--version", action="version", version=f"MC Manager v{VERSION}")
-    subparsers = parser.add_subparsers(dest="action", title=T["cli_commands_title"], metavar="<command>")
+    subparsers = parser.add_subparsers(dest="action", title=T["cli_commands_title"], metavar="<command>",
+                                       parser_class=_IntermixedParser)
 
     target_parser = argparse.ArgumentParser(add_help=False)
     target_parser.add_argument("target", nargs="?", default=None, help=T["cli_target_help"])
@@ -642,12 +648,27 @@ def main():
     p_daemon.add_argument("daemon_action", choices=["run", "start", "stop", "restart"])
 
     p_image = subparsers.add_parser("image", help=T["help_image"])
-    image_subs = p_image.add_subparsers(dest="image_action", metavar="<action>")
+    image_subs = p_image.add_subparsers(dest="image_action", metavar="<action>", parser_class=_IntermixedParser)
     p_image_add = image_subs.add_parser("add", help=T["help_image_add"])
     p_image_add.add_argument("path", nargs="?", default=None, help=T["help_image_path"])
     p_image_add.add_argument("target", nargs="?", default=None)
     p_image_rm = image_subs.add_parser("rm", help=T["help_image_rm"])
     p_image_rm.add_argument("target", nargs="?", default=None)
+    return parser
+
+
+def main():
+    prompt_language_if_unset()
+
+    # Only commands that actually launch the JVM need Java; verifying it for
+    # everything (status, doctor, logs, image, mode…) would block them and even
+    # make `doctor` — the tool meant to diagnose this — unusable when Java is missing.
+    if len(sys.argv) > 1 and sys.argv[1] in ("start", "resume"):
+        mc_setup.verify_and_install()
+
+    mc_servers.migrate_legacy_single_server()
+
+    parser = build_parser()
 
     argv = sys.argv[1:]
     freeze_cmd = None
