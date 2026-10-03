@@ -60,6 +60,7 @@ MC_Manager/
 │   ├── mc_modsources.py# mods/plugins by name (Modrinth, CurseForge, Hangar)
 │   ├── mc_modpack.py   # modpacks (Modrinth, CurseForge, FTB)
 │   ├── mc_http.py      # https downloads with hash checks
+│   ├── mc_crash.py     # crash-loop detection
 │   ├── mc_sleep.py     # sleep listener (Minecraft status/login protocol)
 │   ├── mc_ipc.py       # request channel CLI -> daemon
 │   ├── mc_setup.py     # Java check

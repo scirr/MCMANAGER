@@ -19,6 +19,7 @@ import mc_doctor
 import mc_lang
 import mc_update
 import mc_api
+import mc_crash
 from mc_lang import T, VERSION
 
 # Exit codes (documented in README_Linux.md — scripts rely on them).
@@ -234,6 +235,8 @@ def render_server_box(name, info, active_name):
         statut = T["status_online"].format(pid=pid) if pid else T["status_online_nopid"]
     elif state == "starting":
         statut = T["state_starting"].format(pid=pid or "?")
+    elif state == "crashed":
+        statut = T["state_crashed"]
     else:
         statut = T[f"state_{state.replace('-', '_')}"]
         holder = snap.get("port_holder")
@@ -294,7 +297,13 @@ def render_server_box(name, info, active_name):
     next_backup = _next_backup_label(config, state)
     if next_backup:
         field_lines.append(_field('field_backup', next_backup))
-    return _box(title, marker, field_lines)
+    box = _box(title, marker, field_lines)
+    if state == "crashed":
+        errors = (snap.get("crash") or {}).get("errors") or []
+        box += f"\n  \033[91m{T['status_crash_errors']}\033[0m"
+        box += "".join(f"\n  \033[90m{line[:200]}\033[0m" for line in errors)
+        box += f"\n  \033[90m-> {T['status_crash_fix']}\033[0m"
+    return box
 
 def _human_duration(seconds):
     days, rem = divmod(int(seconds), 86400)
@@ -928,6 +937,7 @@ def main():
         print_res(True, T["mode_set"].format(mode=mode_labels.get(args.value, args.value)))
 
     elif args.action == "resume":
+        was_crashed = mc_crash.clear(config)
         config = mc_config.resume_mode(config)
         save_config(config)
         mode_labels = {
@@ -940,7 +950,11 @@ def main():
         # bring it up on its own — say so, otherwise 'resume' looks like a
         # no-op and users chain a needless (and now refused) 'mc start'.
         if not mc_core.is_server_running(config):
-            print(f"\033[90m[i]\033[0m {T['resume_restart_hint']}")
+            if was_crashed:
+                print_info(T["resume_crash_cleared"])
+                mc_api.start(active_name, config)
+            else:
+                print(f"\033[90m[i]\033[0m {T['resume_restart_hint']}")
 
     elif args.action == "schedule":
         invalid = None
@@ -993,7 +1007,7 @@ def cmd_players(args):
             return EXIT_OK
         print_info(T["players_offline"])
         return EXIT_OK
-    ok, data = mc_api.query_players(config)
+    ok, data = mc_api.query_players(config, wait=mc_api.RCON_RETRY)
     if not ok:
         if args.json:
             print_json({"schema": mc_api.SCHEMA_VERSION, "server": name,
@@ -1016,7 +1030,7 @@ def cmd_rcon(args):
     if not mc_core.is_server_running(config):
         print_res(False, T["console_offline"])
         return EXIT_ERROR
-    ok, reply = mc_api.rcon_exec(config, args.command)
+    ok, reply = mc_api.rcon_exec(config, args.command, wait=mc_api.RCON_RETRY)
     if not ok:
         print_res(False, T["rcon_failed"].format(detail=reply))
         return EXIT_ERROR
