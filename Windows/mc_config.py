@@ -395,7 +395,8 @@ def ensure_provisioning(config, dossier_serveur):
     print(f"\n\033[93m--- {T['section_firewall']} ---\033[0m")
     port = config.get("port")
     ok, manual_cmd = mc_firewall.ensure_game_port_rule(
-        port, old_port=previous_port if previous_port != port else None
+        port, old_port=previous_port if previous_port != port else None,
+        name=config.get("nom_serveur")
     )
     if ok:
         print(f"\033[92m[{T['icon_ok']}]\033[0m {T['firewall_ok'].format(port=port)}")

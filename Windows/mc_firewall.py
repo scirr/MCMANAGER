@@ -62,12 +62,21 @@ def manual_command(port):
             f'dir=in action=allow protocol=TCP localport={port}')
 
 
-def ensure_game_port_rule(port, old_port=None):
+def _port_used_by_other(port, name=None):
+    try:
+        import mc_servers
+        return mc_servers.find_port_conflict(port=port, exclude_name=name) is not None
+    except Exception:
+        return False
+
+
+def ensure_game_port_rule(port, old_port=None, name=None):
     """
     Ensure a firewall rule exists for the game port. Called from
     mc_config.ensure_provisioning on every deploy/add/configure.
     Idempotent:
     - if `old_port` is given and differs from `port`, the old rule is removed
+      unless another registered server still uses that port
       (a port change via 'mc configure' must never leave an orphaned rule).
     - if the rule for the current port already exists, does nothing.
     - otherwise attempts to add it; on failure (non-admin terminal,
@@ -75,7 +84,7 @@ def ensure_game_port_rule(port, old_port=None):
     Never touches the RCON port — callers must never pass rcon_port here.
     """
     name = rule_name(port)
-    if old_port is not None and old_port != port:
+    if old_port is not None and old_port != port and not _port_used_by_other(old_port, name):
         remove_rule(rule_name(old_port))
 
     if rule_exists(name):

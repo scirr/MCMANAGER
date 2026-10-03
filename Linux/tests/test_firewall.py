@@ -25,6 +25,21 @@ To                         Action      From
 """
 
 
+NUMBERED = """Status: active
+
+     To                         Action      From
+     --                         ------      ----
+[ 1] 22/tcp                     ALLOW IN    Anywhere                   # SSH
+[ 2] 25565/tcp                  ALLOW IN    Anywhere                   # Minecraft
+[ 3] 25584/tcp                  ALLOW IN    Anywhere                   # MC Manager vanillaa
+[ 4] 25570/tcp                  ALLOW IN    Anywhere
+[ 8] 25584/tcp (v6)             ALLOW IN    Anywhere (v6)              # MC Manager vanillaa
+[ 9] 25565/tcp (v6)             ALLOW IN    Anywhere (v6)              # Minecraft
+[10] 25565/tcp                  ALLOW IN    Anywhere                   # MC Manager survie
+[11] 25565/tcp (v6)             ALLOW IN    Anywhere (v6)              # MC Manager survie
+"""
+
+
 def _done(stdout="", code=0):
     return subprocess.CompletedProcess([], code, stdout=stdout, stderr="")
 
@@ -42,6 +57,45 @@ class TestUfwParsing(unittest.TestCase):
 
     def test_inactive_is_unknown(self):
         self.assertIsNone(mc_firewall.parse_ufw_status("Status: inactive\n", 25565))
+
+
+class TestUfwRemoval(unittest.TestCase):
+
+    def _remove(self, port, other_server=None, status=NUMBERED):
+        calls = []
+
+        def run(args, root=False):
+            calls.append(args)
+            return _done(status) if args == ["ufw", "status", "numbered"] else _done()
+        with mock.patch.object(mc_firewall, "_run", side_effect=run), \
+             mock.patch("mc_servers.find_port_conflict", return_value=other_server):
+            result = mc_firewall.remove_rule(port, "ufw", "vanillaa")
+        return result, [c for c in calls if "delete" in c]
+
+    def test_parse_picks_only_mc_manager_rules_in_descending_order(self):
+        self.assertEqual(mc_firewall.parse_ufw_numbered(NUMBERED, 25584), [8, 3])
+        self.assertEqual(mc_firewall.parse_ufw_numbered(NUMBERED, 25565), [11, 10])
+        self.assertEqual(mc_firewall.parse_ufw_numbered(NUMBERED, 25570), [])
+
+    def test_manual_rule_on_the_port_survives(self):
+        manual_only = NUMBERED.split("[10]")[0]
+        result, deletes = self._remove(25565, status=manual_only)
+        self.assertEqual((result, deletes), (False, []))
+
+    def test_deletes_by_number_highest_first(self):
+        result, deletes = self._remove(25565)
+        self.assertTrue(result)
+        self.assertEqual(deletes, [["ufw", "--force", "delete", "11"],
+                                   ["ufw", "--force", "delete", "10"]])
+
+    def test_port_still_used_by_another_server_is_kept(self):
+        result, deletes = self._remove(25565, other_server="survie")
+        self.assertEqual((result, deletes), (False, []))
+
+    def test_unreadable_rules_delete_nothing(self):
+        with mock.patch.object(mc_firewall, "_run", return_value=None), \
+             mock.patch("mc_servers.find_port_conflict", return_value=None):
+            self.assertFalse(mc_firewall.remove_rule(25565, "ufw", "vanillaa"))
 
 
 class TestBackends(unittest.TestCase):
@@ -66,13 +120,17 @@ class TestBackends(unittest.TestCase):
 
         def run(args, root=False):
             calls.append(args)
+            if args == ["ufw", "status", "numbered"]:
+                return _done(NUMBERED)
             if args[:2] == ["ufw", "status"]:
                 return _done("Status: active\n")
             return _done()
         with mock.patch.object(mc_firewall, "detect", return_value="ufw"), \
-             mock.patch.object(mc_firewall, "_run", side_effect=run):
+             mock.patch.object(mc_firewall, "_run", side_effect=run), \
+             mock.patch("mc_servers.find_port_conflict", return_value=None):
             self.assertEqual(mc_firewall.ensure_game_port_rule(25566, old_port=25565, name="survie"), (True, None))
-        self.assertIn(["ufw", "delete", "allow", "25565/tcp"], calls)
+        self.assertNotIn(["ufw", "delete", "allow", "25565/tcp"], calls)
+        self.assertIn(["ufw", "--force", "delete", "11"], calls)
         self.assertIn(["ufw", "allow", "25566/tcp", "comment", "MC Manager survie"], calls)
 
     def test_already_open_adds_nothing(self):
@@ -93,6 +151,17 @@ class TestBackends(unittest.TestCase):
         self.assertFalse(ok)
         self.assertEqual(manual, "sudo ufw allow 25565/tcp comment 'MC Manager survie'")
         self.assertIn("firewall-cmd", mc_firewall.manual_command(25565, backend="firewalld"))
+
+    def test_firewalld_keeps_port_used_by_another_server(self):
+        calls = []
+        with mock.patch.object(mc_firewall, "_run", side_effect=lambda a, root=False: calls.append(a) or _done()), \
+             mock.patch("mc_servers.find_port_conflict", return_value="survie"):
+            self.assertFalse(mc_firewall.remove_rule(25565, "firewalld", "vanillaa"))
+        self.assertEqual(calls, [])
+        with mock.patch.object(mc_firewall, "_run", side_effect=lambda a, root=False: calls.append(a) or _done()), \
+             mock.patch("mc_servers.find_port_conflict", return_value=None):
+            self.assertTrue(mc_firewall.remove_rule(25565, "firewalld", "vanillaa"))
+        self.assertIn(["firewall-cmd", "--permanent", "--remove-port=25565/tcp"], calls)
 
     def test_firewalld_query(self):
         with mock.patch.object(mc_firewall, "_run", return_value=_done("yes\n")):
