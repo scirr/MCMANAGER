@@ -436,10 +436,10 @@ def rcon_recv_packet(sock):
     payload = data[8:-2].decode("utf-8", errors="replace")
     return pkt_id, pkt_type, payload
 
-def rcon_handshake(host, port, password, ping_only=False):
+def rcon_handshake(host, port, password, ping_only=False, timeout=5):
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(5)
+        sock.settimeout(timeout)
         sock.connect((host, int(port)))
         rcon_send_packet(sock, 1, 3, password)
         pkt_id, _, _ = rcon_recv_packet(sock)
@@ -508,6 +508,70 @@ def send_rcon(config, command):
         except Exception:
             pass
     return delivered
+
+# ==========================================
+# STARTUP READINESS
+# ==========================================
+
+def proc_uptime(pid):
+    """Seconds since the process started, or None."""
+    try:
+        with open(f"/proc/{pid}/stat") as f:
+            fields = f.read().rsplit(")", 1)[1].split()
+        start_ticks = int(fields[19])  # field 22 of stat, 0-based after 'comm'
+        with open("/proc/uptime") as f:
+            boot_uptime = float(f.read().split()[0])
+        return max(0, int(boot_uptime - start_ticks / os.sysconf("SC_CLK_TCK")))
+    except Exception:
+        return None
+
+def rcon_responds(config):
+    """True when RCON answers, False when it does not, None when no RCON is
+    configured. A refused password still means the server is up."""
+    if not config.get("mcrcon_pass"):
+        return None
+    ok, detail = rcon_handshake("127.0.0.1", config.get("rcon_port", DEFAULT_RCON_PORT),
+                                config["mcrcon_pass"], ping_only=True, timeout=2)
+    return ok or detail == T["rcon_auth_failed"]
+
+def log_has_done(config, since=None):
+    """True when the current log shows the server finished starting ('Done (').
+    `since` is the epoch the process started: an older log belongs to a
+    previous run."""
+    path = os.path.join(config.get("dossier_serveur", ""), "logs", "latest.log")
+    try:
+        if since is not None and os.path.getmtime(path) < since - 5:
+            return False
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            return any("Done (" in line for line in f)
+    except OSError:
+        return False
+
+def server_ready(config):
+    """True once the server can be driven: RCON answers, or (RCON absent or
+    broken) the log reports 'Done'. Meaningful only for a live process."""
+    responds = rcon_responds(config)
+    if responds:
+        return True
+    pid = get_server_pid(config)
+    uptime = proc_uptime(pid) if pid else None
+    since = time.time() - uptime if uptime is not None else None
+    return log_has_done(config, since)
+
+def startup_in_progress(config):
+    return _server_alive(config) and not server_ready(config)
+
+def wait_for_rcon(config, timeout):
+    """Wait until the server answers on RCON. False if the process vanished
+    or the delay ran out."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if not _server_alive(config):
+            return False
+        if rcon_responds(config):
+            return True
+        time.sleep(1)
+    return bool(rcon_responds(config))
 
 # ==========================================
 # AUTOMODPACK
@@ -872,6 +936,7 @@ def start_server(config, send_webhook=True):
 
 STOP_TIMEOUT = 120     # seconds for a clean 'stop' before escalating
 TERM_TIMEOUT = 30      # after SIGTERM, before SIGKILL
+STARTUP_WAIT = 120     # a stop requested during startup waits this long for RCON
 
 def _signal_server(config, sig):
     """Send `sig` to this server's processes: the recorded PID (and its process
@@ -918,10 +983,30 @@ def stop_server(config, manual=True, wait=True, timeout=None, reason=None, quiet
     if not is_server_running(config):
         return False, T["already_offline"]
 
-    send_rcon(config, "say " + T["ingame_stopping"])
-    send_rcon(config, "save-all flush")
-    if not send_rcon(config, "stop"):
-        return False, T["stop_rcon_unreachable"]
+    if timeout is None:
+        try:
+            timeout = int(config.get("stop_timeout", STOP_TIMEOUT))
+        except (TypeError, ValueError):
+            timeout = STOP_TIMEOUT
+
+    # RCON only opens once the server reports "Done": a stop issued during
+    # startup waits for it, then falls back to SIGTERM (Minecraft saves the
+    # world in its shutdown hook) instead of failing.
+    startup_term = False
+    if startup_in_progress(config):
+        if not wait_for_rcon(config, STARTUP_WAIT):
+            if not _server_alive(config):
+                _remove_pid_file(config)
+                return True, T["stop_done"]
+            startup_term = True
+
+    if startup_term:
+        _signal_server(config, signal.SIGTERM)
+    else:
+        send_rcon(config, "say " + T["ingame_stopping"])
+        send_rcon(config, "save-all flush")
+        if not send_rcon(config, "stop"):
+            return False, T["stop_rcon_unreachable"]
 
     if manual and not quiet:
         try:
@@ -937,14 +1022,9 @@ def stop_server(config, manual=True, wait=True, timeout=None, reason=None, quiet
     if not wait:
         return True, T["stop_sent"]
 
-    if timeout is None:
-        try:
-            timeout = int(config.get("stop_timeout", STOP_TIMEOUT))
-        except (TypeError, ValueError):
-            timeout = STOP_TIMEOUT
-    if wait_for_exit(config, timeout):
+    if wait_for_exit(config, TERM_TIMEOUT if startup_term else timeout):
         _remove_pid_file(config)
-        return True, T["stop_done"]
+        return True, T["stop_done_startup_term"] if startup_term else T["stop_done"]
 
     _signal_server(config, signal.SIGTERM)
     if wait_for_exit(config, TERM_TIMEOUT):

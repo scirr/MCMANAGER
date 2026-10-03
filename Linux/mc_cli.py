@@ -945,7 +945,7 @@ def cmd_players(args):
             return EXIT_OK
         print_info(T["players_offline"])
         return EXIT_OK
-    ok, data = mc_api.query_players(config)
+    ok, data = mc_api.query_players(config, wait=mc_api.RCON_RETRY)
     if not ok:
         if args.json:
             print_json({"schema": mc_api.SCHEMA_VERSION, "server": name,
@@ -968,7 +968,7 @@ def cmd_rcon(args):
     if not mc_core.is_server_running(config):
         print_res(False, T["console_offline"])
         return EXIT_ERROR
-    ok, reply = mc_api.rcon_exec(config, args.command)
+    ok, reply = mc_api.rcon_exec(config, args.command, wait=mc_api.RCON_RETRY)
     if not ok:
         print_res(False, T["rcon_failed"].format(detail=reply))
         return EXIT_ERROR

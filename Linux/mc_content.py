@@ -85,7 +85,7 @@ def parse_datapack_list(text):
 
 def _rcon(config, command):
     import mc_api
-    return mc_api.rcon_exec(config, command)
+    return mc_api.rcon_exec(config, command, wait=mc_api.RCON_RETRY)
 
 
 def datapack_list(config):

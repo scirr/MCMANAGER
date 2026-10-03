@@ -141,7 +141,9 @@ def check_server(name, info):
                 results.append(("warn", T["doctor_label_swap"],
                                 T["doctor_swap_used"].format(pid=jpid, mb=swap // 1024),
                                 T["doctor_swap_fix"]))
-    if running and rcon_configured:
+    if running and rcon_configured and mc_core.startup_in_progress(config):
+        results.append(("info", T["doctor_label_rcon_live"], T["doctor_rcon_starting"], None))
+    elif running and rcon_configured:
         reachable, detail = mc_core.rcon_handshake(
             "127.0.0.1", config.get("rcon_port", mc_core.DEFAULT_RCON_PORT),
             config.get("mcrcon_pass", ""), ping_only=True
