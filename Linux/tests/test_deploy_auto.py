@@ -23,6 +23,7 @@ class TestDeployAuto(unittest.TestCase):
             mock.patch.object(mc_servers, "REGISTRY_DIR", self.data),
             mock.patch.object(mc_servers, "DATA_ROOT", os.path.join(self.data, "Servers")),
             mock.patch("mc_firewall.ensure_game_port_rule", return_value=(True, None)),
+            mock.patch("mc_core._port_in_use", return_value=False),
             mock.patch("builtins.input", side_effect=AssertionError("must not prompt")),
             mock.patch("mc_java.install", return_value={"ok": False, "code": "java_download_failed"}),
         ]
@@ -70,6 +71,11 @@ class TestDeployAuto(unittest.TestCase):
         res = self._run(name="Two", version="1.21.1", accept_eula=True)
         self.assertEqual((res["port"], res["rcon_port"]), (25566, 25576))
         self.assertEqual(self._run(name="Three", version="1.21.1", port=25565, accept_eula=True)["code"], "port_taken")
+
+    def test_busy_machine_ports_are_skipped(self):
+        with mock.patch("mc_core._port_in_use", side_effect=lambda p: p in (25565, 25575)):
+            res = self._run(name="Busy", version="1.21.1", accept_eula=True)
+        self.assertEqual((res["port"], res["rcon_port"]), (25566, 25576))
 
     def test_failed_download_leaves_no_folder(self):
         with mock.patch.object(mc_deploy, "SERVER_TYPES", {"2": ("Paper", lambda f, v: None)}):
