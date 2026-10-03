@@ -1045,6 +1045,7 @@ STOP_WEBHOOKS = {
     "update":      "stop_update",
     "maintenance": "stop_maintenance",
     "switch":      "stop_switch",
+    "scheduled":   "stop_maintenance",
 }
 
 def stop_server(config, manual=True, wait=True, timeout=None, reason=None, quiet=False):

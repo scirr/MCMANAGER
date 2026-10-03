@@ -46,6 +46,7 @@ PACKAGE_FILES = [
     "mc_crash.py",
     "mc_players.py",
     "mc_world.py",
+    "mc_task.py",
     "install.sh",
     "uninstall.sh",
     "webhook_templates.json",

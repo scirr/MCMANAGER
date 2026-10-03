@@ -447,6 +447,7 @@ def print_categorized_help():
             (f"kick <{T['arg_player']}> [{tgt}] [--reason R]", T["help_kick"]),
             (f"players history [{tgt}] [--days N] [--show-ip]", T["help_players_history"]),
             (f"world list|export|import|reset|pregen [{tgt}]", T["help_world"]),
+            (f"task add|list|remove|run|enable|disable [{tgt}]", T["help_task"]),
         ]),
         (T["help_cat_config"], [
             ("deploy", T["help_deploy"]),
@@ -697,6 +698,17 @@ def build_parser():
     p_world.add_argument("--status", action="store_true", help=T["help_world_status"])
     p_world.add_argument("--json", action="store_true", help=T["help_json"])
 
+    p_task = subparsers.add_parser("task", help=T["help_task"])
+    p_task.add_argument("task_action", choices=["add", "list", "remove", "run", "enable", "disable"])
+    p_task.add_argument("args", nargs="*", help=T["help_exploit_args"])
+    p_task.add_argument("--cron", default=None, help=T["help_task_cron"])
+    p_task.add_argument("--action", dest="task_kind", choices=["restart", "backup", "command", "stop", "start"],
+                        default=None, help=T["help_task_kind"])
+    p_task.add_argument("--command", default=None, help=T["help_task_command"])
+    p_task.add_argument("--warn", default=None, help=T["help_task_warn"])
+    p_task.add_argument("--name", default=None, help=T["help_task_name"])
+    p_task.add_argument("--now", action="store_true", help=T["help_task_now"])
+    p_task.add_argument("--json", action="store_true", help=T["help_json"])
     return parser
 
 
@@ -828,6 +840,8 @@ def main():
     if args.action == "world":
         return cmd_world(args)
 
+    if args.action == "task":
+        return cmd_task(args)
 
     if args.action == "use":
         if mc_servers.set_active(args.target):
@@ -1619,7 +1633,7 @@ def dispatch_daemon(daemon_action):
 # ==========================================
 
 USAGE_CODES = {"invalid_name", "invalid_ip", "invalid_cron", "invalid_action", "invalid_warn",
-               "invalid_radius"}
+               "command_required", "command_not_allowed", "warn_not_allowed", "invalid_radius"}
 
 def _finish_ops(res, as_json):
     code = _finish(res, as_json)
@@ -1753,6 +1767,55 @@ def cmd_world(args):
             print(res["progress"])
         return EXIT_OK
     return _finish_ops(dict(res, server=name), args.json)
+
+def cmd_task(args):
+    import mc_task
+    action = args.task_action
+    wanted = 1 if action in ("remove", "run", "enable", "disable") else 0
+    operands, name, config = _server_ops(args, wanted, "task_usage")
+    if operands is None:
+        return config
+    if action == "add":
+        if not args.cron or not args.task_kind:
+            print_res(False, T["task_usage"])
+            return EXIT_USAGE
+        res = mc_task.add_task(config, args.cron, args.task_kind, command=args.command,
+                               warn=args.warn, name=args.name)
+        if res["ok"]:
+            res = dict(res, id=res["task"]["id"], name=res["task"]["name"], next_run=res["task"]["next_run"] or "-")
+        return _finish_ops(dict(res, server=name), args.json)
+    if action == "list":
+        res = mc_task.list_tasks(config)
+        if args.json:
+            return _finish(dict(res, server=name), True)
+        for task in res["tasks"]:
+            state = "" if task.get("enabled", True) else f" ({T['task_off']})"
+            last = task.get("last_result") or {}
+            tail = f"  {T['task_next']}: {task['next_run'] or '-'}"
+            if task.get("last_run"):
+                tail += f"  {T['task_last']}: {task['last_run']} {'OK' if last.get('ok') else last.get('code', '!')}"
+            print(f"  {task['id']:<3} {task['cron']:<16} {task['action']:<8} {task['name']}{state}{tail}")
+        if not res["tasks"]:
+            print_info(T["task_none"])
+        return EXIT_OK
+    if action in ("remove", "enable", "disable"):
+        if action == "remove":
+            res = mc_task.remove_task(config, operands[0])
+        else:
+            res = mc_task.set_enabled(config, operands[0], action == "enable")
+        if res["ok"]:
+            res = dict(res, name=res["task"]["name"])
+        return _finish(dict(res, server=name), args.json)
+    task = mc_task.find_task(config, operands[0])
+    if not task:
+        return _finish(mc_api.result(False, "task_not_found", ref=operands[0]), args.json)
+    if not args.json:
+        print_info(T["task_running_now"].format(name=task["name"]))
+    with _quiet(args.json):
+        res = mc_task.execute(name, config, task, skip_warn=args.now)
+    mc_task.record_run(config, task.get("id"), res["ok"], res["code"])
+    return _finish(dict(res, server=name), args.json)
+
 
 # ==========================================
 # ENTRY POINT
