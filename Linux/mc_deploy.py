@@ -356,8 +356,14 @@ def setup_rcon(server_dir, config):
     rcon_pass = ask(T["rcon_pass_prompt"], default_pass, secret=True)
 
     game_port = config.get("port")
+    taken = _registry_ports()
+    if game_port:
+        taken.add(int(game_port))
+    default_rcon = config.get("rcon_port")
+    if not default_rcon or int(default_rcon) in taken:
+        default_rcon = _free_port(25575, taken)
     while True:
-        rcon_port = ask_int(T["rcon_port_prompt"], config.get("rcon_port", 25575),
+        rcon_port = ask_int(T["rcon_port_prompt"], default_rcon,
                             validate=valid_port, error_key="invalid_port")
         if game_port and rcon_port == game_port:
             pr("warn", T["rcon_same_as_game_port"].format(rcon=rcon_port, game=game_port))
