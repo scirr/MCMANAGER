@@ -15,6 +15,7 @@ import mc_servers
 import mc_api
 import mc_ipc
 import mc_sleep
+import mc_metrics
 import threading
 from mc_lang import T
 
@@ -464,6 +465,7 @@ def main():
     servers = {}
     registry_error = None
     sleep = SleepManager()
+    metrics = mc_metrics.DaemonEndpoint()
     next_tick = time.time() + 30
     next_sync = 0
 
@@ -507,6 +509,10 @@ def main():
                 sleep.sync(servers)
             except Exception as e:
                 logging.error(f"Sleep listeners: {e}")
+            try:
+                metrics.sync(servers)
+            except Exception as e:
+                logging.error(f"Metrics endpoint: {e}")
 
         if now < next_tick:
             continue

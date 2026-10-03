@@ -44,6 +44,7 @@ PACKAGE_FILES = [
     "mc_modsources.py",
     "mc_modpack.py",
     "mc_crash.py",
+    "mc_metrics.py",
     "install.sh",
     "uninstall.sh",
     "webhook_templates.json",

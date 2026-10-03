@@ -674,3 +674,30 @@ def modpack_update(name, config, curseforge_key=None, progress=None):
     if res["ok"] and res["code"] == "pack_updated":
         mc_config.save_config(config)
     return dict(res, server=name)
+
+
+# ── metrics / status page ────────────────────────────────────────────────────
+
+def metrics_serve(bind=None, allow_remote=False, ready=None):
+    """Serve /metrics in the foreground until interrupted. `ready(bind)` is
+    called once the socket is bound."""
+    import mc_metrics
+    bind = bind or mc_metrics.DEFAULT_BIND
+    try:
+        server = mc_metrics.make_server(bind, allow_remote)
+    except ValueError:
+        return result(False, "metrics_bind_invalid", bind=bind)
+    except PermissionError:
+        return result(False, "metrics_remote_refused", bind=bind)
+    except OSError as e:
+        return result(False, "metrics_bind_failed", bind=bind, detail=str(e))
+    host, port = server.server_address[:2]
+    if ready:
+        ready(f"{host}:{port}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+    return result(True, "metrics_stopped", bind=f"{host}:{port}")

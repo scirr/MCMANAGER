@@ -62,6 +62,7 @@ MC_Manager/
 │   ├── mc_http.py      # https downloads with hash checks
 │   ├── mc_crash.py     # crash-loop detection
 │   ├── mc_sleep.py     # sleep listener (Minecraft status/login protocol)
+│   ├── mc_metrics.py   # Prometheus exporter and server sampling
 │   ├── mc_ipc.py       # request channel CLI -> daemon
 │   ├── mc_setup.py     # Java check
 │   ├── install.sh / uninstall.sh
@@ -132,6 +133,7 @@ mc deploy
 | `mc freeze` / `mc thaw` | Freeze the world for an external backup — Linux |
 | `mc switch <target>` | Hand the active server's place (ports included) to another server — Linux |
 | `mc sleep enable\|disable\|status` | Sleep when nobody plays, wake when a known player joins — Linux |
+| `mc metrics serve` | Prometheus metrics of every server on `127.0.0.1:9225` — Linux |
 | `mc datapack` / `mc mod` | Manage datapacks and mods (AutoModpack copy, quarantine) — Linux |
 | `mc console` | Attach to the interactive RCON console |
 | `mc logs` | Show recent server logs |

@@ -44,6 +44,8 @@ FAILING = [
     ["freeze", "--max", "nonsense"],
     ["image", "add", "/nonexistent/icon.png"],
     ["announce"],
+    ["metrics", "serve", "--bind", "0.0.0.0:9225"],
+    ["metrics", "serve", "--bind", "nonsense"],
     ["fingerprint"],
 ]
 
