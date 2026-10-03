@@ -290,6 +290,12 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc status [target] --json` | Same information as JSON, for scripts (see [Scripting](#scripting-json-api)) |
 | `mc active [--path\|--json]` | Name of the active server (`--path`: its folder; `--json`: its full state) |
 | `mc players [target] [--json]` | Players online (vanilla, Paper and Essentials-style `list` replies are all understood) |
+| `mc players history [target] [--days N] [--show-ip]` | Connections and disconnections read from the logs; the IP is only shown with `--show-ip` or `--json` |
+| `mc whitelist add\|remove <player> [target]`, `list`, `on`, `off` | Whitelist (RCON when running, direct file edit when stopped) |
+| `mc op add\|remove <player> [target]`, `list` | Operators |
+| `mc ban add\|remove <player> [target] [--reason R]`, `list` | Player bans |
+| `mc ban-ip add\|remove <ip> [target]`, `list` | IP bans |
+| `mc kick <player> [target] [--reason R]` | Kick a connected player |
 | `mc rcon "<command>" [target]` | Send one command to the server and print its reply (RCON password read from the config) |
 | `mc config get [<key>] [target]` | Print one setting (or the whole `config.json` as JSON) |
 | `mc config set <key> <value> [target]` | Change a setting and propagate it everywhere it lives: `config.json`, `servers.json`, `server.properties`, firewall |
@@ -430,6 +436,26 @@ mc mod remove create                      # moved to mods_quarantine/<date>/, ne
 - Moving an already enabled pack works (Minecraft itself refuses; MC Manager disables and re-enables it at the requested position).
 - With AutoModpack, a mod exists twice (`mods/` and `automodpack/host-modpack/main/mods/`): `mc mod` always handles both copies, so a removed mod is no longer shipped to players.
 - Removing a mod that **adds blocks** turns those blocks into air in the world, and the server saves that. MC Manager refuses unless you add `--yes` — back the world up first.
+
+---
+
+## Player management
+
+### Players (`mc whitelist`, `op`, `ban`, `ban-ip`, `kick`)
+
+```bash
+mc whitelist add Steve            # also: remove, list, on, off
+mc op add Alex
+mc ban add Griefer --reason "griefing"
+mc ban-ip add 203.0.113.9
+mc kick Steve --reason "restart soon"
+mc players history --days 3 --show-ip
+```
+
+- **Server running**: the command goes through RCON, then the server's own JSON file (`whitelist.json`, `ops.json`, `banned-players.json`, `banned-ips.json`) is read back to confirm it was applied. **Server stopped**: the file is edited directly and atomically.
+- A stopped server needs the player's UUID to add an entry: it comes from the Mojang API (`api.mojang.com`), or, when `online-mode=false`, from the offline UUID (version 3 MD5 of `OfflinePlayer:<name>`). Removing an entry never needs the network.
+- Names must match `[A-Za-z0-9_]{3,16}`; `ban-ip` takes an IPv4 or IPv6 address.
+- `mc players history` reads `logs/latest.log` and `logs/*.log.gz`: `[{player, ip, join, leave, duration_s}]`. A session cut by a crash or a restart has no `leave`.
 
 ---
 

@@ -439,6 +439,14 @@ def print_categorized_help():
             (f"remove <{tgt}>", T["help_remove"]),
             (f"open [{tgt}]", T["help_open"]),
         ]),
+        (T["help_cat_exploit"], [
+            (f"whitelist add|remove|list|on|off [<{T['arg_player']}>] [{tgt}]", T["help_whitelist"]),
+            (f"op add|remove|list [<{T['arg_player']}>] [{tgt}]", T["help_op"]),
+            (f"ban add|remove|list [<{T['arg_player']}>] [{tgt}] [--reason R]", T["help_ban"]),
+            (f"ban-ip add|remove|list [<ip>] [{tgt}]", T["help_banip"]),
+            (f"kick <{T['arg_player']}> [{tgt}] [--reason R]", T["help_kick"]),
+            (f"players history [{tgt}] [--days N] [--show-ip]", T["help_players_history"]),
+        ]),
         (T["help_cat_config"], [
             ("deploy", T["help_deploy"]),
             (f"add [{pth}]", T["help_add"]),
@@ -538,7 +546,10 @@ def build_parser():
     g_active.add_argument("--path", action="store_true", help=T["help_active_path"])
     g_active.add_argument("--json", action="store_true", help=T["help_json"])
 
-    p_players = subparsers.add_parser("players", parents=[target_parser], help=T["help_players"])
+    p_players = subparsers.add_parser("players", help=T["help_players"])
+    p_players.add_argument("args", nargs="*", help=T["help_players_args"])
+    p_players.add_argument("--days", type=int, default=7, help=T["help_days"])
+    p_players.add_argument("--show-ip", action="store_true", help=T["help_show_ip"])
     p_players.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_rcon = subparsers.add_parser("rcon", help=T["help_rcon"])
@@ -655,6 +666,26 @@ def build_parser():
     p_image_add.add_argument("target", nargs="?", default=None)
     p_image_rm = image_subs.add_parser("rm", help=T["help_image_rm"])
     p_image_rm.add_argument("target", nargs="?", default=None)
+
+    # 2.10 — players, worlds, scheduled tasks
+    for cmd, dest, choices, help_key in (
+            ("whitelist", "list_action", ["add", "remove", "list", "on", "off"], "help_whitelist"),
+            ("op", "list_action", ["add", "remove", "list"], "help_op"),
+            ("ban", "list_action", ["add", "remove", "list"], "help_ban"),
+            ("ban-ip", "list_action", ["add", "remove", "list"], "help_banip")):
+        p_list = subparsers.add_parser(cmd, help=T[help_key])
+        p_list.add_argument(dest, choices=choices)
+        p_list.add_argument("args", nargs="*", help=T["help_exploit_args"])
+        if cmd in ("ban", "ban-ip"):
+            p_list.add_argument("--reason", default=None, help=T["help_reason"])
+        p_list.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_kick = subparsers.add_parser("kick", help=T["help_kick"])
+    p_kick.add_argument("player")
+    p_kick.add_argument("target", nargs="?", default=None, help=T["cli_target_help"])
+    p_kick.add_argument("--reason", default=None, help=T["help_reason"])
+    p_kick.add_argument("--json", action="store_true", help=T["help_json"])
+
     return parser
 
 
@@ -776,6 +807,13 @@ def main():
 
     if args.action in ("freeze", "thaw"):
         return cmd_freeze_thaw(args, freeze_cmd)
+
+    if args.action in ("whitelist", "op", "ban", "ban-ip"):
+        return cmd_player_list(args)
+
+    if args.action == "kick":
+        return cmd_kick(args)
+
 
     if args.action == "use":
         if mc_servers.set_active(args.target):
@@ -1018,6 +1056,14 @@ def _load_target_config(target, quiet_json=False):
     return name, config
 
 def cmd_players(args):
+    history = bool(args.args) and args.args[0] == "history"
+    rest = args.args[1:] if history else args.args
+    if len(rest) > 1:
+        print_res(False, T["players_usage"])
+        return EXIT_USAGE
+    args.target = rest[0] if rest else None
+    if history:
+        return cmd_players_history(args)
     loaded = _load_target_config(args.target, quiet_json=args.json)
     if not loaded:
         return EXIT_NOT_FOUND
@@ -1553,6 +1599,86 @@ def dispatch_daemon(daemon_action):
         print_res(False, T["daemon_no_perms"].format(action=daemon_action))
     else:
         print_res(False, T["daemon_error_msg"].format(action=daemon_action, code=result.returncode, detail=detail.strip()))
+
+# ==========================================
+# PLAYERS / WORLDS / SCHEDULED TASKS (2.10)
+# ==========================================
+
+USAGE_CODES = {"invalid_name", "invalid_ip"}
+
+def _finish_ops(res, as_json):
+    code = _finish(res, as_json)
+    return EXIT_USAGE if not res["ok"] and res["code"] in USAGE_CODES else code
+
+def _server_ops(args, wanted, usage):
+    """(operands, name, config) or (None, None, exit_code)."""
+    operands, target = _split_target(args.args, wanted)
+    if operands is None or len(operands) < wanted:
+        print_res(False, T[usage])
+        return None, None, EXIT_USAGE
+    loaded, code = _load(target, args.json)
+    if not loaded:
+        return None, None, code
+    return operands, loaded[0], loaded[1]
+
+def cmd_player_list(args):
+    import mc_players
+    kind = {"whitelist": "whitelist", "op": "op", "ban": "ban", "ban-ip": "banip"}[args.action]
+    action = args.list_action
+    wanted = 1 if action in ("add", "remove") else 0
+    operands, name, config = _server_ops(args, wanted, "whitelist_usage" if kind == "whitelist" else "exploit_ops_usage")
+    if operands is None:
+        return config
+    if action in ("on", "off"):
+        return _finish(dict(mc_players.set_whitelist_enabled(config, action == "on"), server=name), args.json)
+    if action == "list":
+        res = dict(mc_players.list_entries(config, kind), server=name)
+        if args.json:
+            return _finish(res, True)
+        if kind == "whitelist":
+            print_info(T["whitelist_state_on" if res["enabled"] else "whitelist_state_off"])
+        key = "ip" if kind == "banip" else "name"
+        for entry in res["entries"]:
+            extra = entry.get("uuid") or entry.get("reason") or ""
+            print(f"  {entry.get(key, '?'):<24} {extra}".rstrip())
+        if not res["entries"]:
+            print_info(T["list_none"])
+        return EXIT_OK
+    res = mc_players.edit_list(config, kind, action, operands[0], reason=getattr(args, "reason", None))
+    return _finish_ops(dict(res, server=name), args.json)
+
+def cmd_kick(args):
+    import mc_players
+    loaded, code = _load(args.target, args.json)
+    if not loaded:
+        return code
+    name, config = loaded
+    res = mc_players.kick(config, args.player, reason=args.reason)
+    return _finish_ops(dict(res, server=name), args.json)
+
+def _human_span(seconds):
+    if seconds is None:
+        return T["history_open"]
+    hours, rest = divmod(int(seconds), 3600)
+    return f"{hours}h{rest // 60:02d}" if hours else f"{rest // 60} min"
+
+def cmd_players_history(args):
+    import mc_players
+    loaded, code = _load(args.target, args.json)
+    if not loaded:
+        return code
+    name, config = loaded
+    sessions = mc_players.history(config["dossier_serveur"], days=max(1, args.days))
+    if args.json:
+        print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "history", "server": name,
+                    "days": args.days, "sessions": sessions})
+        return EXIT_OK
+    for s in sessions:
+        ip = f"  {s['ip']}" if args.show_ip and s["ip"] else ""
+        print(f"  {s['join'].replace('T', ' ')}  {s['player']:<16} {_human_span(s['duration_s']):<10}{ip}".rstrip())
+    if not sessions:
+        print_info(T["history_none"])
+    return EXIT_OK
 
 # ==========================================
 # ENTRY POINT
