@@ -503,7 +503,9 @@ AUTOMODPACK_LOADER_MAP = {
     "NeoForge": "neoforge",
 }
 
-def check_automodpack_availability(mc_version, modrinth_loader):
+def check_automodpack_availability(mc_version, modrinth_loader, allow_prerelease=False):
+    """Newest AutoModpack build for this version and loader. Only `release`
+    builds unless `allow_prerelease` (beta/alpha/rc) is asked for explicitly."""
     if not modrinth_loader:
         return None
     gv_param = urllib.parse.quote(json.dumps([mc_version]))
@@ -512,7 +514,9 @@ def check_automodpack_availability(mc_version, modrinth_loader):
         f"https://api.modrinth.com/v2/project/automodpack/version"
         f"?loaders={loaders_param}&game_versions={gv_param}"
     )
-    data = fetch_json(url)
+    data = fetch_json(url) or []
+    if not allow_prerelease:
+        data = [v for v in data if v.get("version_type") == "release"]
     return data[0] if data else None
 
 def setup_automodpack(server_dir, config, mc_version, srv_name):
@@ -539,11 +543,18 @@ def setup_automodpack(server_dir, config, mc_version, srv_name):
 
     version_info = check_automodpack_availability(mc_version, modrinth_loader)
     if not version_info:
+        pre = check_automodpack_availability(mc_version, modrinth_loader, allow_prerelease=True)
+        if pre and ask_yn(T["automod_prerelease_prompt"].format(
+                aver=pre["version_number"], vtype=pre.get("version_type", "?")), default=False):
+            version_info = pre
+    if not version_info:
         pr("warn", T["automod_unavail"].format(ver=mc_version, loader=srv_name))
         config["activer_automodpack"] = 0
         return config
 
     pr("ok", T["automod_avail"].format(aver=version_info['version_number'], loader=srv_name, ver=mc_version))
+    if version_info.get("version_type", "release") != "release":
+        pr("warn", T["automod_prerelease"].format(vtype=version_info["version_type"]))
     pr("info", T["automod_desc"])
     if not ask_yn(T["automod_prompt"], default=True):
         config["activer_automodpack"] = 0
