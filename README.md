@@ -61,7 +61,8 @@ MC_Manager/
 │   ├── mc_modpack.py   # modpacks (Modrinth, CurseForge, FTB)
 │   ├── mc_http.py      # https downloads with hash checks
 │   ├── mc_crash.py     # crash-loop detection
-│   ├── mc_sleep.py     # sleep listener (Minecraft status/login protocol)
+│   ├── mc_protocol.py  # Minecraft network protocol (VarInt, handshake, status, login)
+│   ├── mc_sleep.py     # sleep listener (status/login answered while the server sleeps)
 │   ├── mc_ipc.py       # request channel CLI -> daemon
 │   ├── mc_setup.py     # Java check
 │   ├── install.sh / uninstall.sh
