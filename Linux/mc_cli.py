@@ -446,6 +446,7 @@ def print_categorized_help():
             (f"ban-ip add|remove|list [<ip>] [{tgt}]", T["help_banip"]),
             (f"kick <{T['arg_player']}> [{tgt}] [--reason R]", T["help_kick"]),
             (f"players history [{tgt}] [--days N] [--show-ip]", T["help_players_history"]),
+            (f"world list|export|import|reset|pregen [{tgt}]", T["help_world"]),
         ]),
         (T["help_cat_config"], [
             ("deploy", T["help_deploy"]),
@@ -686,6 +687,16 @@ def build_parser():
     p_kick.add_argument("--reason", default=None, help=T["help_reason"])
     p_kick.add_argument("--json", action="store_true", help=T["help_json"])
 
+    p_world = subparsers.add_parser("world", help=T["help_world"])
+    p_world.add_argument("world_action", choices=["list", "export", "import", "reset", "pregen"])
+    p_world.add_argument("args", nargs="*", help=T["help_exploit_args"])
+    p_world.add_argument("--output", default=None, help=T["help_world_output"])
+    p_world.add_argument("--yes", "-y", action="store_true", help=T["help_world_yes"])
+    p_world.add_argument("--include-overworld", action="store_true", help=T["help_world_overworld"])
+    p_world.add_argument("--center", default=None, metavar="X,Z", help=T["help_world_center"])
+    p_world.add_argument("--status", action="store_true", help=T["help_world_status"])
+    p_world.add_argument("--json", action="store_true", help=T["help_json"])
+
     return parser
 
 
@@ -813,6 +824,9 @@ def main():
 
     if args.action == "kick":
         return cmd_kick(args)
+
+    if args.action == "world":
+        return cmd_world(args)
 
 
     if args.action == "use":
@@ -1604,11 +1618,19 @@ def dispatch_daemon(daemon_action):
 # PLAYERS / WORLDS / SCHEDULED TASKS (2.10)
 # ==========================================
 
-USAGE_CODES = {"invalid_name", "invalid_ip"}
+USAGE_CODES = {"invalid_name", "invalid_ip", "invalid_cron", "invalid_action", "invalid_warn",
+               "invalid_radius"}
 
 def _finish_ops(res, as_json):
     code = _finish(res, as_json)
     return EXIT_USAGE if not res["ok"] and res["code"] in USAGE_CODES else code
+
+def _human_size(n):
+    value = float(n)
+    for unit in ("B", "KiB", "MiB", "GiB"):
+        if value < 1024 or unit == "GiB":
+            return f"{value:.0f} {unit}" if unit == "B" else f"{value:.1f} {unit}"
+        value /= 1024
 
 def _server_ops(args, wanted, usage):
     """(operands, name, config) or (None, None, exit_code)."""
@@ -1679,6 +1701,58 @@ def cmd_players_history(args):
     if not sessions:
         print_info(T["history_none"])
     return EXIT_OK
+
+def cmd_world(args):
+    import mc_world
+    action = args.world_action
+    wanted = 0 if action in ("list", "export") or (action == "pregen" and args.status) else 1
+    operands, name, config = _server_ops(args, wanted, "world_usage")
+    if operands is None:
+        return config
+    if action == "list":
+        res = mc_world.list_worlds(config)
+        if args.json:
+            return _finish(dict(res, server=name), True)
+        for dim in res["dimensions"]:
+            print(f"  {dim['id']:<24} {_human_size(dim['size_bytes'])}")
+        if not res["dimensions"]:
+            print_info(T["world_none"])
+        return EXIT_OK
+    if action == "export":
+        res = mc_world.export_world(config, args.output)
+        if res["ok"] and not args.json:
+            res = dict(res, size=_human_size(res["size_bytes"]))
+        return _finish(dict(res, server=name), args.json)
+    if action in ("import", "reset"):
+        def attempt(confirmed):
+            if action == "import":
+                return mc_world.import_world(config, operands[0], confirmed=confirmed)
+            return mc_world.reset_dimension(config, operands[0], confirmed=confirmed,
+                                            include_overworld=args.include_overworld)
+        res = attempt(args.yes)
+        if res["code"] == "confirmation_required" and not args.json:
+            question = T["world_confirm_import"] if action == "import" else T["world_confirm_reset"].format(dimension=operands[0])
+            if mc_deploy.ask_yn(question, default=False):
+                res = attempt(True)
+        if res["ok"] and res["code"] == "dimension_reset" and not args.json:
+            res = dict(res, count=len(res["removed"]))
+        return _finish_ops(dict(res, server=name), args.json)
+    if args.status:
+        res = mc_world.pregen_progress(config)
+    else:
+        try:
+            radius = int(operands[0])
+            center = mc_world.parse_center(args.center) if args.center else None
+        except ValueError:
+            return _finish_ops(mc_api.result(False, "invalid_radius", radius=operands[0] if operands else "?"), args.json)
+        res = mc_world.pregen(config, radius, center)
+    if res["ok"] and not args.json:
+        print_res(True, render(res))
+        if res.get("progress"):
+            print_info(T["world_pregen_progress"])
+            print(res["progress"])
+        return EXIT_OK
+    return _finish_ops(dict(res, server=name), args.json)
 
 # ==========================================
 # ENTRY POINT

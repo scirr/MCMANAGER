@@ -62,6 +62,7 @@ MC_Manager/
 │   ├── mc_http.py      # https downloads with hash checks
 │   ├── mc_crash.py     # crash-loop detection
 │   ├── mc_players.py   # whitelist, ops, bans, kick, connection history
+│   ├── mc_world.py     # dimensions, world export/import/reset, Chunky pregeneration
 │   ├── mc_sleep.py     # sleep listener (Minecraft status/login protocol)
 │   ├── mc_ipc.py       # request channel CLI -> daemon
 │   ├── mc_setup.py     # Java check

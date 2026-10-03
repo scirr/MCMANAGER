@@ -296,6 +296,7 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc ban add\|remove <player> [target] [--reason R]`, `list` | Player bans |
 | `mc ban-ip add\|remove <ip> [target]`, `list` | IP bans |
 | `mc kick <player> [target] [--reason R]` | Kick a connected player |
+| `mc world list\|export\|import\|reset\|pregen [target]` | Worlds: dimensions, zip export/import, dimension reset, Chunky pregeneration |
 | `mc rcon "<command>" [target]` | Send one command to the server and print its reply (RCON password read from the config) |
 | `mc config get [<key>] [target]` | Print one setting (or the whole `config.json` as JSON) |
 | `mc config set <key> <value> [target]` | Change a setting and propagate it everywhere it lives: `config.json`, `servers.json`, `server.properties`, firewall |
@@ -439,7 +440,7 @@ mc mod remove create                      # moved to mods_quarantine/<date>/, ne
 
 ---
 
-## Player management
+## Players and worlds
 
 ### Players (`mc whitelist`, `op`, `ban`, `ban-ip`, `kick`)
 
@@ -456,6 +457,19 @@ mc players history --days 3 --show-ip
 - A stopped server needs the player's UUID to add an entry: it comes from the Mojang API (`api.mojang.com`), or, when `online-mode=false`, from the offline UUID (version 3 MD5 of `OfflinePlayer:<name>`). Removing an entry never needs the network.
 - Names must match `[A-Za-z0-9_]{3,16}`; `ban-ip` takes an IPv4 or IPv6 address.
 - `mc players history` reads `logs/latest.log` and `logs/*.log.gz`: `[{player, ip, join, leave, duration_s}]`. A session cut by a crash or a restart has no `leave`.
+
+### Worlds (`mc world`)
+
+```bash
+mc world list                          # dimensions present and their size
+mc world export --output backup.zip    # server stopped, or: mc freeze -- mc world export
+mc world import world.zip --yes        # server stopped; backup first; level.dat required
+mc world reset nether --yes            # deletes region/, entities/, poi/; backup first
+mc world pregen 5000 --center 0,0      # needs Chunky (mod or plugin)
+mc world pregen --status               # Chunky progress
+```
+
+`export` leaves out `session.lock` and Distant Horizons' `.sqlite` files. `reset overworld` needs `--include-overworld`. Without Chunky, `pregen` says to run `mc mod add chunky`.
 
 ---
 
