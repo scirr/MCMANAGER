@@ -424,6 +424,8 @@ def print_categorized_help():
             (f"rcon \"<cmd>\" [{tgt}]", T["help_rcon"]),
             (f"players [{tgt}] [--json]", T["help_players"]),
             (f"backup [{tgt}]", T["help_backup"]),
+            (f"backup list|restore <ref> [{tgt}] [--yes]", T["help_backup_sub"]),
+            (f"backup remote add|remove|list|test [{tgt}]", T["help_backup_remote"]),
             (f"alert add|list|remove|test [{tgt}]", T["help_alert"]),
             (f"freeze [{tgt}] [-- <cmd>]", T["help_freeze"]),
             (f"thaw [{tgt}]", T["help_thaw"]),
@@ -624,7 +626,6 @@ def build_parser():
     p_stop.add_argument("--reason", choices=mc_api.STOP_REASONS, default=None, help=T["help_stop_reason_arg"])
     p_stop.add_argument("--quiet", "-q", action="store_true", help=T["help_stop_quiet"])
     subparsers.add_parser("console", parents=[target_parser], help=T["help_console"])
-    subparsers.add_parser("backup", parents=[target_parser], help=T["help_backup"])
     _add_exploitation_parsers(subparsers)
     subparsers.add_parser("open", parents=[target_parser], help=T["help_open"])
     subparsers.add_parser("resume", parents=[target_parser], help=T["help_resume"])
@@ -679,8 +680,10 @@ def main():
         cut = argv.index("--")
         argv, freeze_cmd = argv[:cut], argv[cut + 1:]
     args = parser.parse_args(argv)
-    if args.action == "alert":
-        return cmd_alert(args)
+    if args.action in ("backup", "alert"):
+        resolved_exit = _exploitation_dispatch(args)
+        if resolved_exit is not None:
+            return resolved_exit
 
     if args.action not in ("daemon", "update") and not getattr(args, "json", False):
         show_update_notice()
@@ -1528,14 +1531,30 @@ def cmd_update(args):
     return 0 if res["ok"] else 1
 
 # ==========================================
-# ALERTS (2.10)
+# BACKUPS AND ALERTS (2.10)
 # ==========================================
 
-USAGE_CODES = {"bad_type", "bad_events", "bad_channel_name", "bad_url", "missing_host", "missing_addresses",
-               "bad_port", "missing_telegram", "missing_topic", "key_not_found"}
+BACKUP_SUBCOMMANDS = ("list", "restore", "remote")
+USAGE_CODES = {"bad_type", "bad_events", "bad_remote_name", "bad_remote_url", "bad_channel_name", "bad_url",
+               "missing_host", "missing_addresses", "bad_port", "missing_telegram", "missing_topic",
+               "s3_credentials_missing", "restic_password_missing", "key_not_found", "confirm_required"}
 
 
 def _add_exploitation_parsers(subparsers):
+    p_backup = subparsers.add_parser("backup", help=T["help_backup"])
+    p_backup.add_argument("args", nargs="*", help=T["help_backup_args"])
+    p_backup.add_argument("--yes", "-y", action="store_true", help=T["help_backup_yes"])
+    p_backup.add_argument("--key", default=None, metavar="FILE", help=T["help_backup_key"])
+    p_backup.add_argument("--endpoint", default=None, metavar="URL", help=T["help_backup_endpoint"])
+    p_backup.add_argument("--region", default=None)
+    p_backup.add_argument("--access-key", default=None)
+    p_backup.add_argument("--secret-key", default=None)
+    p_backup.add_argument("--secret-key-file", default=None, metavar="FILE")
+    p_backup.add_argument("--path-style", dest="path_style", action=argparse.BooleanOptionalAction, default=None)
+    p_backup.add_argument("--password", default=None)
+    p_backup.add_argument("--password-file", default=None, metavar="FILE", help=T["help_backup_password_file"])
+    p_backup.add_argument("--json", action="store_true", help=T["help_json"])
+
     p_alert = subparsers.add_parser("alert", help=T["help_alert"])
     p_alert.add_argument("alert_action", choices=["add", "list", "remove", "test"])
     p_alert.add_argument("args", nargs="*", help=T["help_alert_args"])
@@ -1568,6 +1587,123 @@ def _finish_checked(res, as_json):
     if not res["ok"] and res["code"] in USAGE_CODES:
         return EXIT_USAGE
     return code
+
+
+def _exploitation_dispatch(args):
+    """Route the grouped 2.10 commands. Returns an exit code, or None when the
+    command is the historical 'mc backup [target]'."""
+    if args.action == "backup":
+        if args.args and args.args[0] in BACKUP_SUBCOMMANDS:
+            return cmd_backup(args)
+        if len(args.args) > 1:
+            print_res(False, T["backup_usage"])
+            return EXIT_USAGE
+        args.target = args.args[0] if args.args else None
+        return None
+    return cmd_alert(args)
+
+
+def _backup_remote_fields(args):
+    secret = args.secret_key
+    if args.secret_key_file:
+        secret = _read_secret_file(args.secret_key_file)
+    password = args.password
+    return dict(key=args.key, endpoint=args.endpoint, region=args.region, access_key=args.access_key,
+                secret_key=secret, path_style=args.path_style, password=password,
+                password_file=args.password_file)
+
+
+def _print_backup_list(res):
+    if not res["backups"]:
+        print_info(T["backup_none"])
+        return
+    for b in res["backups"]:
+        mark = " [enc]" if b["encrypted"] else ""
+        print(f"  {b['id']:<46} {b['created'].replace('T', ' ')}  {b['size'] / 1048576:>9.1f} MB{mark}")
+    print_info(T["backup_count"].format(n=res["count"], keep=res["keep"] or "-",
+                                        days=res["retention_days"] or "-"))
+
+
+def cmd_backup(args):
+    sub, rest = args.args[0], args.args[1:]
+    if sub == "remote":
+        return cmd_backup_remote(args, rest)
+    wanted = 1 if sub == "restore" else 0
+    operands, target = _split_target(rest, wanted)
+    if operands is None or len(operands) < wanted:
+        print_res(False, T["backup_usage"])
+        return EXIT_USAGE
+    loaded, code = _load(target, args.json)
+    if not loaded:
+        return code
+    name, config = loaded
+    if sub == "list":
+        res = mc_api.backup_list(name, config)
+        if args.json:
+            return _finish(res, True)
+        _print_backup_list(res)
+        return EXIT_OK
+    if not args.yes:
+        if args.json or not sys.stdin.isatty():
+            return _finish_checked(mc_api.result(False, "confirm_required"), args.json)
+        if not mc_deploy.ask_yn(T["backup_restore_confirm"].format(ref=operands[0], name=name), default=False):
+            print_res(False, T["backup_restore_cancelled"])
+            return EXIT_ERROR
+    if not args.json:
+        print_info(T["backup_restoring"])
+    with _quiet(args.json):
+        res = mc_api.backup_restore(name, config, operands[0])
+    if res["ok"] and not args.json and res.get("safety"):
+        print_info(T["backup_safety_kept"].format(path=res["safety"]))
+    return _finish_checked(res, args.json)
+
+
+def cmd_backup_remote(args, rest):
+    if not rest or rest[0] not in ("add", "remove", "list", "test"):
+        print_res(False, T["backup_remote_usage"])
+        return EXIT_USAGE
+    action, rest = rest[0], rest[1:]
+    wanted = {"add": 2, "remove": 1, "list": 0, "test": 0}[action]
+    if action == "test" and rest:
+        wanted = 1
+    operands, target = _split_target(rest, wanted)
+    if operands is None or len(operands) < wanted:
+        print_res(False, T["backup_remote_usage"])
+        return EXIT_USAGE
+    loaded, code = _load(target, args.json)
+    if not loaded:
+        return code
+    name, config = loaded
+    if action == "list":
+        res = mc_api.backup_remote_list(name, config)
+        if args.json:
+            return _finish(res, True)
+        for r in res["remotes"]:
+            print(f"  {r['name']:<16} {r['type']:<7} {r['target']}")
+        if not res["remotes"]:
+            print_info(T["backup_remote_none"])
+        if res["remotes"] and not res["encrypted"]:
+            print_info(T["backup_remote_clear"])
+        return EXIT_OK
+    if action == "add":
+        try:
+            fields = _backup_remote_fields(args)
+        except OSError as e:
+            return _finish_checked(mc_api.result(False, "key_not_found", path=str(e.filename)), args.json)
+        res = mc_api.backup_remote_add(name, config, operands[0], operands[1], **fields)
+    elif action == "remove":
+        res = mc_api.backup_remote_remove(name, config, operands[0])
+    else:
+        res = mc_api.backup_remote_test(name, config, operands[0] if operands else None)
+        if not args.json:
+            for c in res.get("checks", []):
+                line = T["backup_remote_check_ok" if c["ok"] else "backup_remote_check_ko"].format(
+                    remote=c["remote"], detail=c["detail"])
+                if c["ok"]:
+                    print_info(line)
+                else:
+                    print(f"\033[93m[!]\033[0m {line}")
+    return _finish_checked(res, args.json)
 
 
 def _alert_params(kind, args):

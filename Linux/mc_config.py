@@ -399,6 +399,8 @@ SETTABLE_KEYS = {
     "webhook_url":           (str, lambda v: v == "" or str(v).startswith("https://")),
     "dossier_backup":        (str, lambda v: bool(str(v).strip())),
     "backup_retention_days": (int, _int_min(0)),
+    "backup_keep":           (int, _int_min(0)),
+    "backup_encrypt_key_file": (str, lambda v: v == "" or os.path.isfile(os.path.expanduser(str(v)))),
     "stop_timeout":          (int, _int_min(10)),
     "curseforge_api_key":    (str, lambda v: len(str(v).strip()) >= 20),
 }

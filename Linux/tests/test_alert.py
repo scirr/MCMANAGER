@@ -253,6 +253,19 @@ class TestHooks(AlertBase):
         events = [(json.loads(c[1])["event"], json.loads(c[1])["reason"]) for c in self.posts.calls]
         self.assertEqual(events, [("sleep", "sleep"), ("stop", "update")])
 
+    def test_backup_failure_raises_backup_failed(self):
+        with tempfile.TemporaryDirectory() as d:
+            folder = os.path.join(d, "srv")
+            os.makedirs(os.path.join(folder, "world"))
+            cfg = {"nom_serveur": "S", "dossier_serveur": folder, "dossier_backup": os.path.join(d, "bk"),
+                   "alerts": [{"name": "w", "type": "webhook", "url": "https://h.example/a", "events": ["backup_failed"]}]}
+            with mock.patch("zipfile.ZipFile", side_effect=OSError("disk full")):
+                ok, _ = mc_core.backup_server(cfg)
+        self.assertFalse(ok)
+        doc = json.loads(self.posts.calls[0][1])
+        self.assertEqual(doc["event"], "backup_failed")
+        self.assertIn("disk full", doc["detail"])
+
 
 class TestDaemonAndApiEvents(AlertBase):
 

@@ -681,6 +681,152 @@ def modpack_update(name, config, curseforge_key=None, progress=None):
     return dict(res, server=name)
 
 
+# ── backups: list, restore, destinations (2.10) ─────────────────────────────
+
+def _backup_error(e):
+    return result(False, e.code, detail=e.detail)
+
+
+def backup_list(name, config):
+    import mc_backup
+    backups = mc_backup.list_backups(config.get("dossier_backup", ""))
+    return result(True, "backup_list", server=name, backups=backups, count=len(backups),
+                  keep=int(config.get("backup_keep", 0) or 0),
+                  retention_days=int(config.get("backup_retention_days", 0) or 0),
+                  remotes=[r.get("name") for r in config.get("backup_remotes", [])])
+
+
+def backup_restore(name, config, ref):
+    """Replace the world with a backup. The server must be stopped for good
+    (running, or about to be relaunched by the daemon, is refused); the
+    current world is backed up first and the swap rolls back on failure."""
+    import mc_backup
+    entry = mc_backup.find_backup(config.get("dossier_backup", ""), ref)
+    if not entry:
+        return result(False, "backup_not_found", server=name, ref=ref)
+    state = server_state(config)
+    if state in ("running", "starting"):
+        return result(False, "server_running", server=name)
+    if state == "stopped":
+        return result(False, "stop_first", server=name)
+    try:
+        if entry["encrypted"]:
+            key = config.get("backup_encrypt_key_file")
+            if not key or not os.path.isfile(key):
+                return result(False, "encrypt_key_missing", detail=key or "")
+        else:
+            mc_backup.inspect_archive(entry["path"])
+    except mc_backup.BackupError as e:
+        return _backup_error(e)
+    ok, message = mc_core.backup_server(config, "pre-restore", housekeeping=False)
+    safety = None
+    if ok:
+        newest = mc_backup.list_backups(config.get("dossier_backup", ""))
+        safety = newest[0]["path"] if newest else None
+    elif message != mc_core.T["no_world_found"]:
+        return result(False, "safety_backup_failed", server=name, message=message)
+    level = mc_core._get_level_name(config["dossier_serveur"])
+    try:
+        restored = mc_backup.restore_archive(
+            entry["path"], config["dossier_serveur"],
+            extra_names=(level, f"{level}_nether", f"{level}_the_end"),
+            key_file=config.get("backup_encrypt_key_file"))
+    except mc_backup.BackupError as e:
+        return dict(_backup_error(e), safety=safety)
+    return result(True, "backup_restored", server=name, backup=entry["id"], restored=restored, safety=safety)
+
+
+def _remote_by_name(config, rname):
+    return next((r for r in config.get("backup_remotes", []) if r.get("name") == rname), None)
+
+
+def backup_remote_list(name, config):
+    import mc_backup
+    remotes = [dict(mc_backup.masked(r), target=mc_backup.describe(r)) for r in config.get("backup_remotes", [])]
+    return result(True, "backup_remote_list", server=name, remotes=remotes, count=len(remotes),
+                  encrypted=bool(config.get("backup_encrypt_key_file")))
+
+
+def backup_remote_add(name, config, rname, url, key=None, endpoint=None, region=None, access_key=None,
+                      secret_key=None, path_style=None, password=None, password_file=None):
+    import mc_alert
+    import mc_backup
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,32}", rname or ""):
+        return result(False, "bad_remote_name", remote=rname)
+    if _remote_by_name(config, rname):
+        return result(False, "remote_exists", remote=rname)
+    try:
+        kind, fields = mc_backup.parse_remote_url(url)
+    except mc_backup.BackupError:
+        return result(False, "bad_remote_url", url=url)
+    remote = {"name": rname, "type": kind, **fields}
+    if kind == "sftp" and key:
+        key = os.path.abspath(os.path.expanduser(key))
+        if not os.path.isfile(key):
+            return result(False, "key_not_found", path=key)
+        remote["key"] = key
+    elif kind == "s3":
+        access_key = access_key or os.environ.get("AWS_ACCESS_KEY_ID")
+        secret_key = secret_key or os.environ.get("AWS_SECRET_ACCESS_KEY")
+        if not access_key or not secret_key:
+            return result(False, "s3_credentials_missing")
+        remote.update(access_key=access_key, secret_key=secret_key, region=region or "us-east-1")
+        if endpoint:
+            if not mc_alert.valid_url(endpoint if "://" in endpoint else "https://" + endpoint):
+                return result(False, "bad_url", url=endpoint)
+            remote["endpoint"] = endpoint
+        if path_style is not None:
+            remote["path_style"] = bool(path_style)
+    elif kind == "restic":
+        if password_file:
+            password_file = os.path.abspath(os.path.expanduser(password_file))
+            if not os.path.isfile(password_file):
+                return result(False, "key_not_found", path=password_file)
+            os.chmod(password_file, 0o600)
+        elif password:
+            password_file = os.path.join(config["dossier_serveur"], ".mcmanager", f"restic-{rname}.pass")
+            mc_servers.write_private_file(password_file, password)
+        else:
+            return result(False, "restic_password_missing")
+        remote["password_file"] = password_file
+    config.setdefault("backup_remotes", []).append(remote)
+    mc_config.save_config(config)
+    return result(True, "backup_remote_added", server=name, remote=rname, type=kind,
+                  target=mc_backup.describe(remote))
+
+
+def backup_remote_remove(name, config, rname):
+    remote = _remote_by_name(config, rname)
+    if not remote:
+        return result(False, "remote_not_found", remote=rname)
+    config["backup_remotes"] = [r for r in config["backup_remotes"] if r is not remote]
+    if not config["backup_remotes"]:
+        config.pop("backup_remotes")
+    mc_config.save_config(config)
+    return result(True, "backup_remote_removed", server=name, remote=rname)
+
+
+def backup_remote_test(name, config, rname=None):
+    import mc_backup
+    remotes = config.get("backup_remotes", [])
+    if rname:
+        remotes = [r for r in remotes if r.get("name") == rname]
+        if not remotes:
+            return result(False, "remote_not_found", remote=rname)
+    if not remotes:
+        return result(False, "no_remote", server=name)
+    checks = []
+    for remote in remotes:
+        try:
+            mc_backup.check_remote(remote)
+            checks.append({"remote": remote["name"], "ok": True, "detail": ""})
+        except mc_backup.BackupError as e:
+            checks.append({"remote": remote["name"], "ok": False, "detail": str(e)})
+    ok = all(c["ok"] for c in checks)
+    return result(ok, "backup_remote_tested" if ok else "backup_remote_test_failed", server=name,
+                  checks=checks, failed=", ".join(c["remote"] for c in checks if not c["ok"]))
+
+
 # ── alerts (2.10) ───────────────────────────────────────────────────────────
 
 def alert_list(name, config):
