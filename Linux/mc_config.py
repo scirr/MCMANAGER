@@ -446,9 +446,9 @@ def set_value(config, name, key, raw):
     if key == "port" and old != value:
         ok, manual = mc_firewall.ensure_game_port_rule(value, old_port=old, name=name)
         if ok:
-            updated.append(T["firewall_ok"].format(port=value))
+            updated.append(T["firewall_ok"].format(port=value, backend=mc_firewall.detect()))
         else:
-            updated.append(T["firewall_failed"] + " " + manual)
+            updated.append(_firewall_failure(mc_firewall) + " " + manual)
     return "ok", updated
 
 def run_setup_performance(config):
@@ -502,6 +502,12 @@ def run_setup_integrations(config):
 
     return config
 
+def _firewall_failure(mc_firewall):
+    backend = mc_firewall.detect()
+    if backend is None:
+        return T["firewall_none"]
+    return T["firewall_failed"].format(backend=backend)
+
 def ensure_provisioning(config, dossier_serveur):
     import mc_deploy
     import mc_firewall
@@ -532,9 +538,9 @@ def ensure_provisioning(config, dossier_serveur):
         name=config.get("nom_serveur")
     )
     if ok:
-        print(f"\033[92m[{T['icon_ok']}]\033[0m {T['firewall_ok'].format(port=port)}")
+        print(f"\033[92m[{T['icon_ok']}]\033[0m {T['firewall_ok'].format(port=port, backend=mc_firewall.detect())}")
     else:
-        print(f"\033[93m[{T['icon_warn']}]\033[0m {T['firewall_failed']}")
+        print(f"\033[93m[{T['icon_warn']}]\033[0m {_firewall_failure(mc_firewall)}")
         print(f"\033[90m[{T['icon_info']}]\033[0m {T['firewall_manual_hint']}")
         print(f"\033[96m{manual_cmd}\033[0m")
 

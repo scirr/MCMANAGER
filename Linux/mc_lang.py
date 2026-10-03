@@ -152,7 +152,7 @@ _FR = {
     "section_performance":   "Paramètres de Performance (Avancé)",
     "section_integrations":  "3. Intégrations (Optionnel)",
     "section_prereq":        "Vérification des prérequis MCManager",
-    "section_firewall":      "Pare-feu (firewalld)",
+    "section_firewall":      "Pare-feu",
 
     # ── mc_config — prompts ───────────────────────────────────────────────────
     "prompt_server_name":    "Nom du serveur",
@@ -177,8 +177,9 @@ _FR = {
     "cpu_format_hint":       "-> Format affinité : '8-15' (plage), '0,1,2' (liste), '0-7' (8 premiers)",
     "rcon_already_ok":       "RCON déjà configuré.",
     "rcon_not_configured":   "RCON n'est pas configuré sur ce serveur (obligatoire pour MC Manager : arrêt propre, console, sauvegardes, avertissements).",
-    "firewall_ok":           "Port {port} (TCP) ouvert dans firewalld.",
-    "firewall_failed":       "Port non ouvert automatiquement (pare-feu ufw/firewalld inactif, ou droits root requis ?).",
+    "firewall_ok":           "Port {port} (TCP) ouvert dans {backend}.",
+    "firewall_failed":       "Port non ouvert automatiquement dans {backend} (droits root ou sudo sans mot de passe requis).",
+    "firewall_none":         "Aucun pare-feu actif détecté (ufw, firewalld) : rien à ouvrir.",
     "firewall_manual_hint":  "Pour autoriser ce serveur manuellement, lancez :",
     "automod_fp_detected":   "Clé AutoModpack détectée automatiquement : {fp}",
     "automod_fp_pending":    "Clé AutoModpack pas encore disponible (sera détectée automatiquement au prochain 'mc start').",
@@ -869,7 +870,7 @@ _EN = {
     "section_performance":   "Performance Settings (Advanced)",
     "section_integrations":  "3. Integrations (Optional)",
     "section_prereq":        "MCManager prerequisites check",
-    "section_firewall":      "Firewall (firewalld)",
+    "section_firewall":      "Firewall",
 
     # ── mc_config — prompts ───────────────────────────────────────────────────
     "prompt_server_name":    "Server name",
@@ -894,8 +895,9 @@ _EN = {
     "cpu_format_hint":       "-> Affinity format: '8-15' (range), '0,1,2' (list), '0-7' (first 8)",
     "rcon_already_ok":       "RCON already configured.",
     "rcon_not_configured":   "RCON is not configured on this server (required for MC Manager: clean stop, console, backups, warnings).",
-    "firewall_ok":           "Port {port} (TCP) opened in firewalld.",
-    "firewall_failed":       "Port not opened automatically (ufw/firewalld inactive, or root rights required?).",
+    "firewall_ok":           "Port {port} (TCP) opened in {backend}.",
+    "firewall_failed":       "Port not opened automatically in {backend} (root or passwordless sudo required).",
+    "firewall_none":         "No active firewall detected (ufw, firewalld): nothing to open.",
     "firewall_manual_hint":  "To allow this server manually, run:",
     "automod_fp_detected":   "AutoModpack key detected automatically: {fp}",
     "automod_fp_pending":    "AutoModpack key not yet available (will be detected automatically on next 'mc start').",
