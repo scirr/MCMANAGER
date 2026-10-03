@@ -429,6 +429,7 @@ def print_categorized_help():
             (f"sleep enable|disable|status|wake [{tgt}] [--after 2h]", T["help_sleep"]),
             (f"sleep allow|deny <{T['arg_player']}> [{tgt}]", T["help_sleep_allow"]),
             ("metrics serve [--bind 127.0.0.1:9225]", T["help_metrics"]),
+            (f"status-page enable|disable [{tgt}] [--dir D] [--interval 60]", T["help_status_page"]),
             (f"announce [{tgt}]", T["help_announce"]),
             (f"fingerprint [{tgt}]", T["help_fingerprint"]),
         ]),
@@ -566,6 +567,14 @@ def build_parser():
     p_metrics.add_argument("--bind", default=None, metavar="HOST:PORT", help=T["help_metrics_bind"])
     p_metrics.add_argument("--allow-remote", action="store_true", help=T["help_metrics_remote"])
     p_metrics.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_sp = subparsers.add_parser("status-page", help=T["help_status_page"])
+    p_sp.add_argument("sp_action", choices=["enable", "disable"])
+    p_sp.add_argument("target", nargs="?", default=None, help=T["cli_target_help"])
+    p_sp.add_argument("--dir", default=None, metavar="FOLDER", help=T["help_status_page_dir"])
+    p_sp.add_argument("--interval", default=None, metavar="SECONDS", help=T["help_status_page_interval"])
+    p_sp.add_argument("--show-players", action="store_true", help=T["help_status_page_players"])
+    p_sp.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_dp = subparsers.add_parser("datapack", help=T["help_datapack"])
     p_dp.add_argument("dp_action", choices=["list", "enable", "disable"])
@@ -768,6 +777,9 @@ def main():
 
     if args.action == "metrics":
         return cmd_metrics(args)
+
+    if args.action == "status-page":
+        return cmd_status_page(args)
 
     if args.action == "datapack":
         return cmd_datapack(args)
@@ -1286,6 +1298,25 @@ def cmd_metrics(args):
     else:
         print_res(False, render(res))
     return EXIT_USAGE if res["code"] in ("metrics_bind_invalid", "metrics_remote_refused") else EXIT_ERROR
+
+def cmd_status_page(args):
+    interval = None
+    if args.interval is not None:
+        try:
+            interval = int(args.interval)
+        except ValueError:
+            print_res(False, T["status_page_usage"])
+            return EXIT_USAGE
+    loaded, code = _load(args.target, args.json)
+    if not loaded:
+        return code
+    name, config = loaded
+    if args.sp_action == "enable":
+        res = mc_api.statuspage_enable(name, config, args.dir, interval, True if args.show_players else None)
+    else:
+        res = mc_api.statuspage_disable(name, config)
+    code = _finish(res, args.json)
+    return EXIT_USAGE if res["code"] == "status_page_interval_too_short" else code
 
 def cmd_datapack(args):
     import mc_content

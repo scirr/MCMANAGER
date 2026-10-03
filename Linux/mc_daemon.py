@@ -16,6 +16,7 @@ import mc_api
 import mc_ipc
 import mc_sleep
 import mc_metrics
+import mc_statuspage
 import threading
 from mc_lang import T
 
@@ -466,6 +467,7 @@ def main():
     registry_error = None
     sleep = SleepManager()
     metrics = mc_metrics.DaemonEndpoint()
+    status_pages = mc_statuspage.Publisher()
     next_tick = time.time() + 30
     next_sync = 0
 
@@ -513,6 +515,10 @@ def main():
                 metrics.sync(servers)
             except Exception as e:
                 logging.error(f"Metrics endpoint: {e}")
+            try:
+                status_pages.run(servers)
+            except Exception as e:
+                logging.error(f"Status pages: {e}")
 
         if now < next_tick:
             continue
