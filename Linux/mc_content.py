@@ -89,7 +89,7 @@ def broken_worldgen(path, limit=5):
             with zipfile.ZipFile(path) as zf:
                 for name in zf.namelist():
                     if _WORLDGEN.match(name) and name.endswith(".json"):
-                        if not _valid_json(zf.read(name)):
+                        if not _valid_json(zf.read(name), name):
                             bad.append(name)
                             if len(bad) >= limit:
                                 break
@@ -103,7 +103,7 @@ def broken_worldgen(path, limit=5):
             if _WORLDGEN.match(rel) and f.endswith(".json"):
                 try:
                     with open(full, "rb") as fh:
-                        ok = _valid_json(fh.read())
+                        ok = _valid_json(fh.read(), rel)
                 except OSError:
                     ok = False
                 if not ok:
@@ -113,14 +113,31 @@ def broken_worldgen(path, limit=5):
     return bad
 
 
-def _valid_json(raw):
+_WORLDGEN_KEYS = {
+    "structure": ("type",),
+    "structure_set": ("structures", "placement"),
+    "configured_feature": ("type",),
+    "placed_feature": ("feature",),
+}
+_WORLDGEN_KIND = re.compile(r"^data/[^/]+/worldgen/([a-z_]+)/")
+
+
+def _valid_json(raw, name=""):
+    """False for an empty or unreadable file, an empty root, and a worldgen
+    entry missing the keys Minecraft requires (which aborts the registry load)."""
     if not raw.strip():
         return False
     try:
-        json.loads(raw.decode("utf-8-sig"))
-        return True
+        data = json.loads(raw.decode("utf-8-sig"))
     except ValueError:
         return False
+    if data in ({}, []):
+        return False
+    kind = _WORLDGEN_KIND.match(name.replace("\\", "/"))
+    required = _WORLDGEN_KEYS.get(kind.group(1)) if kind else None
+    if required:
+        return isinstance(data, dict) and all(k in data for k in required)
+    return True
 
 
 _BRACKETS = re.compile(r"\[([^\]]+?)(?: \(([^)]*)\))?\]")

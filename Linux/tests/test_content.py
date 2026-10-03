@@ -19,7 +19,7 @@ import mc_ipc
 def _zip(path, files):
     with zipfile.ZipFile(path, "w") as z:
         for name in files:
-            z.writestr(name, "{}")
+            z.writestr(name, '{"k": 1}' if "worldgen" in name else "{}")
 
 
 class TestDatapacks(unittest.TestCase):
@@ -118,7 +118,7 @@ class TestDatapacks(unittest.TestCase):
         bad_zip = os.path.join(self.dp, "bad.zip")
         with zipfile.ZipFile(bad_zip, "w") as z:
             z.writestr("pack.mcmeta", "{}")
-            z.writestr("data/x/worldgen/biome/ok.json", "{}")
+            z.writestr("data/x/worldgen/biome/ok.json", '{"k": 1}')
             z.writestr("data/x/worldgen/biome/empty.json", "")
             z.writestr("data/x/worldgen/biome/broken.json", "{nope")
         bad_dir = os.path.join(self.dp, "baddir")
@@ -132,6 +132,33 @@ class TestDatapacks(unittest.TestCase):
         res, _ = self._set("enabled: [vanilla (built-in)]", "bad")
         self.assertEqual(sorted(res["files"]),
                          ["data/x/worldgen/biome/broken.json", "data/x/worldgen/biome/empty.json"])
+
+    def test_worldgen_json_validity(self):
+        def check(name, raw):
+            return mc_content._valid_json(raw.encode(), "data/x/worldgen/" + name)
+        self.assertFalse(check("structure/a.json", "{}"))
+        self.assertFalse(check("biome/a.json", "{}"))
+        self.assertFalse(check("biome/a.json", "[]"))
+        self.assertFalse(check("structure/a.json", "[1]"))
+        self.assertFalse(check("structure/a.json", '{"biomes": "x"}'))
+        self.assertFalse(check("structure_set/a.json", '{"structures": []}'))
+        self.assertFalse(check("configured_feature/a.json", '{"config": {}}'))
+        self.assertFalse(check("placed_feature/a.json", '{"placement": []}'))
+        self.assertTrue(check("structure/a.json", '{"type": "minecraft:jigsaw"}'))
+        self.assertTrue(check("structure_set/a.json", '{"structures": [], "placement": {}}'))
+        self.assertTrue(check("configured_feature/a.json", '{"type": "minecraft:ore", "config": {}}'))
+        self.assertTrue(check("placed_feature/a.json", '{"feature": "x:y", "placement": []}'))
+        self.assertTrue(check("biome/a.json", '{"temperature": 0.5}'))
+
+    def test_enable_refuses_a_structure_without_type(self):
+        bad_zip = os.path.join(self.dp, "notype.zip")
+        with zipfile.ZipFile(bad_zip, "w") as z:
+            z.writestr("pack.mcmeta", "{}")
+            z.writestr("data/x/worldgen/structure/empty.json", "{}")
+            z.writestr("data/x/worldgen/structure/good.json", '{"type": "minecraft:jigsaw"}')
+        res, sent = self._set("enabled: [vanilla (built-in)]", "notype")
+        self.assertEqual((res["ok"], res["code"], sent), (False, "pack_broken_worldgen", []))
+        self.assertEqual(res["files"], ["data/x/worldgen/structure/empty.json"])
 
     def test_disabling_a_broken_pack_is_still_allowed(self):
         bad_zip = os.path.join(self.dp, "bad.zip")
