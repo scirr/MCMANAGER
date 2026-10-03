@@ -15,6 +15,7 @@ import mc_servers
 import mc_api
 import mc_ipc
 import mc_sleep
+import mc_task
 import threading
 from mc_lang import T
 
@@ -62,6 +63,8 @@ def _new_state():
         "expected_up": False,
         "launched_at": None,
         "crash_logged": False,
+        "tasks_fired": {},
+        "task_thread": None,
     }
 
 
@@ -104,6 +107,39 @@ def _announce_crash(name, config, marker):
         mc_core.send_discord_webhook(config, {"embeds": [mc_core._build_embed(tpl, variables)]})
     except Exception as e:
         logging.warning(f"[{name}] Crash announcement failed: {e}")
+
+
+def _task_worker(name, dossier, task, target):
+    try:
+        config = mc_config.load_config(dossier)
+        config["dossier_serveur"] = dossier
+        res = mc_task.execute(name, config, task, target=target)
+        level = logging.INFO if res["ok"] else logging.WARNING
+        logging.log(level, f"[{name}] Task '{task.get('name')}' ({task.get('action')}): {res['code']}")
+        mc_task.record_run(config, task.get("id"), res["ok"], res["code"])
+    except Exception as e:
+        logging.error(f"[{name}] Task '{task.get('name')}' crashed: {e}")
+
+
+def _launch_task(name, dossier, task, target):
+    thread = threading.Thread(target=_task_worker, args=(name, dossier, task, target), daemon=True)
+    thread.start()
+    return thread
+
+
+def _run_tasks(name, config, state, now=None):
+    """Start the scheduled tasks that are due. One task at a time per server:
+    a task can wait minutes (in-game warnings) without blocking the loop."""
+    if not mc_task.tasks_of(config):
+        return
+    for task, target in mc_task.due_tasks(config, state["tasks_fired"], now or datetime.now()):
+        thread = state.get("task_thread")
+        if thread is not None and thread.is_alive():
+            logging.warning(f"[{name}] Task '{task.get('name')}' skipped: another task is still running.")
+            mc_task.record_run(config, task.get("id"), False, "task_busy")
+            continue
+        logging.info(f"[{name}] Task '{task.get('name')}' ({task.get('action')}) due at {target:%H:%M}.")
+        state["task_thread"] = _launch_task(name, config["dossier_serveur"], task, target)
 
 
 def _may_start(name, config, state):
@@ -159,6 +195,8 @@ def process_server_tick(name, dossier_serveur, state):
         ok, code = mc_api.thaw(config)
         if ok:
             logging.warning(f"[{name}] World freeze expired: saving re-enabled ({code}).")
+
+    _run_tasks(name, config, state)
 
     if config.get("mode_maintenance", 0) == 1:
         state["expected_up"] = False

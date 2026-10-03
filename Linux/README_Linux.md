@@ -290,6 +290,14 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc status [target] --json` | Same information as JSON, for scripts (see [Scripting](#scripting-json-api)) |
 | `mc active [--path\|--json]` | Name of the active server (`--path`: its folder; `--json`: its full state) |
 | `mc players [target] [--json]` | Players online (vanilla, Paper and Essentials-style `list` replies are all understood) |
+| `mc players history [target] [--days N] [--show-ip]` | Connections and disconnections read from the logs; the IP is only shown with `--show-ip` or `--json` |
+| `mc whitelist add\|remove <player> [target]`, `list`, `on`, `off` | Whitelist (RCON when running, direct file edit when stopped) |
+| `mc op add\|remove <player> [target]`, `list` | Operators |
+| `mc ban add\|remove <player> [target] [--reason R]`, `list` | Player bans |
+| `mc ban-ip add\|remove <ip> [target]`, `list` | IP bans |
+| `mc kick <player> [target] [--reason R]` | Kick a connected player |
+| `mc world list\|export\|import\|reset\|pregen [target]` | Worlds: dimensions, zip export/import, dimension reset, Chunky pregeneration |
+| `mc task add\|list\|remove\|run\|enable\|disable [target]` | Scheduled tasks (cron) run by the daemon |
 | `mc rcon "<command>" [target]` | Send one command to the server and print its reply (RCON password read from the config) |
 | `mc config get [<key>] [target]` | Print one setting (or the whole `config.json` as JSON) |
 | `mc config set <key> <value> [target]` | Change a setting and propagate it everywhere it lives: `config.json`, `servers.json`, `server.properties`, firewall |
@@ -430,6 +438,55 @@ mc mod remove create                      # moved to mods_quarantine/<date>/, ne
 - Moving an already enabled pack works (Minecraft itself refuses; MC Manager disables and re-enables it at the requested position).
 - With AutoModpack, a mod exists twice (`mods/` and `automodpack/host-modpack/main/mods/`): `mc mod` always handles both copies, so a removed mod is no longer shipped to players.
 - Removing a mod that **adds blocks** turns those blocks into air in the world, and the server saves that. MC Manager refuses unless you add `--yes` — back the world up first.
+
+---
+
+## Players, worlds and scheduled tasks
+
+### Players (`mc whitelist`, `op`, `ban`, `ban-ip`, `kick`)
+
+```bash
+mc whitelist add Steve            # also: remove, list, on, off
+mc op add Alex
+mc ban add Griefer --reason "griefing"
+mc ban-ip add 203.0.113.9
+mc kick Steve --reason "restart soon"
+mc players history --days 3 --show-ip
+```
+
+- **Server running**: the command goes through RCON, then the server's own JSON file (`whitelist.json`, `ops.json`, `banned-players.json`, `banned-ips.json`) is read back to confirm it was applied. **Server stopped**: the file is edited directly and atomically.
+- A stopped server needs the player's UUID to add an entry: it comes from the Mojang API (`api.mojang.com`), or, when `online-mode=false`, from the offline UUID (version 3 MD5 of `OfflinePlayer:<name>`). Removing an entry never needs the network.
+- Names must match `[A-Za-z0-9_]{3,16}`; `ban-ip` takes an IPv4 or IPv6 address.
+- `mc players history` reads `logs/latest.log` and `logs/*.log.gz`: `[{player, ip, join, leave, duration_s}]`. A session cut by a crash or a restart has no `leave`.
+
+### Worlds (`mc world`)
+
+```bash
+mc world list                          # dimensions present and their size
+mc world export --output backup.zip    # server stopped, or: mc freeze -- mc world export
+mc world import world.zip --yes        # server stopped; backup first; level.dat required
+mc world reset nether --yes            # deletes region/, entities/, poi/; backup first
+mc world pregen 5000 --center 0,0      # needs Chunky (mod or plugin)
+mc world pregen --status               # Chunky progress
+```
+
+`export` leaves out `session.lock` and Distant Horizons' `.sqlite` files. `reset overworld` needs `--include-overworld`. Without Chunky, `pregen` says to run `mc mod add chunky`.
+
+### Scheduled tasks (`mc task`)
+
+```bash
+mc task add --cron "0 4 * * *" --action restart --warn 10m,5m,1m --name nightly
+mc task add --cron "*/30 * * * *" --action backup
+mc task add --cron "0 12 * * 6" --action command --command "say Event at 8 pm"
+mc task list                           # next run, last run and result
+mc task run nightly --now              # run now, without the warnings
+mc task disable nightly
+```
+
+- `--cron` is five fields, local time: minute hour day-of-month month day-of-week, with lists (`1,15`), ranges (`8-18`), steps (`*/10`, `0-30/5`) and names (`mon-fri`, `jan`). As in classic cron, when both day fields are restricted, either one matches.
+- Actions: `restart`, `stop`, `start`, `backup`, `command` (needs `--command`). `--warn` (restart and stop only) announces the countdown in game: the cron time is when the action happens, the announcements come before it.
+- `restart` and `stop` stop the server with the reason `scheduled`; `restart` then lifts the maintenance flag and the daemon starts the server again on its next tick. `start` only lifts a `scheduled` (or `sleep`) stop, never one made by hand.
+- A task missed while the daemon was down is **not** caught up. Tasks live in `config.json` (`tasks`); executions are logged in `logs/daemon.log` and kept as `last_run` / `last_result` in `mc task list --json`.
 
 ---
 
@@ -638,8 +695,9 @@ Each server has its own `config.json` in its server folder. `mc edit config [tar
 | `activer_automodpack` | AutoModpack enabled (1) or not (0) | `1` |
 | `cle_automodpack` | AutoModpack certificate fingerprint — **detected automatically, never enter manually** | `"403e6792a7..."` |
 | `mode_maintenance` | Maintenance active (1) or not (0) — set via `mc mode maintenance` / `mc resume` | `0` |
+| `tasks` | Scheduled tasks, managed by `mc task` (see [Scheduled tasks](#scheduled-tasks-mc-task)) | `[]` |
 | `stop_timeout` | Seconds `mc stop` waits for a clean shutdown before `SIGTERM` (optional) | `120` |
-| `stop_reason` | Why the server was stopped (`user`, `sleep`, `update`, `maintenance`, `switch`) — set by `mc stop --reason`, cleared by `mc resume` | `"sleep"` |
+| `stop_reason` | Why the server was stopped (`user`, `sleep`, `update`, `maintenance`, `switch`, `scheduled`) — set by `mc stop --reason`, cleared by `mc resume` | `"sleep"` |
 
 `config.json` is the **single source of truth** for the ports and RCON: on every start, `server-port`, `enable-rcon`, `rcon.port` and `rcon.password` in `server.properties` (and the ports cached in `servers.json`) are brought in line with it, and each correction is printed. JSON files saved with a UTF-8 BOM (Windows editors, PowerShell) are read normally. An unreadable `config.json` only affects its own server: `mc status` and `mc doctor` show the error and how to fix it, and the daemon keeps supervising the other servers.
 

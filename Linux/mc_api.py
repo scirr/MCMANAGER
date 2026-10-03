@@ -27,7 +27,7 @@ SCHEMA_VERSION = 1
 
 # Why a server was stopped (config.json "stop_reason", written by
 # 'mc stop --reason'). Absent means "user", the historical meaning.
-STOP_REASONS = ("user", "sleep", "update", "maintenance", "switch")
+STOP_REASONS = ("user", "sleep", "update", "maintenance", "switch", "scheduled")
 
 # Explicit states derived from the process, the port and config.json.
 #   running          process alive, game port listening and RCON answering
@@ -39,7 +39,7 @@ STOP_REASONS = ("user", "sleep", "update", "maintenance", "switch")
 #   stopped-by-user  not running, maintenance flag set by 'mc stop' (reason user)
 #   sleeping         not running, stopped with 'mc stop --reason sleep'
 #   maintenance      not running, maintenance for another reason
-#                    ('mc mode maintenance', --reason update/maintenance/switch)
+#                    ('mc mode maintenance', --reason update/maintenance/switch/scheduled)
 STATES = ("running", "starting", "crashed", "stopped", "closed", "stopped-by-user", "sleeping", "maintenance")
 
 FROZEN_MARKER = ".mcmanager_frozen"
