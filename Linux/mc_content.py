@@ -11,7 +11,11 @@ Datapack pitfalls handled here:
   not enough): flagged, and every enable/disable of it says so;
 - 'datapack enable X before Y' refuses to move a pack that is already
   enabled: we disable it first;
-- a newly added pack always lands at the end of the list.
+- a newly added pack always lands at the end of the list;
+- a pack with an empty or unreadable worldgen JSON stops the server from
+  starting at all: 'enable' refuses it, and 'disable' works offline by moving
+  the pack to world/datapacks_quarantine/<date>/ (Minecraft drops it from the
+  world when it loads).
 
 Mod pitfalls:
 - with AutoModpack, a mod lives in mods/ AND in the host modpack
@@ -23,6 +27,7 @@ Mod pitfalls:
   an explicit confirmation.
 """
 import datetime
+import json
 import os
 import re
 import shutil
@@ -33,6 +38,7 @@ from mc_api import result
 
 HOST_MODPACK_MODS = os.path.join("automodpack", "host-modpack", "main", "mods")
 QUARANTINE_DIR = "mods_quarantine"
+DATAPACK_QUARANTINE_DIR = "datapacks_quarantine"
 
 
 # ── datapacks ────────────────────────────────────────────────────────────────
@@ -75,6 +81,48 @@ def inspect_pack(path):
     }
 
 
+def broken_worldgen(path, limit=5):
+    """Worldgen JSON files of a pack that are empty or not valid JSON."""
+    bad = []
+    if os.path.isfile(path):
+        try:
+            with zipfile.ZipFile(path) as zf:
+                for name in zf.namelist():
+                    if _WORLDGEN.match(name) and name.endswith(".json"):
+                        if not _valid_json(zf.read(name)):
+                            bad.append(name)
+                            if len(bad) >= limit:
+                                break
+        except Exception:
+            return ["(unreadable archive)"]
+        return bad
+    for root, _dirs, files in os.walk(path):
+        for f in files:
+            full = os.path.join(root, f)
+            rel = os.path.relpath(full, path).replace(os.sep, "/")
+            if _WORLDGEN.match(rel) and f.endswith(".json"):
+                try:
+                    with open(full, "rb") as fh:
+                        ok = _valid_json(fh.read())
+                except OSError:
+                    ok = False
+                if not ok:
+                    bad.append(rel)
+                    if len(bad) >= limit:
+                        return bad
+    return bad
+
+
+def _valid_json(raw):
+    if not raw.strip():
+        return False
+    try:
+        json.loads(raw.decode("utf-8-sig"))
+        return True
+    except ValueError:
+        return False
+
+
 _BRACKETS = re.compile(r"\[([^\]]+?)(?: \(([^)]*)\))?\]")
 
 
@@ -85,7 +133,7 @@ def parse_datapack_list(text):
 
 def _rcon(config, command):
     import mc_api
-    return mc_api.rcon_exec(config, command)
+    return mc_api.rcon_exec(config, command, wait=mc_api.RCON_RETRY)
 
 
 def datapack_list(config):
@@ -130,11 +178,27 @@ def _match_pack(packs, name):
     return None
 
 
+def _quarantine_pack(config, listing, name):
+    """Offline 'disable': move the pack out of world/datapacks, so a pack that
+    prevents the server from starting can still be removed."""
+    pack = _match_pack(listing["packs"], name)
+    if not pack:
+        return result(False, "pack_not_found", name=name,
+                      available=[p["file"] for p in listing["packs"]])
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    quarantine = os.path.join(os.path.dirname(listing["folder"]), DATAPACK_QUARANTINE_DIR, stamp)
+    os.makedirs(quarantine, exist_ok=True)
+    shutil.move(os.path.join(listing["folder"], pack["file"]), os.path.join(quarantine, pack["file"]))
+    return result(True, "quarantined", pack=pack["file"], quarantine=quarantine, restart_required=False)
+
+
 def datapack_set(config, name, enable=True, before=None, after=None, first=False, last=False):
     """Enable (optionally at a position) or disable a pack, live, over RCON."""
     listing = datapack_list(config)
     if not listing["running"]:
-        return result(False, "server_offline")
+        if enable:
+            return result(False, "server_offline")
+        return _quarantine_pack(config, listing, name)
     if listing["enabled_order"] is None:
         return result(False, "rcon_failed")
     pack = _match_pack(listing["packs"], name)
@@ -145,6 +209,10 @@ def datapack_set(config, name, enable=True, before=None, after=None, first=False
         return result(False, f"pack_{pack['problem']}", name=pack["file"])
 
     pid = pack["id"]
+    if enable:
+        bad = broken_worldgen(os.path.join(listing["folder"], pack["file"]))
+        if bad:
+            return result(False, "pack_broken_worldgen", name=pack["file"], files=bad)
     if not enable:
         if not pack["enabled"]:
             return result(True, "already_disabled", pack=pack["file"], restart_required=False)

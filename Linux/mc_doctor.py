@@ -10,6 +10,7 @@ import subprocess
 import mc_servers
 import mc_config
 import mc_core
+import mc_crash
 import mc_firewall
 import mc_deploy
 from mc_lang import T
@@ -164,6 +165,13 @@ def check_server(name, info):
                          T["doctor_rcon_pass_fix"].format(name=name)))
 
     running = mc_core.is_server_running(config)
+    if not running and mc_crash.is_crashed(config):
+        marker = mc_crash.read(config) or {}
+        results.append(("err", T["doctor_label_crash"],
+                         T["doctor_crashed"].format(n=len(marker.get("failures", []))),
+                         T["doctor_crashed_fix"]))
+        for line in mc_crash.recent_errors(dossier):
+            results.append(("info", T["doctor_label_log"], line[:200], None))
     if running:
         pid = mc_core.get_server_pid(config)
         java = mc_core.server_java_pids(dossier) or ([pid] if pid else [])
@@ -178,7 +186,9 @@ def check_server(name, info):
                 results.append(("warn", T["doctor_label_swap"],
                                 T["doctor_swap_used"].format(pid=jpid, mb=swap // 1024),
                                 T["doctor_swap_fix"]))
-    if running and rcon_configured:
+    if running and rcon_configured and mc_core.startup_in_progress(config):
+        results.append(("info", T["doctor_label_rcon_live"], T["doctor_rcon_starting"], None))
+    elif running and rcon_configured:
         reachable, detail = mc_core.rcon_handshake(
             "127.0.0.1", config.get("rcon_port", mc_core.DEFAULT_RCON_PORT),
             config.get("mcrcon_pass", ""), ping_only=True

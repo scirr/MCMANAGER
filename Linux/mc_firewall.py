@@ -160,22 +160,61 @@ def add_rule(port, name=None, backend=None):
     return result.returncode == 0, (result.stdout or result.stderr or "").strip()
 
 
-def remove_rule(port, backend=None):
+_UFW_NUMBERED = re.compile(
+    r"^\[\s*(\d+)\]\s+(\S+)(?: \(v6\))?\s+(?:ALLOW|LIMIT)(?: IN)?\s.*#\s*MC Manager\b.*$")
+
+
+def parse_ufw_numbered(text, port):
+    """Rule numbers of the MC Manager rules ('# MC Manager <server>' comment)
+    that open exactly <port>/tcp, in descending order. Rules without that
+    comment, whatever their port, are never returned."""
+    numbers = []
+    for line in text.splitlines():
+        m = _UFW_NUMBERED.match(line.strip())
+        if m and m.group(2) == f"{port}/tcp":
+            numbers.append(int(m.group(1)))
+    return sorted(numbers, reverse=True)
+
+
+def _port_used_by_other(port, name=None):
+    try:
+        import mc_servers
+        return mc_servers.find_port_conflict(port=port, exclude_name=name) is not None
+    except Exception:
+        return False
+
+
+def remove_rule(port, backend=None, name=None):
+    """Remove the rule MC Manager created for this port. A rule still needed
+    by another registered server, or (ufw) not carrying the MC Manager
+    comment, is left alone. Returns True when a rule was removed."""
     backend = backend or detect()
     port = str(port).split("/")[0]
+    if _port_used_by_other(port, name):
+        return False
     if backend == "ufw":
-        _run(["ufw", "delete", "allow", f"{port}/tcp"], root=True)
-    elif backend == "firewalld":
+        result = _run(["ufw", "status", "numbered"], root=True)
+        if not result or result.returncode != 0:
+            return False
+        removed = False
+        for number in parse_ufw_numbered(result.stdout or "", port):
+            done = _run(["ufw", "--force", "delete", str(number)], root=True)
+            removed = removed or bool(done and done.returncode == 0)
+        return removed
+    if backend == "firewalld":
         result = _run(["firewall-cmd", "--permanent", f"--remove-port={port}/tcp"], root=True)
         if result and result.returncode == 0:
             _run(["firewall-cmd", "--reload"], root=True)
+            return True
+    return False
 
 
 def ensure_game_port_rule(port, old_port=None, name=None):
     """
     Make sure the game port is open. Called on every deploy/add/configure and
     by 'mc config set port'. Idempotent:
-    - a port change (old_port) removes the old rule, never leaving one behind;
+    - a port change (old_port) removes the old MC Manager rule, never a manual
+      rule and never one another registered server still uses;
     - an already open port is left alone;
     - otherwise the rule is added; on failure (not root, no firewall...) the
       manual command is returned instead.
@@ -186,7 +225,7 @@ def ensure_game_port_rule(port, old_port=None, name=None):
     if backend is None:
         return False, manual_command(port, name)
     if old_port is not None and str(old_port) != str(port):
-        remove_rule(old_port, backend)
+        remove_rule(old_port, backend, name)
     if port_open(port, backend):
         return True, None
     ok, _detail = add_rule(port, name, backend)

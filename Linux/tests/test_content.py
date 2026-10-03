@@ -85,6 +85,51 @@ class TestDatapacks(unittest.TestCase):
             self.assertEqual(mc_content.datapack_set(self.config, "terra")["code"], "server_offline")
 
 
+    def test_offline_disable_quarantines_the_pack(self):
+        with mock.patch("mc_core.is_server_running", return_value=False):
+            res = mc_content.datapack_set(self.config, "terra", enable=False)
+        self.assertEqual((res["ok"], res["code"]), (True, "quarantined"))
+        self.assertFalse(os.path.exists(os.path.join(self.dp, "terra.zip")))
+        moved = os.path.join(res["quarantine"], "terra.zip")
+        self.assertTrue(os.path.exists(moved))
+        self.assertEqual(os.path.dirname(res["quarantine"]),
+                         os.path.join(self.server, "world", "datapacks_quarantine"))
+        self.assertNotIn("terra.zip", [p["file"] for p in mc_content.datapack_list(self.config)["packs"]])
+
+    def test_offline_disable_of_an_unknown_pack_fails(self):
+        with mock.patch("mc_core.is_server_running", return_value=False):
+            res = mc_content.datapack_set(self.config, "nope", enable=False)
+        self.assertEqual((res["ok"], res["code"]), (False, "pack_not_found"))
+
+    def test_enable_refuses_empty_or_unreadable_worldgen_json(self):
+        bad_zip = os.path.join(self.dp, "bad.zip")
+        with zipfile.ZipFile(bad_zip, "w") as z:
+            z.writestr("pack.mcmeta", "{}")
+            z.writestr("data/x/worldgen/biome/ok.json", "{}")
+            z.writestr("data/x/worldgen/biome/empty.json", "")
+            z.writestr("data/x/worldgen/biome/broken.json", "{nope")
+        bad_dir = os.path.join(self.dp, "baddir")
+        os.makedirs(os.path.join(bad_dir, "data", "x", "worldgen", "biome"))
+        open(os.path.join(bad_dir, "pack.mcmeta"), "w").close()
+        open(os.path.join(bad_dir, "data", "x", "worldgen", "biome", "empty.json"), "w").close()
+        for name in ("bad", "baddir"):
+            res, sent = self._set("enabled: [vanilla (built-in)]", name)
+            self.assertEqual((res["ok"], res["code"], sent), (False, "pack_broken_worldgen", []))
+        self.assertEqual(sorted(res["files"]), ["data/x/worldgen/biome/empty.json"])
+        res, _ = self._set("enabled: [vanilla (built-in)]", "bad")
+        self.assertEqual(sorted(res["files"]),
+                         ["data/x/worldgen/biome/broken.json", "data/x/worldgen/biome/empty.json"])
+
+    def test_disabling_a_broken_pack_is_still_allowed(self):
+        bad_zip = os.path.join(self.dp, "bad.zip")
+        with zipfile.ZipFile(bad_zip, "w") as z:
+            z.writestr("pack.mcmeta", "{}")
+            z.writestr("data/x/worldgen/biome/empty.json", "")
+        res, sent = self._set("enabled: [vanilla (built-in)], [file/bad.zip (world)]", "bad", enable=False)
+        self.assertTrue(res["ok"])
+        self.assertEqual(sent, ['datapack disable "file/bad.zip"'])
+
+
 class TestMods(unittest.TestCase):
 
     def setUp(self):

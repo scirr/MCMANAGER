@@ -58,14 +58,24 @@ class TestDurations(unittest.TestCase):
 
 class TestStates(unittest.TestCase):
 
-    def _state(self, config, running=False, listening=False, now=None):
+    def _state(self, config, running=False, listening=False, now=None, ready=True, crashed=False):
         with mock.patch.object(mc_core, "is_server_running", return_value=running), \
+             mock.patch.object(mc_core, "server_ready", return_value=ready), \
+             mock.patch.object(mc_api.mc_crash, "is_crashed", return_value=crashed), \
              mock.patch.object(mc_api, "_is_listening", return_value=listening):
             return mc_api.server_state(config, now)
 
     def test_running_and_starting(self):
         self.assertEqual(self._state({}, running=True, listening=True), "running")
         self.assertEqual(self._state({}, running=True, listening=False), "starting")
+
+    def test_port_open_but_rcon_not_ready_is_still_starting(self):
+        self.assertEqual(self._state({}, running=True, listening=True, ready=False), "starting")
+
+    def test_crashed_only_when_not_running_and_not_in_maintenance(self):
+        self.assertEqual(self._state({}, crashed=True), "crashed")
+        self.assertEqual(self._state({"mode_maintenance": 1}, crashed=True), "stopped-by-user")
+        self.assertEqual(self._state({}, running=True, listening=True, crashed=True), "running")
 
     def test_maintenance_flavours(self):
         self.assertEqual(self._state({"mode_maintenance": 1}), "stopped-by-user")

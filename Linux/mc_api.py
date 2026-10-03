@@ -19,7 +19,9 @@ sys.path.append(BASE_DIR)
 
 import mc_config
 import mc_core
+import mc_crash
 import mc_servers
+from mc_lang import T
 
 SCHEMA_VERSION = 1
 
@@ -28,15 +30,17 @@ SCHEMA_VERSION = 1
 STOP_REASONS = ("user", "sleep", "update", "maintenance", "switch")
 
 # Explicit states derived from the process, the port and config.json.
-#   running          process alive and the game port is listening
-#   starting         process alive, game port not listening yet
+#   running          process alive, game port listening and RCON answering
+#   starting         process alive, still starting (RCON opens at "Done")
+#   crashed          not running, died during startup or in a crash loop: the
+#                    daemon no longer relaunches it ('mc resume' does)
 #   stopped          not running, the daemon will start it (24/7, or opening hours)
 #   closed           not running, schedule mode outside opening hours
 #   stopped-by-user  not running, maintenance flag set by 'mc stop' (reason user)
 #   sleeping         not running, stopped with 'mc stop --reason sleep'
 #   maintenance      not running, maintenance for another reason
 #                    ('mc mode maintenance', --reason update/maintenance/switch)
-STATES = ("running", "starting", "stopped", "closed", "stopped-by-user", "sleeping", "maintenance")
+STATES = ("running", "starting", "crashed", "stopped", "closed", "stopped-by-user", "sleeping", "maintenance")
 
 FROZEN_MARKER = ".mcmanager_frozen"
 DEFAULT_FREEZE_MAX = 3600
@@ -57,17 +61,7 @@ def parse_duration(text):
 
 # ── process details ──────────────────────────────────────────────────────────
 
-def _uptime_seconds(pid):
-    """Seconds since the process started, or None."""
-    try:
-        with open(f"/proc/{pid}/stat") as f:
-            fields = f.read().rsplit(")", 1)[1].split()
-        start_ticks = int(fields[19])  # field 22 of stat, 0-based after 'comm'
-        with open("/proc/uptime") as f:
-            boot_uptime = float(f.read().split()[0])
-        return max(0, int(boot_uptime - start_ticks / os.sysconf("SC_CLK_TCK")))
-    except Exception:
-        return None
+_uptime_seconds = mc_core.proc_uptime
 
 
 def _is_listening(port):
@@ -104,7 +98,8 @@ def server_state(config, now=None):
     running = mc_core.is_server_running(config)
     maintenance = config.get("mode_maintenance", 0) == 1
     if running:
-        return "running" if _is_listening(config.get("port")) else "starting"
+        ready = _is_listening(config.get("port")) and mc_core.server_ready(config)
+        return "running" if ready else "starting"
     if maintenance:
         reason = config.get("stop_reason") or "user"
         if reason == "sleep":
@@ -112,6 +107,8 @@ def server_state(config, now=None):
         if reason == "user":
             return "stopped-by-user"
         return "maintenance"
+    if mc_crash.is_crashed(config):
+        return "crashed"
     return "stopped" if _should_be_open(config, now) else "closed"
 
 
@@ -175,6 +172,14 @@ def server_snapshot(name, info, active_name=None):
         elif occupant:
             snap["port_holder"] = {"pid": occupant[0], "program": occupant[1]}
     snap["sleep"] = sleep_info(config)
+    if state == "crashed":
+        marker = mc_crash.read(config) or {}
+        snap["crash"] = {
+            "since": marker.get("since"),
+            "failures": len(marker.get("failures", [])),
+            "startup": bool(marker.get("startup")),
+            "errors": mc_crash.recent_errors(dossier),
+        }
     return snap
 
 
@@ -194,11 +199,21 @@ def status_document(target_name=None):
 
 # ── RCON ─────────────────────────────────────────────────────────────────────
 
-def rcon_exec(config, command):
-    """Run one command over RCON and return (ok, response_or_error)."""
-    ok, sock_or_msg = mc_core.rcon_handshake(
-        "127.0.0.1", config.get("rcon_port", mc_core.DEFAULT_RCON_PORT),
-        config.get("mcrcon_pass", ""), ping_only=False)
+RCON_RETRY = 5
+
+
+def rcon_exec(config, command, wait=0):
+    """Run one command over RCON and return (ok, response_or_error). With
+    `wait`, a refused connection is retried for that many seconds: RCON only
+    opens when the server finishes starting."""
+    deadline = time.time() + wait
+    while True:
+        ok, sock_or_msg = mc_core.rcon_handshake(
+            "127.0.0.1", config.get("rcon_port", mc_core.DEFAULT_RCON_PORT),
+            config.get("mcrcon_pass", ""), ping_only=False)
+        if ok or time.time() >= deadline or sock_or_msg == T["rcon_auth_failed"]:
+            break
+        time.sleep(1)
     if not ok:
         return False, sock_or_msg
     sock = sock_or_msg
@@ -244,9 +259,9 @@ def parse_player_list(text):
     return online, maximum, names
 
 
-def query_players(config):
+def query_players(config, wait=0):
     """(ok, data_or_error). data = {"online", "max", "players"}."""
-    ok, reply = rcon_exec(config, "list")
+    ok, reply = rcon_exec(config, "list", wait=wait)
     if not ok:
         return False, reply
     online, maximum, names = parse_player_list(reply)

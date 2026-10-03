@@ -53,6 +53,7 @@ MC_Manager/
 │   ├── mc_validate.py  # pure validators
 │   ├── mc_api.py       # operations layer: states, start/stop/switch, sleep, freeze
 │   ├── mc_content.py   # datapacks and mods
+│   ├── mc_crash.py     # crash-loop detection
 │   ├── mc_sleep.py     # sleep listener (Minecraft status/login protocol)
 │   ├── mc_ipc.py       # request channel CLI -> daemon
 │   ├── mc_setup.py     # Java check
