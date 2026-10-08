@@ -989,3 +989,66 @@ def task_run(name, config, task, skip_warn=False):
     res = mc_task.execute(name, config, task, skip_warn=skip_warn)
     mc_task.record_run(config, task.get("id"), res["ok"], res["code"])
     return dict(res, server=name)
+
+
+# ── metrics / status page ────────────────────────────────────────────────────
+
+def metrics_serve(bind=None, allow_remote=False, ready=None):
+    """Serve /metrics in the foreground until interrupted. `ready(bind)` is
+    called once the socket is bound."""
+    import mc_metrics
+    bind = bind or mc_metrics.DEFAULT_BIND
+    try:
+        server = mc_metrics.make_server(bind, allow_remote)
+    except ValueError:
+        return result(False, "metrics_bind_invalid", bind=bind)
+    except PermissionError:
+        return result(False, "metrics_remote_refused", bind=bind)
+    except OSError as e:
+        return result(False, "metrics_bind_failed", bind=bind, detail=str(e))
+    host, port = server.server_address[:2]
+    if ready:
+        ready(f"{host}:{port}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+    return result(True, "metrics_stopped", bind=f"{host}:{port}")
+
+
+STATUS_PAGE_DEFAULT_INTERVAL = 60
+STATUS_PAGE_MIN_INTERVAL = 10
+
+
+def statuspage_enable(name, config, directory=None, interval=None, show_players=None):
+    import mc_statuspage
+    directory = os.path.abspath(os.path.expanduser(
+        directory or config.get("status_page_dir") or os.path.join(config["dossier_serveur"], "status_page")))
+    interval = STATUS_PAGE_DEFAULT_INTERVAL if interval is None and "status_page_interval" not in config \
+        else (interval if interval is not None else int(config["status_page_interval"]))
+    if interval < STATUS_PAGE_MIN_INTERVAL:
+        return result(False, "status_page_interval_too_short", minimum=STATUS_PAGE_MIN_INTERVAL)
+    config["status_page_dir"] = directory
+    config["status_page_interval"] = interval
+    if show_players is not None:
+        config["status_page_players"] = 1 if show_players else 0
+    try:
+        mc_statuspage.generate(name, config)
+    except OSError as e:
+        return result(False, "status_page_unwritable", path=directory, detail=str(e))
+    mc_config.save_config(config)
+    return result(True, "status_page_enabled", server=name, path=directory, interval=interval,
+                  players=config.get("status_page_players", 0) == 1)
+
+
+def statuspage_disable(name, config):
+    import mc_statuspage
+    directory = config.pop("status_page_dir", None)
+    if not directory:
+        return result(True, "status_page_already_off", server=name)
+    mc_statuspage.remove_page(directory)
+    mc_config.save_config(config)
+    return result(True, "status_page_disabled", server=name, path=directory)
+

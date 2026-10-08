@@ -386,6 +386,16 @@ def _int_min(minimum):
             return False
     return check
 
+def _valid_bind(v):
+    import mc_metrics
+    if v == "":
+        return True
+    try:
+        mc_metrics.parse_bind(v)
+        return True
+    except ValueError:
+        return False
+
 SETTABLE_KEYS = {
     #  key                     (converter, validator)
     "port":                  (int, valid_port),
@@ -403,6 +413,8 @@ SETTABLE_KEYS = {
     "backup_encrypt_key_file": (str, lambda v: v == "" or os.path.isfile(os.path.expanduser(str(v)))),
     "stop_timeout":          (int, _int_min(10)),
     "curseforge_api_key":    (str, lambda v: len(str(v).strip()) >= 20),
+    "metrics_bind":          (str, _valid_bind),
+    "metrics_allow_remote":  (int, lambda v: v in (0, 1)),
 }
 # Changes that only take effect when the server restarts.
 RESTART_KEYS = {"port", "rcon_port", "mcrcon_pass", "ram_allocation", "cpu_affinity", "jar_name"}

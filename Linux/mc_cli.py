@@ -431,6 +431,8 @@ def print_categorized_help():
             (f"thaw [{tgt}]", T["help_thaw"]),
             (f"sleep enable|disable|status|wake [{tgt}] [--after 2h]", T["help_sleep"]),
             (f"sleep allow|deny <{T['arg_player']}> [{tgt}]", T["help_sleep_allow"]),
+            ("metrics serve [--bind 127.0.0.1:9225]", T["help_metrics"]),
+            (f"status-page enable|disable [{tgt}] [--dir D] [--interval 60]", T["help_status_page"]),
             (f"announce [{tgt}]", T["help_announce"]),
             (f"fingerprint [{tgt}]", T["help_fingerprint"]),
         ]),
@@ -575,6 +577,20 @@ def build_parser():
     p_sleep.add_argument("args", nargs="*", help=T["help_sleep_args"])
     p_sleep.add_argument("--after", default=None, metavar="DURATION", help=T["help_sleep_after"])
     p_sleep.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_metrics = subparsers.add_parser("metrics", help=T["help_metrics"])
+    p_metrics.add_argument("metrics_action", choices=["serve"])
+    p_metrics.add_argument("--bind", default=None, metavar="HOST:PORT", help=T["help_metrics_bind"])
+    p_metrics.add_argument("--allow-remote", action="store_true", help=T["help_metrics_remote"])
+    p_metrics.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_sp = subparsers.add_parser("status-page", help=T["help_status_page"])
+    p_sp.add_argument("sp_action", choices=["enable", "disable"])
+    p_sp.add_argument("target", nargs="?", default=None, help=T["cli_target_help"])
+    p_sp.add_argument("--dir", default=None, metavar="FOLDER", help=T["help_status_page_dir"])
+    p_sp.add_argument("--interval", default=None, metavar="SECONDS", help=T["help_status_page_interval"])
+    p_sp.add_argument("--show-players", action="store_true", help=T["help_status_page_players"])
+    p_sp.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_dp = subparsers.add_parser("datapack", help=T["help_datapack"])
     p_dp.add_argument("dp_action", choices=["list", "enable", "disable"])
@@ -819,6 +835,12 @@ def main():
 
     if args.action == "sleep":
         return cmd_sleep(args)
+
+    if args.action == "metrics":
+        return cmd_metrics(args)
+
+    if args.action == "status-page":
+        return cmd_status_page(args)
 
     if args.action == "datapack":
         return cmd_datapack(args)
@@ -1341,6 +1363,41 @@ def cmd_sleep(args):
     if res["ok"] and not args.json:
         res = dict(res, after=_human_duration(res["after_s"]))
     return _finish(res, args.json)
+
+def cmd_metrics(args):
+    def ready(bind):
+        if args.json:
+            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "metrics_listening", "bind": bind})
+        else:
+            print_res(True, T["metrics_listening"].format(bind=bind))
+        sys.stdout.flush()
+    res = mc_api.metrics_serve(args.bind, args.allow_remote, ready)
+    if res["ok"]:
+        return EXIT_OK
+    if args.json:
+        print_json({"schema": mc_api.SCHEMA_VERSION, **res})
+    else:
+        print_res(False, render(res))
+    return EXIT_USAGE if res["code"] in ("metrics_bind_invalid", "metrics_remote_refused") else EXIT_ERROR
+
+def cmd_status_page(args):
+    interval = None
+    if args.interval is not None:
+        try:
+            interval = int(args.interval)
+        except ValueError:
+            print_res(False, T["status_page_usage"])
+            return EXIT_USAGE
+    loaded, code = _load(args.target, args.json)
+    if not loaded:
+        return code
+    name, config = loaded
+    if args.sp_action == "enable":
+        res = mc_api.statuspage_enable(name, config, args.dir, interval, True if args.show_players else None)
+    else:
+        res = mc_api.statuspage_disable(name, config)
+    code = _finish(res, args.json)
+    return EXIT_USAGE if res["code"] == "status_page_interval_too_short" else code
 
 def cmd_datapack(args):
     import mc_content

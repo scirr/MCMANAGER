@@ -50,6 +50,8 @@ PACKAGE_FILES = [
     "mc_s3.py",
     "mc_backup.py",
     "mc_alert.py",
+    "mc_metrics.py",
+    "mc_statuspage.py",
     "install.sh",
     "uninstall.sh",
     "webhook_templates.json",

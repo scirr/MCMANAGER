@@ -51,6 +51,10 @@ FAILING = [
     ["alert", "test"],
     ["alert", "add", "sms"],
     ["announce"],
+    ["metrics", "serve", "--bind", "0.0.0.0:9225"],
+    ["metrics", "serve", "--bind", "nonsense"],
+    ["status-page", "enable", "zz"],
+    ["status-page", "disable", "zz"],
     ["fingerprint"],
 ]
 
