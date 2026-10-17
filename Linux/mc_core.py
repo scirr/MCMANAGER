@@ -408,7 +408,7 @@ def sync_proxy_port(config):
     """Write the configured port into velocity.toml / BungeeCord config.yml.
     Returns True if the file was changed."""
     import re
-    dossier, port = config.get("dossier_serveur", ""), config.get("port")
+    dossier, port = config.get("dossier_serveur", ""), game_port(config)
     if not port:
         return False
     if config.get("loader") == "Velocity":
@@ -754,7 +754,7 @@ def _display_address(config):
     otherwise a port hint. IP<->DNS linking is done on the DNS provider's site,
     so MC Manager only displays the address, it never updates any DNS."""
     domaine = (config.get("domaine") or "").strip()
-    port = str(config.get("port", "25565"))
+    port = str(public_port(config) or "25565")
     if domaine:
         return f"{domaine}:{port}" if port != "25565" else domaine
     return f"Port {port} (Local/Public IP)"
@@ -809,6 +809,21 @@ def game_port(config):
     sleep listener owns the public port), the configured one otherwise."""
     if (is_hold_mode(config) or config.get("router_backend")) and config.get("internal_port"):
         return int(config["internal_port"])
+    return config.get("port")
+
+
+def public_port(config):
+    """Port players connect to: the router's when the server sits behind an
+    enabled router, otherwise the configured one (in hold mode that is the
+    port the sleep listener holds, never the internal one)."""
+    if config.get("router_backend"):
+        try:
+            import mc_router
+            router = mc_router.load()
+            if router["enabled"]:
+                return router["port"]
+        except Exception:
+            pass
     return config.get("port")
 
 

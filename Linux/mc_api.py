@@ -681,6 +681,93 @@ def suspend(name, config):
     return result(ok, "suspended" if ok else f"suspend_{code}", server=name)
 
 
+def restart_pending(config):
+    """True when the running server was started before its server.properties
+    last changed, i.e. a port or bind change has not been applied yet."""
+    if not mc_core.is_server_running(config):
+        return False
+    pid = _main_pid(config)
+    uptime = _uptime_seconds(pid) if pid else None
+    if uptime is None:
+        return False
+    try:
+        changed = os.path.getmtime(os.path.join(config["dossier_serveur"], "server.properties"))
+    except OSError:
+        return False
+    return changed > time.time() - uptime
+
+
+def _router_attach(name, server, router, notes):
+    """Put a server behind the router: internal port on 127.0.0.1. Returns a
+    failure result, or None."""
+    if mc_core.is_proxy(server):
+        return result(False, "router_backend_invalid", server=name)
+    internal = server.get("internal_port") or mc_core.default_internal_port(server.get("port") or 25565)
+    for _ in range(100):
+        if not 1 <= int(internal) <= 65535:
+            return result(False, "router_port_conflict", server=name, port=internal)
+        conflict = mc_servers.find_port_conflict(port=internal, rcon_port=internal, exclude_name=name)
+        if not conflict and internal not in (router["port"], server.get("port"), server.get("rcon_port")):
+            break
+        internal += 1
+    else:
+        return result(False, "router_port_conflict", server=name, port=internal)
+    changed = not server.get("router_backend") or server.get("internal_port") != internal
+    server.update(router_backend=True, internal_port=internal)
+    mc_config.save_config(server)
+    mc_core.sync_server_properties(server)
+    if changed or restart_pending(server):
+        notes.append(T["router_backend_note"].format(server=name, port=internal))
+    if not mc_core.use_proxy_protocol(server) and not router["proxy_out"]:
+        notes.append(T["join_mode_proxy_unsupported"])
+    return None
+
+
+def _router_release(name, server, notes):
+    """Give a server back its public port once nothing routes to it."""
+    server.pop("router_backend", None)
+    if server.get("sleep_join_mode") != "hold":
+        server.pop("internal_port", None)
+    mc_config.save_config(server)
+    mc_core.sync_server_properties(server)
+    props = os.path.join(server["dossier_serveur"], "server.properties")
+    if not mc_core.is_hold_mode(server) and mc_config._read_property(props, "server-ip") == "127.0.0.1":
+        mc_core.set_properties(server, {"server-ip": ""})
+    notes.append(T["router_released_note"].format(server=name, port=server.get("port")))
+
+
+def _router_release_unused(router, notes, everything=False):
+    """Release every router backend no route points to (all of them when the
+    router is being disabled). Returns the names released."""
+    used = set() if everything else set(router["routes"].values()) | ({router["default"]} if router["default"] else set())
+    released = []
+    for name, info in mc_servers.list_servers().items():
+        if name in used or not info.get("dossier_serveur") or not os.path.isdir(info["dossier_serveur"]):
+            continue
+        server = mc_config.load_config(info["dossier_serveur"])
+        if not server.get("router_backend"):
+            continue
+        server["dossier_serveur"] = info["dossier_serveur"]
+        _router_release(name, server, notes)
+        released.append(name)
+    return released
+
+
+def _router_pending(servers):
+    pending = []
+    for name, info in servers.items():
+        if not info.get("dossier_serveur") or not os.path.isdir(info["dossier_serveur"]):
+            continue
+        try:
+            server = mc_config.load_config(info["dossier_serveur"])
+        except mc_servers.DataFileError:
+            continue
+        server["dossier_serveur"] = info["dossier_serveur"]
+        if restart_pending(server):
+            pending.append(name)
+    return pending
+
+
 def router_command(action, operands=(), port=None, proxy_in=None, proxy_out=None,
                    trusted_proxies=None, per_ip=None, per_second=None):
     import mc_router
@@ -690,11 +777,14 @@ def router_command(action, operands=(), port=None, proxy_in=None, proxy_out=None
         config = mc_router.load()
         args = list(operands)
         notes = []
+        released = []
+        touched = []
         if action in ("status", "disable", "enable"):
             if args:
                 return result(False, "router_usage")
             if action == "disable":
                 config["enabled"] = False
+                released = _router_release_unused(config, notes, everything=True)
             elif action == "enable":
                 for key, value in (("port", port), ("proxy_in", proxy_in), ("proxy_out", proxy_out),
                                    ("trusted_proxies", trusted_proxies), ("per_ip", per_ip),
@@ -707,11 +797,21 @@ def router_command(action, operands=(), port=None, proxy_in=None, proxy_out=None
                     if config["port"] in (mc_core.game_port(loaded), loaded.get("rcon_port")):
                         return result(False, "router_port_conflict", server=name, port=config["port"])
                 config["enabled"] = True
+                for target in sorted(set(config["routes"].values()) | ({config["default"]} if config["default"] else set())):
+                    found, error = load_server(target)
+                    if error:
+                        continue
+                    error = _router_attach(found[0], found[1], config, notes)
+                    if error:
+                        return error
+                    touched.append(found[0])
         elif action in ("route", "default"):
             if action == "route" and args == ["list"]:
-                return result(True, "router_status", config=config)
+                return result(True, "router_status", config=config,
+                              pending_restart=_router_pending(mc_servers.list_servers()))
             if action == "route" and len(args) == 2 and args[0] == "remove":
                 config["routes"].pop(mc_router.hostname(args[1]), None)
+                released = _router_release_unused(config, notes)
             else:
                 if action == "route":
                     if len(args) != 3 or args[0] != "add":
@@ -725,26 +825,10 @@ def router_command(action, operands=(), port=None, proxy_in=None, proxy_out=None
                 if error:
                     return error
                 name, server = loaded
-                if mc_core.is_proxy(server):
-                    return result(False, "router_backend_invalid", server=name)
-                internal = server.get("internal_port") or mc_core.default_internal_port(server.get("port") or 25565)
-                for _ in range(100):
-                    if not 1 <= int(internal) <= 65535:
-                        return result(False, "router_port_conflict", server=name, port=internal)
-                    conflict = mc_servers.find_port_conflict(port=internal, rcon_port=internal, exclude_name=name)
-                    if not conflict and internal not in (config["port"], server.get("port"), server.get("rcon_port")):
-                        break
-                    internal += 1
-                else:
-                    return result(False, "router_port_conflict", server=name, port=internal)
-                changed = not server.get("router_backend") or server.get("internal_port") != internal
-                server.update(router_backend=True, internal_port=internal)
-                mc_config.save_config(server)
-                mc_core.sync_server_properties(server)
-                if changed:
-                    notes.append(T["router_backend_note"].format(server=name, port=internal))
-                if not mc_core.use_proxy_protocol(server) and not config["proxy_out"]:
-                    notes.append(T["join_mode_proxy_unsupported"])
+                error = _router_attach(name, server, config, notes)
+                if error:
+                    return error
+                touched.append(name)
                 if action == "default":
                     config["default"] = name
                 else:
@@ -762,8 +846,12 @@ def router_command(action, operands=(), port=None, proxy_in=None, proxy_out=None
             return result(False, "router_usage")
         if action != "status":
             mc_router.save(config)
+        servers = mc_servers.list_servers()
+        pending = _router_pending(servers)
+        restart_required = action != "status" and bool(set(pending) & (set(touched) | set(released)))
         return result(True, "router_status" if action == "status" else "router_updated",
-                      config=config, notes=notes)
+                      config=config, notes=notes, released=released, pending_restart=pending,
+                      restart_required=restart_required)
     except (ValueError, TypeError):
         return result(False, "router_usage")
     except (OSError, mc_servers.DataFileError) as exc:

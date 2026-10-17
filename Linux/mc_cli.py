@@ -1431,6 +1431,8 @@ def cmd_router(args):
             print_info(f"{host} → {server}")
         for note in res.get("notes", []):
             print_info(note)
+        if res.get("pending_restart"):
+            print_info(T["router_pending_restart"].format(servers=", ".join(res["pending_restart"])))
     return EXIT_USAGE if res["code"] == "router_usage" else code
 
 
