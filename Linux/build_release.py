@@ -37,6 +37,8 @@ PACKAGE_FILES = [
     "mc_api.py",
     "mc_ipc.py",
     "mc_protocol.py",
+    "mc_proxy.py",
+    "mc_router.py",
     "mc_sleep.py",
     "mc_content.py",
     "mc_http.py",

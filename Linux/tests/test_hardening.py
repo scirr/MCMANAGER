@@ -117,13 +117,11 @@ class TestUnitAndPolkit(unittest.TestCase):
 class TestSleepLimits(unittest.TestCase):
 
     def test_per_ip_limit(self):
-        s = socket.socket()
-        s.bind(("127.0.0.1", 0))
-        port = s.getsockname()[1]
-        s.close()
-        listener = mc_sleep.SleepListener("t", port, lambda: ("z", 1, "v", None), lambda n: "x")
+        listener = mc_sleep.SleepListener("t", 0, lambda: ("z", 1, "v", None),
+                                          lambda n: "x", bind_host="127.0.0.1")
         listener.start()
         self.assertTrue(listener.bound.wait(5))
+        port = listener.port
         try:
             held = [socket.create_connection(("127.0.0.1", port), timeout=5) for _ in range(mc_sleep.MAX_PER_IP)]
             time.sleep(0.3)
@@ -139,7 +137,10 @@ class TestSleepLimits(unittest.TestCase):
             extra.close()
         finally:
             listener.stop()
-        self.assertEqual(listener._per_ip, {})
+        deadline = time.monotonic() + 3
+        while listener._pending.counts()[0] and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertEqual(listener._pending.counts(), (0, {}))
 
     def test_close_wait_is_short(self):
         self.assertLessEqual(mc_sleep.CLIENT_CLOSE_WAIT, 3)

@@ -14,6 +14,8 @@ import mc_crash
 import mc_servers
 import mc_api
 import mc_ipc
+import mc_proxy
+import mc_router
 import mc_sleep
 import threading
 from mc_lang import T
@@ -164,6 +166,10 @@ def process_server_tick(name, dossier_serveur, state):
         state["expected_up"] = False
         return
 
+    if mc_core.is_suspended(config):
+        state["idle_since"] = None
+        return
+
     maintenant = datetime.now()
     current_mins = maintenant.hour * 60 + maintenant.minute
     en_ligne = mc_core.is_server_running(config)
@@ -292,6 +298,11 @@ def _put_to_sleep_if_idle(name, config, state, now=None):
     if now - state["idle_since"] < info["after_s"] or mc_api.is_frozen(config):
         return False
     logging.info(f"[{name}] No player for {int(now - state['idle_since']) // 60} min: going to sleep.")
+    if info["freeze"] and info["join_mode"] == "hold":
+        result = mc_api.suspend(name, config)
+        logging.info(f"[{name}] Sleep (frozen): {result['code']}")
+        state["idle_since"] = None
+        return result["ok"]
     state["expected_up"] = False
     result = mc_api.stop(name, config, reason="sleep")
     logging.info(f"[{name}] Sleep: {result['code']} {result.get('message') or ''}".rstrip())
@@ -331,10 +342,20 @@ class SleepManager:
 
     @staticmethod
     def should_listen(config):
-        return (mc_api.sleep_info(config)["enabled"]
-                and config.get("mode_maintenance", 0) == 1
+        if config.get("router_backend") or not mc_api.sleep_info(config)["enabled"]:
+            return False
+        if mc_core.is_hold_mode(config):
+            return config.get("mode_maintenance", 0) != 1 or config.get("stop_reason") == "sleep"
+        return (config.get("mode_maintenance", 0) == 1
                 and config.get("stop_reason") == "sleep"
                 and not mc_core.is_server_running(config))
+
+    @staticmethod
+    def signature(config):
+        if not mc_core.is_hold_mode(config):
+            return (int(config.get("port") or 0), None)
+        return (int(config.get("port") or 0), mc_core.game_port(config), mc_core.use_proxy_protocol(config),
+                int(config.get("sleep_hold_timeout", mc_api.DEFAULT_HOLD_TIMEOUT)))
 
     def sync(self, servers):
         for name, info in servers.items():
@@ -347,7 +368,7 @@ class SleepManager:
             listener = self.listeners.get(name)
             wanted = self.should_listen(config)
             if listener and (not wanted or not listener.is_alive()
-                             or listener.port != int(config.get("port") or 0)):
+                             or listener.signature != self.signature(config)):
                 self.release(name)
                 listener = None
             if wanted and not listener and config.get("port") \
@@ -382,39 +403,129 @@ class SleepManager:
             logging.warning(f"[{name}] Sleep listener cannot hold port {config.get('port')}: {msg}. Retrying in 60 s.")
             self.retry_after[name] = time.time() + 60
 
-        listener = mc_sleep.SleepListener(name, config["port"], status, on_login, on_error)
+        hold = self._hold_policy(name, dossier, config)
+        listener = mc_sleep.SleepListener(name, config["port"], status, on_login, on_error, hold=hold,
+                                          banned=mc_proxy.BannedIPs(os.path.join(dossier, "banned-ips.json")))
+        listener.signature = self.signature(config)
         listener.start()
         self.listeners[name] = listener
-        logging.info(f"[{name}] Sleeping: listener on port {config['port']}.")
+        mode = "hold" if hold else "sleep"
+        logging.info(f"[{name}] Listener ({mode}) on port {config['port']}.")
+
+    def _hold_policy(self, name, dossier, config, routed=False):
+        if not routed and not mc_core.is_hold_mode(config):
+            return None
+
+        def fresh():
+            cfg = mc_config.load_config(dossier)
+            cfg["dossier_serveur"] = dossier
+            return cfg
+
+        policy = mc_sleep.HoldPolicy(
+            mc_core.game_port(config),
+            timeout=int(config.get("sleep_hold_timeout", mc_api.DEFAULT_HOLD_TIMEOUT)),
+            proxy_protocol=mc_core.use_proxy_protocol(config),
+            on_hold=lambda player: self.evaluate(name, dossier, player))
+        plain_probe = policy.probe
+        ready_until = [0.0]
+
+        def probe():
+            try:
+                cfg = fresh()
+                if mc_core.is_suspended(cfg):
+                    return mc_sleep.BACKEND_SUSPENDED
+                if cfg.get("mode_maintenance") == 1 or not mc_core.is_server_running(cfg):
+                    return mc_sleep.BACKEND_DOWN
+            except Exception:
+                return mc_sleep.BACKEND_DOWN
+            return plain_probe()
+
+        def ready():
+            if time.time() < ready_until[0]:
+                return True
+            try:
+                ok = mc_core.server_ready(fresh())
+            except Exception:
+                return False
+            if ok:
+                ready_until[0] = time.time() + 10
+            return ok
+
+        policy.probe, policy.ready = probe, ready
+        return policy
 
     def decide(self, name, dossier, player):
-        """Runs in a listener thread: may this player wake the server?"""
+        """Runs in a listener thread: may this player wake the server?
+        Returns the text shown to the player."""
+        return self.evaluate(name, dossier, player)[1]
+
+    def evaluate(self, name, dossier, player):
+        """(accepted, text): accepted when the server is waking or starting up
+        for this player, so that hold mode keeps the connection."""
         try:
             config = mc_config.load_config(dossier)
         except Exception:
-            return T["sleep_kick_unavailable"]
+            return False, T["sleep_kick_unavailable"]
         config["dossier_serveur"] = dossier
         if player.lower() not in self.known():
             logging.info(f"[{name}] Wake refused: unknown player '{player}'.")
-            return T["sleep_kick_unknown"]
+            return False, T["sleep_kick_unknown"]
         if mc_api.is_frozen(config):
             logging.info(f"[{name}] Wake postponed for '{player}': world frozen (backup running).")
-            return T["sleep_kick_backup"]
+            return False, T["sleep_kick_backup"]
         if config.get("always_on", 1) != 1 and not mc_core.is_open_now(config):
             start, _end = mc_core.schedule_minutes(config)
-            return T["sleep_kick_closed"].format(time="%02d:%02d" % divmod(start, 60))
-        if config.get("stop_reason") != "sleep":
-            return T["sleep_kick_starting"]
+            return False, T["sleep_kick_closed"].format(time="%02d:%02d" % divmod(start, 60))
+        if config.get("mode_maintenance") == 1 and config.get("stop_reason") != "sleep":
+            return False, T["sleep_kick_unavailable"]
+        if config.get("stop_reason") != "sleep" and not mc_core.is_suspended(config):
+            return mc_core.is_server_running(config), T["sleep_kick_starting"]
         with self.lock:
             if name not in self.wakes:
                 self.wakes.append(name)
                 logging.info(f"[{name}] Wake requested by '{player}'.")
-        return T["sleep_kick_waking"]
+        return True, T["sleep_kick_waking"]
 
     def pop_wakes(self):
         with self.lock:
             wakes, self.wakes = self.wakes, []
         return wakes
+
+
+class RouterManager:
+    def __init__(self, sleep):
+        self.sleep = sleep
+        self.listener = None
+        self.config = None
+        self.retry_at = 0
+
+    def resolve(self, name):
+        loaded, error = mc_api.load_server(name)
+        if error:
+            return None
+        name, config = loaded
+        dossier = config["dossier_serveur"]
+        if not config.get("router_backend"):
+            return None
+        policy = self.sleep._hold_policy(name, dossier, config, routed=True)
+        return mc_router.Target(
+            policy, lambda: (T["sleep_motd"].format(name=config.get("nom_serveur", name)),
+                             _max_players(dossier), config.get("mc_version", "Minecraft"),
+                             mc_sleep.server_favicon(dossier)),
+            mc_proxy.BannedIPs(os.path.join(dossier, "banned-ips.json")))
+
+    def sync(self):
+        config = mc_router.load()
+        if self.listener and (config != self.config or not self.listener.is_alive()):
+            self.listener.stop()
+            self.listener = None
+        if not config["enabled"] or self.listener or time.monotonic() < self.retry_at:
+            return
+        self.config = config
+        self.retry_at = time.monotonic() + 5
+        self.listener = mc_router.RouterListener(
+            config, self.resolve, lambda message: logging.warning(T["router_listener_error"].format(message=message)))
+        self.listener.start()
 
 
 def _max_players(dossier):
@@ -436,8 +547,9 @@ def _handle_request(sleep, request):
         if error:
             return error
         name, config = loaded
-        sleep.release(name)
-        sleep.release_port(config.get("port"))
+        if not mc_core.is_hold_mode(config):
+            sleep.release(name)
+            sleep.release_port(config.get("port"))
         res = mc_api.start(name, config)
         if res["ok"] and config.pop("announce_next_start", None):
             mc_config.save_config(config)
@@ -452,7 +564,8 @@ def _process_wakes(sleep):
         if error:
             continue
         _, config = loaded
-        sleep.release(name)
+        if not mc_core.is_hold_mode(config):
+            sleep.release(name)
         res = mc_api.wake(name, config)
         logging.info(f"[{name}] Wake: {res['code']}.")
 
@@ -464,6 +577,7 @@ def main():
     servers = {}
     registry_error = None
     sleep = SleepManager()
+    router = RouterManager(sleep)
     next_tick = time.time() + 30
     next_sync = 0
 
@@ -505,6 +619,7 @@ def main():
             next_sync = now + 5
             try:
                 sleep.sync(servers)
+                router.sync()
             except Exception as e:
                 logging.error(f"Sleep listeners: {e}")
 

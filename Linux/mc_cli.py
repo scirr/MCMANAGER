@@ -426,6 +426,7 @@ def print_categorized_help():
             (f"backup [{tgt}]", T["help_backup"]),
             (f"freeze [{tgt}] [-- <cmd>]", T["help_freeze"]),
             (f"thaw [{tgt}]", T["help_thaw"]),
+            ("router enable|disable|status|route|default|allow|deny [--json]", T["help_router"]),
             (f"sleep enable|disable|status|wake [{tgt}] [--after 2h]", T["help_sleep"]),
             (f"sleep allow|deny <{T['arg_player']}> [{tgt}]", T["help_sleep_allow"]),
             (f"announce [{tgt}]", T["help_announce"]),
@@ -558,7 +559,21 @@ def build_parser():
     p_sleep.add_argument("sleep_action", choices=["enable", "disable", "status", "wake", "allow", "deny"])
     p_sleep.add_argument("args", nargs="*", help=T["help_sleep_args"])
     p_sleep.add_argument("--after", default=None, metavar="DURATION", help=T["help_sleep_after"])
+    p_sleep.add_argument("--join-mode", choices=["kick", "hold"], default=None, help=T["help_sleep_join_mode"])
+    p_sleep.add_argument("--freeze", choices=["on", "off"], default=None, help=T["help_sleep_freeze"])
+    p_sleep.add_argument("--hold-timeout", default=None, metavar="DURATION", help=T["help_sleep_hold_timeout"])
     p_sleep.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_router = subparsers.add_parser("router", help=T["help_router"])
+    p_router.add_argument("router_action", choices=["enable", "disable", "status", "route", "default", "allow", "deny"])
+    p_router.add_argument("operands", nargs="*", help=T["help_router_args"])
+    p_router.add_argument("--port", type=int, default=None, help=T["help_router_port"])
+    p_router.add_argument("--proxy-in", choices=["on", "off"], default=None, help=T["help_router_proxy_in"])
+    p_router.add_argument("--proxy-out", choices=["on", "off"], default=None, help=T["help_router_proxy_out"])
+    p_router.add_argument("--trusted-proxy", action="append", default=None, help=T["help_router_trust"])
+    p_router.add_argument("--per-ip", type=int, default=None, help=T["help_router_per_ip"])
+    p_router.add_argument("--per-second", type=int, default=None, help=T["help_router_rate"])
+    p_router.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_dp = subparsers.add_parser("datapack", help=T["help_datapack"])
     p_dp.add_argument("dp_action", choices=["list", "enable", "disable"])
@@ -755,6 +770,9 @@ def main():
 
     if args.action == "switch":
         return cmd_switch(args)
+
+    if args.action == "router":
+        return cmd_router(args)
 
     if args.action == "sleep":
         return cmd_sleep(args)
@@ -1215,6 +1233,26 @@ def cmd_switch(args):
             print_info(start["message"])
     return _finish(res, args.json)
 
+def cmd_router(args):
+    options = {"port": args.port, "trusted_proxies": args.trusted_proxy,
+               "per_ip": args.per_ip, "per_second": args.per_second,
+               "proxy_in": None if args.proxy_in is None else args.proxy_in == "on",
+               "proxy_out": None if args.proxy_out is None else args.proxy_out == "on"}
+    if args.router_action != "enable" and any(value is not None for value in options.values()):
+        res = mc_api.result(False, "router_usage")
+    else:
+        res = mc_api.router_command(args.router_action, args.operands, **options)
+    code = _finish(res, args.json)
+    if not args.json and res["ok"]:
+        config = res["config"]
+        print_info(T["router_summary"].format(**config))
+        for host, server in sorted(config["routes"].items()):
+            print_info(f"{host} → {server}")
+        for note in res.get("notes", []):
+            print_info(note)
+    return EXIT_USAGE if res["code"] == "router_usage" else code
+
+
 def cmd_sleep(args):
     action = args.sleep_action
     wanted = 1 if action in ("allow", "deny") else 0
@@ -1237,6 +1275,13 @@ def cmd_sleep(args):
         else:
             print_info(T["sleep_status_off"])
         print_info(T["sleep_status_state"].format(state=state))
+        if info["join_mode"] == "hold":
+            print_info(T["sleep_status_hold"].format(
+                public=config.get("port"), internal=info["internal_port"],
+                timeout=_human_duration(info["hold_timeout_s"]),
+                proxy=T["sleep_proxy_yes"] if info["proxy_protocol"] else T["sleep_proxy_no"]))
+        if info["freeze"]:
+            print_info(T["sleep_status_freeze"])
         if info["allow"]:
             print_info(T["sleep_status_allow"].format(names=", ".join(info["allow"])))
         return EXIT_OK
@@ -1249,8 +1294,17 @@ def cmd_sleep(args):
         except ValueError:
             print_res(False, T["invalid_duration"].format(val=args.after))
             return EXIT_USAGE
+    hold_timeout = None
+    if args.hold_timeout:
+        try:
+            hold_timeout = mc_api.parse_duration(args.hold_timeout)
+        except ValueError:
+            print_res(False, T["invalid_duration"].format(val=args.hold_timeout))
+            return EXIT_USAGE
+    extra = {"join_mode": args.join_mode, "hold_timeout_s": hold_timeout,
+             "freeze": None if args.freeze is None else args.freeze == "on"}
     if action == "enable":
-        res = mc_api.sleep_configure(name, config, enabled=True, after_s=after)
+        res = mc_api.sleep_configure(name, config, enabled=True, after_s=after, **extra)
     elif action == "disable":
         res = mc_api.sleep_configure(name, config, enabled=False)
     elif action == "allow":
@@ -1259,7 +1313,11 @@ def cmd_sleep(args):
         res = mc_api.sleep_configure(name, config, allow_remove=operands)
     if res["ok"] and not args.json:
         res = dict(res, after=_human_duration(res["after_s"]))
-    return _finish(res, args.json)
+    code = _finish(res, args.json)
+    if not args.json:
+        for note in res.get("notes") or []:
+            print_info(note)
+    return code
 
 def cmd_datapack(args):
     import mc_content

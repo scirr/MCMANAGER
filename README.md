@@ -19,7 +19,8 @@ This README is a high-level overview only. For installation steps and the comple
 - **Automatic backups** — Mid-session, nightly and manual ZIP backups with `save-off` / `save-on` safety
 - **Discord webhooks** — Notifies players on server open, close, and shutdown events
 - **Maintenance mode** — Instantly pauses the daemon without stopping it
-- **Sleep mode** — Frees the server's memory when nobody plays; the server stays listed and wakes when a known player joins (Linux)
+- **Sleep mode** — Frees the server's memory when nobody plays; the server stays listed and wakes when a known player joins, optionally keeping them connected (hold) or freezing the JVM (Linux)
+- **Router** — Several servers behind one port, chosen by hostname, with per-IP limits and CIDR lists (Linux)
 - **Every server type** — Vanilla, Paper, Folia, Purpur, Fabric, Quilt, Forge, NeoForge, Spigot, and the Velocity/Waterfall/BungeeCord proxies; `mc upgrade` moves a server to a newer Minecraft version (Linux)
 - **Modpacks, mods and plugins by name** — Modrinth, CurseForge and FTB modpacks; mods and plugins from Modrinth, CurseForge and Hangar with their dependencies; a managed Java runtime per server (Linux)
 - **Custom domain** — Show players a friendly domain/link (from any DNS provider) instead of a bare IP
@@ -61,6 +62,8 @@ MC_Manager/
 │   ├── mc_modpack.py   # modpacks (Modrinth, CurseForge, FTB)
 │   ├── mc_http.py      # https downloads with hash checks
 │   ├── mc_crash.py     # crash-loop detection
+│   ├── mc_proxy.py     # TCP relay, connection limits, CIDR and banned IP filters
+│   ├── mc_router.py    # hostname routing and private router configuration
 │   ├── mc_protocol.py  # Minecraft network protocol (VarInt, handshake, status, login)
 │   ├── mc_sleep.py     # sleep listener (status/login answered while the server sleeps)
 │   ├── mc_ipc.py       # request channel CLI -> daemon
@@ -133,6 +136,7 @@ mc deploy
 | `mc freeze` / `mc thaw` | Freeze the world for an external backup — Linux |
 | `mc switch <target>` | Hand the active server's place (ports included) to another server — Linux |
 | `mc sleep enable\|disable\|status` | Sleep when nobody plays, wake when a known player joins — Linux |
+| `mc router enable\|disable\|status\|route\|default\|allow\|deny` | Several servers behind one port, routed by hostname — Linux |
 | `mc datapack` / `mc mod` | Manage datapacks and mods (AutoModpack copy, quarantine) — Linux |
 | `mc console` | Attach to the interactive RCON console |
 | `mc logs` | Show recent server logs |
