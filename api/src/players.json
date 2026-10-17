@@ -1,0 +1,877 @@
+{
+  "components": {
+    "schemas": {
+      "KickRequest": {
+        "properties": {
+          "player": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "player"
+        ],
+        "type": "object"
+      },
+      "KickResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "subject": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "subject"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PlayerHistory": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "days": {
+                "type": "integer"
+              },
+              "sessions": {
+                "items": {
+                  "$ref": "#/components/schemas/PlayerSession"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "days",
+              "sessions"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PlayerListAdd": {
+        "properties": {
+          "reason": {
+            "description": "Ban lists only.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "subject": {
+            "description": "Player name (3-16 characters) or IPv4/IPv6 address for banip.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject"
+        ],
+        "type": "object"
+      },
+      "PlayerListEdit": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "changed": {
+                "type": "boolean"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "via": {
+                "description": "Applied live through RCON or written to the file.",
+                "enum": [
+                  "rcon",
+                  "file"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "subject"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PlayerListEntry": {
+        "description": "Entry of whitelist.json, ops.json, banned-players.json or banned-ips.json, as written by the server.",
+        "properties": {
+          "bypassesPlayerLimit": {
+            "description": "op only.",
+            "type": "boolean"
+          },
+          "created": {
+            "description": "Ban lists: `YYYY-MM-DD HH:MM:SS +ZZZZ`.",
+            "type": "string"
+          },
+          "created_ts": {
+            "description": "Ban lists: epoch seconds of `created`; null when unreadable.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "expires": {
+            "description": "`forever` or a date.",
+            "type": "string"
+          },
+          "expires_ts": {
+            "description": "Ban lists: epoch seconds of `expires`; null for `forever`.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "ip": {
+            "description": "banip only.",
+            "type": "string"
+          },
+          "level": {
+            "description": "op only.",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Players lists only.",
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "uuid": {
+            "description": "Players lists only.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PlayerListing": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "enabled": {
+                "description": "Whitelist only: white-list=true in server.properties.",
+                "type": "boolean"
+              },
+              "entries": {
+                "items": {
+                  "$ref": "#/components/schemas/PlayerListEntry"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "entries"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PlayerSession": {
+        "properties": {
+          "duration_s": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "ip": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "join": {
+            "description": "ISO 8601 local time.",
+            "type": "string"
+          },
+          "join_ts": {
+            "description": "Epoch seconds.",
+            "type": "integer"
+          },
+          "leave": {
+            "description": "Null for a session still open or cut by a crash.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "leave_ts": {
+            "description": "Epoch seconds; null while the session is open.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "player": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "player",
+          "ip",
+          "join",
+          "leave",
+          "duration_s",
+          "join_ts",
+          "leave_ts"
+        ],
+        "type": "object"
+      },
+      "PlayersOnline": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "max": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "online": {
+                "type": "integer"
+              },
+              "players": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "state": {
+                "$ref": "#/components/schemas/ServerState"
+              }
+            },
+            "required": [
+              "online",
+              "max",
+              "players"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "Offline servers answer online 0, max null and their state."
+      },
+      "WhitelistToggle": {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "paths": {
+    "/v1/servers/{server}/kick": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Codes: `invalid_name` (422), `kick_offline` and `player_not_online` (409), `rcon_failed` (503).",
+        "operationId": "kickPlayer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "player": "Steve",
+                "reason": "AFK"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/KickRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "kicked",
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie",
+                  "subject": "Steve"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/KickResult"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Kick a connected player",
+        "tags": [
+          "players"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_api.player_kick"
+        ]
+      }
+    },
+    "/v1/servers/{server}/lists/{kind}": {
+      "get": {
+        "operationId": "listPlayerList",
+        "parameters": [
+          {
+            "description": "List: whitelist, op, ban (banned players) or banip (banned addresses).",
+            "example": "whitelist",
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "whitelist",
+                "op",
+                "ban",
+                "banip"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "whitelist_list",
+                  "enabled": true,
+                  "entries": [
+                    {
+                      "name": "Notch",
+                      "uuid": "069a79f4-44e9-4726-a5be-fca90e38aaf5"
+                    }
+                  ],
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerListing"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Read the whitelist, ops or bans",
+        "tags": [
+          "players"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_api.player_list"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Applied through RCON when the server runs, otherwise written to the list file. `op` requires the admin role (checked by the daemon). Already present: success with changed false. Codes: `invalid_name`, `invalid_ip`, `uuid_lookup_failed`, `rcon_failed`.",
+        "operationId": "addPlayerListEntry",
+        "parameters": [
+          {
+            "description": "List: whitelist, op, ban (banned players) or banip (banned addresses).",
+            "example": "whitelist",
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "whitelist",
+                "op",
+                "ban",
+                "banip"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "reason": "grief",
+                "subject": "Notch"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/PlayerListAdd"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "changed": true,
+                  "code": "ban_added",
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie",
+                  "subject": "Notch",
+                  "via": "rcon"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerListEdit"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Add to the whitelist, ops or bans",
+        "tags": [
+          "players"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_api.player_edit"
+        ]
+      }
+    },
+    "/v1/servers/{server}/lists/{kind}/{subject}": {
+      "delete": {
+        "operationId": "removePlayerListEntry",
+        "parameters": [
+          {
+            "description": "List: whitelist, op, ban (banned players) or banip (banned addresses).",
+            "example": "whitelist",
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "whitelist",
+                "op",
+                "ban",
+                "banip"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Player name or IP address.",
+            "example": "Notch",
+            "in": "path",
+            "name": "subject",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "changed": true,
+                  "code": "ban_removed",
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie",
+                  "subject": "Notch",
+                  "via": "file"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerListEdit"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Remove from the whitelist, ops or bans",
+        "tags": [
+          "players"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_api.player_edit"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ]
+    },
+    "/v1/servers/{server}/players": {
+      "get": {
+        "description": "Retries RCON for 5 s while the server is starting; `rcon_failed` (503) afterwards.",
+        "operationId": "listOnlinePlayers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "players",
+                  "max": 20,
+                  "ok": true,
+                  "online": 2,
+                  "players": [
+                    "Steve",
+                    "Alex"
+                  ],
+                  "schema": 1,
+                  "server": "survie",
+                  "state": "running"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PlayersOnline"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Players online now",
+        "tags": [
+          "players"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_api.query_players",
+          "mc_api.parse_player_list"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ]
+    },
+    "/v1/servers/{server}/players/history": {
+      "get": {
+        "operationId": "getPlayerHistory",
+        "parameters": [
+          {
+            "description": "Window in days (default 7).",
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 7,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Include addresses (requires operator).",
+            "in": "query",
+            "name": "include_ip",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "history",
+                  "days": 7,
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie",
+                  "sessions": [
+                    {
+                      "duration_s": 4409,
+                      "ip": null,
+                      "join": "2026-10-07T19:02:11",
+                      "join_ts": 1791450000,
+                      "leave": "2026-10-07T20:15:40",
+                      "leave_ts": 1791453600,
+                      "player": "Steve"
+                    }
+                  ]
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerHistory"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Connection history",
+        "tags": [
+          "players"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_api.player_history"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ]
+    },
+    "/v1/servers/{server}/whitelist": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "put": {
+        "operationId": "setWhitelistEnabled",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "enabled": true
+              },
+              "schema": {
+                "$ref": "#/components/schemas/WhitelistToggle"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "whitelist_on",
+                  "enabled": true,
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ServerResult"
+                    },
+                    {
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "enabled"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Turn the whitelist on or off",
+        "tags": [
+          "players"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_api.whitelist_enable"
+        ]
+      }
+    }
+  }
+}

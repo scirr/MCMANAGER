@@ -1,0 +1,2436 @@
+{
+  "components": {
+    "schemas": {
+      "ActivateResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "id": {
+                "description": "Numeric registry id.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
+      "CreateServerRequest": {
+        "properties": {
+          "accept_eula": {
+            "description": "Must be true: acceptance of the Minecraft EULA.",
+            "type": "boolean"
+          },
+          "folder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "loader": {
+            "description": "Paper, Purpur, Spigot, Folia, Fabric, Forge, NeoForge, Vanilla, Velocity...",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "port": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "ram": {
+            "description": "JVM memory, e.g. 4G.",
+            "type": "string"
+          },
+          "rcon_port": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "version": {
+            "description": "Minecraft version, latest release when null.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "loader",
+          "accept_eula"
+        ],
+        "type": "object"
+      },
+      "DeployResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "jar": {
+                "type": "string"
+              },
+              "loader": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer"
+              },
+              "rcon_port": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "loader",
+              "version",
+              "path",
+              "port"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "FreezeRequest": {
+        "properties": {
+          "max_s": {
+            "description": "Automatic thaw deadline in seconds (default 3600).",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "FreezeResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "command_exit_code": {
+                "description": "CLI only (`mc freeze -- <command>`): exit code of the wrapped command.",
+                "type": "integer"
+              },
+              "expires_ts": {
+                "description": "Epoch seconds of the automatic thaw; null on failure.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "max_s": {
+                "description": "Automatic thaw delay, seconds.",
+                "type": "integer"
+              },
+              "since_ts": {
+                "description": "Epoch seconds at which the freeze began; null on failure.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "thaw": {
+                "$ref": "#/components/schemas/ServerResult",
+                "description": "CLI only: result of the thaw that follows the wrapped command."
+              }
+            },
+            "required": [
+              "max_s"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "LogLines": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "lines": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "server": {
+                "description": "Null when the lines are not filtered by server.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "lines",
+              "server"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ModeRequest": {
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/ServerMode"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "type": "object"
+      },
+      "RemoveResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "active": {
+                "description": "Name of the active server after the removal.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "path": {
+                "description": "Folder left in place.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ResumeResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "mode": {
+                "$ref": "#/components/schemas/ServerMode"
+              },
+              "running": {
+                "description": "The server was already running.",
+                "type": "boolean"
+              },
+              "start": {
+                "description": "Result of the explicit restart of a crashed server; null otherwise.",
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/StartResult"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "was_crashed": {
+                "description": "A crash marker was cleared.",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "mode",
+              "was_crashed",
+              "running",
+              "start"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ScheduleRequest": {
+        "properties": {
+          "close_hour": {
+            "maximum": 23,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "close_minute": {
+            "maximum": 59,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "open_hour": {
+            "maximum": 23,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "open_minute": {
+            "maximum": 59,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "open_hour",
+          "open_minute",
+          "close_hour",
+          "close_minute"
+        ],
+        "type": "object"
+      },
+      "ServerDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "$ref": "#/components/schemas/ServerSnapshot"
+          }
+        ]
+      },
+      "ServerList": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "active": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "servers": {
+                "items": {
+                  "$ref": "#/components/schemas/ServerSnapshot"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "active",
+              "servers"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ServerSnapshot": {
+        "properties": {
+          "active": {
+            "description": "True for the server that owns the public port.",
+            "type": "boolean"
+          },
+          "cgroup": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "crash": {
+            "description": "Present when state is crashed.",
+            "properties": {
+              "errors": {
+                "description": "Last ERROR lines of the log.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "failures": {
+                "type": "integer"
+              },
+              "since": {
+                "description": "Epoch seconds (kept for existing scripts).",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "since_ts": {
+                "description": "Epoch seconds of the first failure.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "startup": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "error": {
+            "description": "Set when the folder or config.json is unusable; the fields below are then absent.",
+            "oneOf": [
+              {
+                "properties": {
+                  "code": {
+                    "enum": [
+                      "folder_missing",
+                      "config_unreadable"
+                    ],
+                    "type": "string"
+                  },
+                  "detail": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "frozen": {
+            "description": "World saving suspended by freeze.",
+            "type": "boolean"
+          },
+          "frozen_expires_ts": {
+            "description": "Epoch seconds of the automatic thaw; null when not frozen.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "frozen_since_ts": {
+            "description": "Epoch seconds at which the freeze began; null when not frozen.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id": {
+            "description": "Numeric registry id.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "internal_port": {
+            "description": "Hold mode only: port the JVM listens on behind the daemon.",
+            "type": "integer"
+          },
+          "loader": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "maintenance": {
+            "type": "boolean"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/ServerMode"
+          },
+          "name": {
+            "description": "Registry name.",
+            "type": "string"
+          },
+          "path": {
+            "description": "Server folder.",
+            "type": "string"
+          },
+          "pid": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "port": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "port_holder": {
+            "description": "Foreign process holding the port of a stopped server.",
+            "oneOf": [
+              {
+                "properties": {
+                  "pid": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "program": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rcon_port": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "rss_kb": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "schedule": {
+            "description": "Present in schedule mode.",
+            "properties": {
+              "close": {
+                "description": "HH:MM",
+                "type": "string"
+              },
+              "open": {
+                "description": "HH:MM",
+                "type": "string"
+              }
+            },
+            "required": [
+              "open",
+              "close"
+            ],
+            "type": "object"
+          },
+          "server": {
+            "description": "Registry name, same value as `name`.",
+            "type": "string"
+          },
+          "sleep": {
+            "$ref": "#/components/schemas/SleepInfo"
+          },
+          "sleep_listener": {
+            "description": "Sleeping server: the daemon holds the port.",
+            "type": "boolean"
+          },
+          "state": {
+            "description": "Null when `error` is set.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ServerState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stop_reason": {
+            "description": "Reason recorded by the last stop.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/StopReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "suspended": {
+            "description": "Sleeping server stopped with SIGSTOP (sleep freeze).",
+            "type": "boolean"
+          },
+          "swap_kb": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "uptime_s": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "server",
+          "id",
+          "active",
+          "path",
+          "state",
+          "error"
+        ],
+        "type": "object"
+      },
+      "SleepInfo": {
+        "properties": {
+          "after_s": {
+            "description": "Idle time before sleeping, seconds (minimum 300).",
+            "type": "integer"
+          },
+          "allow": {
+            "description": "Extra player names allowed to wake the server.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "freeze": {
+            "description": "Sleep by freezing the process (SIGSTOP) instead of stopping it; needs hold mode.",
+            "type": "boolean"
+          },
+          "hold_timeout_s": {
+            "description": "Hold mode: seconds a held player waits (10 to 600).",
+            "type": "integer"
+          },
+          "internal_port": {
+            "description": "Hold mode only: port of the JVM behind the daemon.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "join_mode": {
+            "description": "kick: a joining player is refused while the server wakes; hold: the daemon keeps the connection until the server is up.",
+            "enum": [
+              "kick",
+              "hold"
+            ],
+            "type": "string"
+          },
+          "proxy_protocol": {
+            "description": "Hold mode only: the daemon forwards connections with the PROXY protocol.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "enabled",
+          "after_s",
+          "allow",
+          "join_mode",
+          "hold_timeout_s",
+          "freeze",
+          "internal_port",
+          "proxy_protocol"
+        ],
+        "type": "object"
+      },
+      "SleepSettingsRequest": {
+        "properties": {
+          "after_s": {
+            "description": "Minimum 300.",
+            "type": "integer"
+          },
+          "allow_add": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "allow_remove": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "freeze": {
+            "description": "Needs hold mode.",
+            "type": "boolean"
+          },
+          "hold_timeout_s": {
+            "description": "Hold mode wait, 10 to 600.",
+            "type": "integer"
+          },
+          "join_mode": {
+            "description": "hold needs sleep enabled and a restart of the server.",
+            "enum": [
+              "kick",
+              "hold"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SleepStatus": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "$ref": "#/components/schemas/SleepInfo"
+          },
+          {
+            "properties": {
+              "state": {
+                "$ref": "#/components/schemas/ServerState"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SleepUpdated": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "$ref": "#/components/schemas/SleepInfo"
+          },
+          {
+            "properties": {
+              "notes": {
+                "description": "Messages about what changed on disk or needs a restart.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
+      "StartResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "message": {
+                "description": "Launcher message.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "outside_service": {
+                "description": "True when the JVM was started outside the daemon cgroup.",
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
+      "StopRequest": {
+        "properties": {
+          "force": {
+            "description": "Kill instead of a clean stop.",
+            "type": "boolean"
+          },
+          "quiet": {
+            "description": "No in-game countdown.",
+            "type": "boolean"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/StopReason"
+          }
+        },
+        "type": "object"
+      },
+      "StopResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "message": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "reason": {
+                "$ref": "#/components/schemas/StopReason"
+              }
+            },
+            "required": [
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SwitchRequest": {
+        "properties": {
+          "force": {
+            "description": "Switch even with players online.",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "SwitchResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "port": {
+                "type": "integer"
+              },
+              "previous": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "previous_rcon_port": {
+                "type": "integer"
+              },
+              "rcon_port": {
+                "type": "integer"
+              },
+              "start": {
+                "$ref": "#/components/schemas/Result",
+                "description": "Result of starting the incoming server."
+              }
+            },
+            "required": [
+              "previous"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "UpgradeRequest": {
+        "properties": {
+          "version": {
+            "description": "Target Minecraft version or `latest`.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpgradeResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "jar": {
+                "type": "string"
+              },
+              "java_warning": {
+                "type": "boolean"
+              },
+              "loader": {
+                "type": "string"
+              },
+              "mods_hint": {
+                "type": "boolean"
+              },
+              "previous": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "loader",
+              "version"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/v1": {
+      "get": {
+        "description": "Unauthenticated; used by clients to check compatibility.",
+        "operationId": "getApiInfo",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "api": "1",
+                  "code": "api_info",
+                  "daemon": "3.0.0",
+                  "ok": true,
+                  "remote": false,
+                  "schema": 1
+                },
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Result"
+                    },
+                    {
+                      "properties": {
+                        "api": {
+                          "type": "string"
+                        },
+                        "daemon": {
+                          "type": "string"
+                        },
+                        "remote": {
+                          "description": "Remote access enabled.",
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "api",
+                        "daemon"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [],
+        "summary": "API version and daemon version",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": []
+      }
+    },
+    "/v1/servers": {
+      "get": {
+        "description": "Same content as `mc status --json`, with `ok` and `code` added.",
+        "operationId": "listServers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "active": "survie",
+                  "code": "status",
+                  "ok": true,
+                  "schema": 1,
+                  "servers": [
+                    {
+                      "active": true,
+                      "cgroup": "/system.slice/mc_manager.service",
+                      "error": null,
+                      "frozen": false,
+                      "frozen_expires_ts": null,
+                      "frozen_since_ts": null,
+                      "id": 1,
+                      "loader": "Fabric",
+                      "maintenance": false,
+                      "mode": "always-on",
+                      "name": "survie",
+                      "path": "/home/mc/Servers/survie",
+                      "pid": 4821,
+                      "port": 25565,
+                      "port_holder": null,
+                      "rcon_port": 25575,
+                      "rss_kb": 6291456,
+                      "server": "survie",
+                      "sleep": {
+                        "after_s": 7200,
+                        "allow": [
+                          "Steve"
+                        ],
+                        "enabled": true,
+                        "freeze": false,
+                        "hold_timeout_s": 120,
+                        "internal_port": null,
+                        "join_mode": "kick",
+                        "proxy_protocol": null
+                      },
+                      "state": "running",
+                      "stop_reason": null,
+                      "suspended": false,
+                      "swap_kb": 0,
+                      "uptime_s": 7312,
+                      "version": "1.21.1"
+                    }
+                  ]
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ServerList"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "List servers with their state",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_api.status_document",
+          "mc_api.server_snapshot",
+          "mc_api.server_state"
+        ]
+      },
+      "post": {
+        "description": "Result of the job: DeployResult (`deployed`). Refused with `eula_required`, `folder_not_empty`, `port_taken`, `unknown_loader`, `invalid_ram`.",
+        "operationId": "createServer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "accept_eula": true,
+                "loader": "Paper",
+                "name": "creatif",
+                "ram": "4G",
+                "version": "1.21.1"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CreateServerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": null,
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_01",
+                  "kind": "createServer",
+                  "progress": 10,
+                  "result": null,
+                  "server": null,
+                  "state": "running",
+                  "updated_at": "2026-10-08T10:00:02Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Operation accepted; follow it on the job.",
+            "headers": {
+              "Location": {
+                "description": "URL of the job.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Create a server (deploy)",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_deploy.run_deploy_auto"
+        ]
+      }
+    },
+    "/v1/servers/{server}": {
+      "delete": {
+        "description": "Removes the server from the registry; the folder, worlds and backups are never deleted.",
+        "operationId": "unregisterServer",
+        "parameters": [
+          {
+            "description": "Must be true: without it the answer is 422 `confirm_required` and nothing is removed.",
+            "in": "query",
+            "name": "confirm",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "active": null,
+                  "code": "deregistered",
+                  "ok": true,
+                  "path": "/home/mc/Servers/essai",
+                  "schema": 1,
+                  "server": "essai"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RemoveResult"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Unregister a server (files are kept)",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_servers.remove_server",
+          "mc_api.remove"
+        ]
+      },
+      "get": {
+        "operationId": "getServer",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "active": true,
+                  "cgroup": "/system.slice/mc_manager.service",
+                  "code": "status",
+                  "error": null,
+                  "frozen": false,
+                  "frozen_expires_ts": null,
+                  "frozen_since_ts": null,
+                  "id": 1,
+                  "loader": "Fabric",
+                  "maintenance": false,
+                  "mode": "always-on",
+                  "name": "survie",
+                  "ok": true,
+                  "path": "/home/mc/Servers/survie",
+                  "pid": 4821,
+                  "port": 25565,
+                  "port_holder": null,
+                  "rcon_port": 25575,
+                  "rss_kb": 6291456,
+                  "schema": 1,
+                  "server": "survie",
+                  "sleep": {
+                    "after_s": 7200,
+                    "allow": [
+                      "Steve"
+                    ],
+                    "enabled": true,
+                    "freeze": false,
+                    "hold_timeout_s": 120,
+                    "internal_port": null,
+                    "join_mode": "kick",
+                    "proxy_protocol": null
+                  },
+                  "state": "running",
+                  "stop_reason": null,
+                  "suspended": false,
+                  "swap_kb": 0,
+                  "uptime_s": 7312,
+                  "version": "1.21.1"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ServerDetail"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Detail and state of one server",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_api.server_snapshot",
+          "mc_api.read_freeze"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ]
+    },
+    "/v1/servers/{server}/activate": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Equivalent of `mc use`.",
+        "operationId": "activateServer",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "active_set",
+                  "id": 1,
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ActivateResult"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Mark a server active without starting it",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_servers.set_active",
+          "mc_api.use"
+        ]
+      }
+    },
+    "/v1/servers/{server}/announce": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "operationId": "announceServer",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "announced",
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ServerResult"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Send the start announcement now",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_core.send_start_webhook"
+        ]
+      }
+    },
+    "/v1/servers/{server}/freeze": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "A stopped server answers `offline` (nothing to freeze, the marker is still written). `already_frozen` is a 409, `rcon_failed` a 503.",
+        "operationId": "freezeServer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "max_s": 1800
+              },
+              "schema": {
+                "$ref": "#/components/schemas/FreezeRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "frozen",
+                  "expires_ts": 1792283629,
+                  "max_s": 3600,
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie",
+                  "since_ts": 1792280029
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/FreezeResult"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Suspend world saving",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_api.freeze",
+          "mc_api.freeze_op",
+          "mc_api.read_freeze"
+        ]
+      }
+    },
+    "/v1/servers/{server}/logs": {
+      "get": {
+        "description": "Daemon log lines tagged with the server. A missing log file answers 404 `no_log_file`.",
+        "operationId": "getServerLogs",
+        "parameters": [
+          {
+            "description": "Number of lines (default 30, maximum 1000).",
+            "in": "query",
+            "name": "lines",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 1000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "logs",
+                  "lines": [
+                    "2026-10-08 10:00:00,000 - INFO - [survie] Server started"
+                  ],
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/LogLines"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Last lines of the daemon log for a server",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_cli.print_logs",
+          "mc_api.log_lines"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ]
+    },
+    "/v1/servers/{server}/mode": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "put": {
+        "operationId": "setServerMode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "mode": "schedule"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ModeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "mode_set",
+                  "mode": "schedule",
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ServerResult"
+                    },
+                    {
+                      "properties": {
+                        "mode": {
+                          "$ref": "#/components/schemas/ServerMode"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Set the operating mode",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_config.set_mode_schedule",
+          "mc_config.set_mode_always_on",
+          "mc_config.set_mode_maintenance",
+          "mc_api.set_mode"
+        ]
+      }
+    },
+    "/v1/servers/{server}/restart": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Stop then start through the daemon (same path as a scheduled restart). Job result code: task_restart_done.",
+        "operationId": "restartServer",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": null,
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_restartserve",
+                  "kind": "restartServer",
+                  "progress": 0,
+                  "result": null,
+                  "server": null,
+                  "state": "running",
+                  "updated_at": "2026-10-08T10:00:00Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Operation accepted; follow it on the job.",
+            "headers": {
+              "Location": {
+                "description": "URL of the job.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Restart a server",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_task.execute"
+        ]
+      }
+    },
+    "/v1/servers/{server}/resume": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Clears a crash-loop marker and starts the server explicitly in that case; otherwise the daemon restarts it on its next tick.",
+        "operationId": "resumeServer",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "resumed",
+                  "mode": "always-on",
+                  "ok": true,
+                  "running": false,
+                  "schema": 1,
+                  "server": "survie",
+                  "start": null,
+                  "was_crashed": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeResult"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Leave maintenance and hand the server back to the daemon",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_config.resume_mode",
+          "mc_crash.clear",
+          "mc_api.resume"
+        ]
+      }
+    },
+    "/v1/servers/{server}/schedule": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "put": {
+        "description": "`schedule_same_time` (422) when opening and closing are equal. Switches the server to schedule mode.",
+        "operationId": "setServerSchedule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "close_hour": 3,
+                "close_minute": 0,
+                "open_hour": 20,
+                "open_minute": 0
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "close": "03:00",
+                  "code": "schedule_updated",
+                  "ok": true,
+                  "open": "20:00",
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ServerResult"
+                    },
+                    {
+                      "properties": {
+                        "close": {
+                          "type": "string"
+                        },
+                        "open": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Set the opening hours (schedule mode)",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_config.save_config"
+        ]
+      }
+    },
+    "/v1/servers/{server}/sleep": {
+      "get": {
+        "operationId": "getSleepSettings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "after_s": 7200,
+                  "allow": [
+                    "Steve"
+                  ],
+                  "code": "sleep_status",
+                  "enabled": true,
+                  "freeze": false,
+                  "hold_timeout_s": 120,
+                  "internal_port": null,
+                  "join_mode": "kick",
+                  "ok": true,
+                  "proxy_protocol": null,
+                  "schema": 1,
+                  "server": "survie",
+                  "state": "running"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/SleepStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Sleep settings and state",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_api.sleep_info",
+          "mc_api.server_state"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "put": {
+        "description": "Codes: `sleep_after_too_short` (422), `sleep_needs_rcon` (422).",
+        "operationId": "setSleepSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "after_s": 3600,
+                "allow_add": [
+                  "Alex"
+                ],
+                "enabled": true,
+                "freeze": true,
+                "hold_timeout_s": 120,
+                "join_mode": "hold"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/SleepSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "after_s": 3600,
+                  "allow": [
+                    "Steve",
+                    "Alex"
+                  ],
+                  "code": "sleep_updated",
+                  "enabled": true,
+                  "freeze": true,
+                  "hold_timeout_s": 120,
+                  "internal_port": 25570,
+                  "join_mode": "hold",
+                  "notes": [
+                    "Restart the server to apply the hold mode."
+                  ],
+                  "ok": true,
+                  "proxy_protocol": false,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/SleepUpdated"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Change sleep settings",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.sleep_configure"
+        ]
+      }
+    },
+    "/v1/servers/{server}/start": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Does not touch the maintenance flag. `already_running` is a success.",
+        "operationId": "startServer",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "started",
+                  "message": null,
+                  "ok": true,
+                  "outside_service": false,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/StartResult"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Start a server",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_api.start"
+        ]
+      }
+    },
+    "/v1/servers/{server}/stop": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Waits for the JVM to exit. Sets the maintenance flag and records the reason. `already_stopped` is a success.",
+        "operationId": "stopServer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "force": false,
+                "quiet": false,
+                "reason": "maintenance"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/StopRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "stopped",
+                  "message": null,
+                  "ok": true,
+                  "reason": "maintenance",
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/StopResult"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Stop a server and enter maintenance",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_api.stop"
+        ]
+      }
+    },
+    "/v1/servers/{server}/switch": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Swaps game and RCON ports with the active server. Job result: SwitchResult. Refused with `players_online` (409) unless forced.",
+        "operationId": "switchServer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "force": false
+              },
+              "schema": {
+                "$ref": "#/components/schemas/SwitchRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": null,
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_switchserver",
+                  "kind": "switchServer",
+                  "progress": 0,
+                  "result": null,
+                  "server": null,
+                  "state": "running",
+                  "updated_at": "2026-10-08T10:00:00Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Operation accepted; follow it on the job.",
+            "headers": {
+              "Location": {
+                "description": "URL of the job.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Make this server the active one",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.switch"
+        ]
+      }
+    },
+    "/v1/servers/{server}/thaw": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Codes: `thawed`, `not_frozen`, `offline`, `rcon_error` (503).",
+        "operationId": "thawServer",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "thawed",
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ServerResult"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Resume world saving",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_api.thaw",
+          "mc_api.thaw_op"
+        ]
+      }
+    },
+    "/v1/servers/{server}/upgrade": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Job result: UpgradeResult. Backs the world up first. Refused with `server_running`, `downgrade_refused`, `loader_unavailable`, `source_unreachable`.",
+        "operationId": "upgradeServer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "version": "latest"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/UpgradeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": null,
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_upgradeserve",
+                  "kind": "upgradeServer",
+                  "progress": 0,
+                  "result": null,
+                  "server": null,
+                  "state": "running",
+                  "updated_at": "2026-10-08T10:00:00Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Operation accepted; follow it on the job.",
+            "headers": {
+              "Location": {
+                "description": "URL of the job.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Upgrade the Minecraft version",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.upgrade"
+        ]
+      }
+    },
+    "/v1/servers/{server}/wake": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "`not_sleeping` (409) when the state is not `sleeping`.",
+        "operationId": "wakeServer",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "started",
+                  "message": null,
+                  "ok": true,
+                  "outside_service": false,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/StartResult"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Wake a sleeping server",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_api.wake"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,502 @@
+{
+  "components": {
+    "parameters": {
+      "Server": {
+        "description": "Server name, numeric id, or `active` for the active server.",
+        "example": "survie",
+        "in": "path",
+        "name": "server",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "content": {
+          "application/json": {
+            "example": {
+              "code": "bad_request",
+              "message": "Field 'reason' must be one of user, sleep, update, maintenance, switch, scheduled.",
+              "ok": false
+            },
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Malformed request: invalid JSON, missing or unknown field."
+      },
+      "Conflict": {
+        "content": {
+          "application/json": {
+            "example": {
+              "code": "server_running",
+              "message": "The server must be stopped first.",
+              "ok": false
+            },
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "The current state forbids the operation (server running, players online, resource exists, job already running)."
+      },
+      "Forbidden": {
+        "content": {
+          "application/json": {
+            "example": {
+              "code": "forbidden",
+              "message": "This operation requires the operator role.",
+              "ok": false
+            },
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "The device role is too low for this operation on this server."
+      },
+      "InternalError": {
+        "content": {
+          "application/json": {
+            "example": {
+              "code": "internal_error",
+              "message": "Unexpected error; see logs/daemon.log.",
+              "ok": false
+            },
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Unexpected failure of the daemon."
+      },
+      "NotFound": {
+        "content": {
+          "application/json": {
+            "example": {
+              "code": "not_found",
+              "message": "No server matches 'survie'.",
+              "ok": false
+            },
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Unknown server, resource or key."
+      },
+      "PayloadTooLarge": {
+        "content": {
+          "application/json": {
+            "example": {
+              "code": "payload_too_large",
+              "message": "Request body exceeds 1 MB.",
+              "ok": false
+            },
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Request body larger than 1 MB."
+      },
+      "TooManyRequests": {
+        "content": {
+          "application/json": {
+            "example": {
+              "code": "rate_limited",
+              "message": "Too many requests.",
+              "ok": false
+            },
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "More than 20 requests per second for this device, more than 3 console streams, or pairing locked.",
+        "headers": {
+          "Retry-After": {
+            "description": "Seconds to wait before retrying.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "content": {
+          "application/json": {
+            "example": {
+              "code": "unauthorized",
+              "message": "Device token missing or revoked.",
+              "ok": false
+            },
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Missing, invalid or revoked device token.",
+        "headers": {
+          "WWW-Authenticate": {
+            "description": "Authentication scheme.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Unavailable": {
+        "content": {
+          "application/json": {
+            "example": {
+              "code": "rcon_failed",
+              "message": "RCON is not answering yet.",
+              "ok": false
+            },
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Dependency unreachable (RCON not answering yet, download source unreachable, remote API disabled).",
+        "headers": {
+          "Retry-After": {
+            "description": "Seconds to wait before retrying.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "Unprocessable": {
+        "content": {
+          "application/json": {
+            "example": {
+              "code": "invalid_cron",
+              "message": "Invalid cron expression: '61 * * * *'.",
+              "ok": false
+            },
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Well-formed request whose values are refused (invalid name, cron, port, duration, missing confirmation)."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "description": "Failure body. Contextual fields of the failed operation (available, online, players, path...) may be present.",
+        "properties": {
+          "available": {
+            "description": "`id:name` of the registered servers (`not_found`).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "code": {
+            "description": "Stable failure identifier.",
+            "type": "string"
+          },
+          "detail": {
+            "description": "Technical detail (error text, path, offending value).",
+            "type": [
+              "string",
+              "object",
+              "array",
+              "null"
+            ]
+          },
+          "error": {
+            "additionalProperties": true,
+            "description": "Legacy nested copy of `code` and `detail` kept in some failures so existing scripts keep working.",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "detail": {}
+            },
+            "type": "object"
+          },
+          "message": {
+            "description": "Human text in the language of the daemon.",
+            "type": "string"
+          },
+          "ok": {
+            "enum": [
+              false
+            ],
+            "type": "boolean"
+          },
+          "schema": {
+            "description": "Version of the JSON shapes.",
+            "enum": [
+              1
+            ],
+            "type": "integer"
+          },
+          "server": {
+            "description": "Server concerned, when the failure is tied to one.",
+            "type": "string"
+          },
+          "target": {
+            "description": "Name or id that matched no server (`not_found`).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "Job": {
+        "description": "Long operation running in the daemon.",
+        "properties": {
+          "code": {
+            "description": "Result code once finished.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "description": "ISO 8601 UTC.",
+            "type": "string"
+          },
+          "id": {
+            "description": "Job identifier, used in /v1/jobs/{id}.",
+            "type": "string"
+          },
+          "kind": {
+            "description": "Operation name (the operationId that created it).",
+            "type": "string"
+          },
+          "progress": {
+            "description": "Progress in percent, null when unknown.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "result": {
+            "description": "Final result once finished.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Result"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "server": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "ISO 8601 UTC.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "state",
+          "progress",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "JobList": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "jobs": {
+                "items": {
+                  "$ref": "#/components/schemas/Job"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "jobs"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Result": {
+        "description": "Envelope shared by every response.",
+        "properties": {
+          "code": {
+            "description": "Stable result identifier (started, backup_restored, not_found...).",
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "schema": {
+            "description": "Version of the JSON shapes.",
+            "enum": [
+              1
+            ],
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ok",
+          "code"
+        ],
+        "type": "object"
+      },
+      "ServerMode": {
+        "description": "Effective mode.",
+        "enum": [
+          "schedule",
+          "always-on",
+          "maintenance"
+        ],
+        "type": "string"
+      },
+      "ServerResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "server": {
+                "description": "Registry name of the server concerned.",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
+      "ServerState": {
+        "description": "Explicit server state (mc_api.STATES).",
+        "enum": [
+          "running",
+          "starting",
+          "crashed",
+          "stopped",
+          "closed",
+          "stopped-by-user",
+          "sleeping",
+          "maintenance"
+        ],
+        "type": "string"
+      },
+      "StopReason": {
+        "description": "Why a server was stopped.",
+        "enum": [
+          "user",
+          "sleep",
+          "update",
+          "maintenance",
+          "switch",
+          "scheduled"
+        ],
+        "type": "string"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "description": "Device token received at pairing (stored hashed server-side). Not required on the local socket.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "API v1 of the MC Manager daemon: supervision and administration of Minecraft servers.\n\nTransport: HTTP/1.1 and JSON (UTF-8). Locally the daemon listens on the Unix socket run/api.sock (mode 0600) on Linux and macOS, or on 127.0.0.1 with a token file on Windows; no further authentication is required locally. Remotely (disabled by default) it is served over HTTPS (TLS 1.3, self-signed certificate pinned by the client) and every request carries `Authorization: Bearer <device token>` obtained through the pairing flow.\n\nEvery response body is an object with `ok` (boolean) and `code` (stable identifier, never translated); `schema` is the contract version of the JSON shapes (1). Failures use the Error object. Long operations answer 202 with a Job to follow on /v1/jobs/{id} or in the event stream. A `{server}` path segment accepts a server name, its numeric id, or `active`.\n\nLimits: request body at most 1 MB (413), 20 requests per second per device (429, header Retry-After), 3 simultaneous console streams per device. Pairing is locked for 15 minutes per IP after 10 failures. No response ever contains a secret (RCON password, webhook URL, API keys, S3 keys, SMTP or restic passwords, Telegram or ntfy tokens): secrets are write-only and only appear in requests. The only token ever returned is the device token of the pairing response, once. Roles per device and per server: viewer (read), operator (start, stop, console, players, backup), admin (everything).",
+    "license": {
+      "identifier": "MIT",
+      "name": "MIT"
+    },
+    "title": "MC Manager API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "servers": [
+    {
+      "description": "Daemon API (Unix socket run/api.sock locally, HTTPS remotely).",
+      "url": "/"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Registry, state and lifecycle of servers.",
+      "name": "servers"
+    },
+    {
+      "description": "Online players, whitelist, ops, bans, history.",
+      "name": "players"
+    },
+    {
+      "description": "Dimensions, export, import, reset, pregeneration.",
+      "name": "world"
+    },
+    {
+      "description": "Mods, datapacks and modpacks.",
+      "name": "content"
+    },
+    {
+      "description": "Local archives and remote destinations.",
+      "name": "backups"
+    },
+    {
+      "description": "Scheduled tasks.",
+      "name": "tasks"
+    },
+    {
+      "description": "Alert channels.",
+      "name": "alerts"
+    },
+    {
+      "description": "Java, configuration, diagnostics, updates, metrics.",
+      "name": "system"
+    },
+    {
+      "description": "Event stream, console and jobs.",
+      "name": "events"
+    },
+    {
+      "description": "Remote access: pairing and devices.",
+      "name": "remote"
+    },
+    {
+      "description": "Hostname router in front of several servers.",
+      "name": "router"
+    }
+  ]
+}

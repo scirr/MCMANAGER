@@ -1,0 +1,614 @@
+{
+  "components": {
+    "schemas": {
+      "AlertAdded": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "channel": {
+                "type": "string"
+              },
+              "events": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "channel",
+              "type",
+              "events"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "AlertChannel": {
+        "description": "Secrets are never returned.",
+        "properties": {
+          "chat_id": {
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/AlertEvent"
+            },
+            "type": "array"
+          },
+          "header_names": {
+            "description": "Names of custom headers (values are secrets).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "host": {
+            "type": "string"
+          },
+          "legacy": {
+            "description": "The historical Discord announcement webhook.",
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "secrets_set": {
+            "description": "Names of the secret fields that are configured (`password`, `token`, `secret`, `url`, `headers`); their values are never returned.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sender": {
+            "type": "string"
+          },
+          "server": {
+            "description": "ntfy server URL.",
+            "type": "string"
+          },
+          "to": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "topic": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "email",
+              "telegram",
+              "ntfy",
+              "webhook",
+              "discord"
+            ],
+            "type": "string"
+          },
+          "url": {
+            "description": "Webhook address reduced to scheme and host.",
+            "type": "string"
+          },
+          "user": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "events"
+        ],
+        "type": "object"
+      },
+      "AlertCreateRequest": {
+        "properties": {
+          "chat_id": {
+            "type": "string"
+          },
+          "events": {
+            "description": "Comma-separated, `*` or empty for all.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "webhook: custom headers (values are secrets, write-only).",
+            "type": "object"
+          },
+          "host": {
+            "description": "email: SMTP host.",
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "password": {
+            "description": "email: SMTP password. Write-only.",
+            "type": "string",
+            "writeOnly": true
+          },
+          "port": {
+            "description": "email: SMTP port (587 default).",
+            "type": "integer"
+          },
+          "secret": {
+            "description": "webhook: HMAC signing secret. Write-only.",
+            "type": "string",
+            "writeOnly": true
+          },
+          "sender": {
+            "type": "string"
+          },
+          "server": {
+            "description": "ntfy server URL.",
+            "type": "string"
+          },
+          "to": {
+            "description": "email: comma-separated addresses.",
+            "type": "string"
+          },
+          "token": {
+            "description": "telegram bot token or ntfy access token. Write-only.",
+            "type": "string",
+            "writeOnly": true
+          },
+          "topic": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "email",
+              "telegram",
+              "ntfy",
+              "webhook",
+              "discord"
+            ],
+            "type": "string"
+          },
+          "url": {
+            "description": "webhook or discord: https URL (http only on loopback).",
+            "type": "string"
+          },
+          "user": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
+      "AlertEvent": {
+        "description": "Event name; `*` means every event.",
+        "enum": [
+          "start",
+          "stop",
+          "crash",
+          "crash_loop",
+          "backup_failed",
+          "update",
+          "sleep",
+          "wake",
+          "*"
+        ],
+        "type": "string"
+      },
+      "AlertList": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "channels": {
+                "items": {
+                  "$ref": "#/components/schemas/AlertChannel"
+                },
+                "type": "array"
+              },
+              "count": {
+                "type": "integer"
+              },
+              "events": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "channels",
+              "count",
+              "events"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "AlertRemoved": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "channel": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "channel"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "AlertTestRequest": {
+        "properties": {
+          "channel": {
+            "description": "Test one channel; all when null.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "AlertTested": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "checks": {
+                "items": {
+                  "properties": {
+                    "channel": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "channel",
+                    "ok"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "failed": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "checks"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/v1/servers/{server}/alerts": {
+      "get": {
+        "operationId": "listAlertChannels",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "channels": [
+                    {
+                      "events": [
+                        "crash",
+                        "backup_failed"
+                      ],
+                      "name": "ntfy",
+                      "secrets_set": [],
+                      "server": "https://ntfy.sh",
+                      "topic": "mc-survie",
+                      "type": "ntfy"
+                    }
+                  ],
+                  "code": "alert_list",
+                  "count": 1,
+                  "events": [
+                    "start",
+                    "stop",
+                    "crash",
+                    "crash_loop",
+                    "backup_failed",
+                    "update",
+                    "sleep",
+                    "wake"
+                  ],
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/AlertList"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Alert channels",
+        "tags": [
+          "alerts"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_api.alert_list"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "422: `bad_type`, `bad_events`, `bad_channel_name`, `missing_host`, `missing_addresses`, `bad_port`, `missing_telegram`, `missing_topic`, `bad_url`. `channel_exists` (409).",
+        "operationId": "addAlertChannel",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "events": "crash,backup_failed",
+                "topic": "mc-survie",
+                "type": "ntfy"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/AlertCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "channel": "ntfy",
+                  "code": "alert_added",
+                  "events": [
+                    "crash",
+                    "backup_failed"
+                  ],
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie",
+                  "type": "ntfy"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/AlertAdded"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Add an alert channel",
+        "tags": [
+          "alerts"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.alert_add"
+        ]
+      }
+    },
+    "/v1/servers/{server}/alerts/test": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Delivery failures answer 200 with `ok:false` and code `alert_test_failed`; `no_channel` and `channel_not_found` are 404.",
+        "operationId": "testAlertChannels",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "channel": "ntfy"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/AlertTestRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "checks": [
+                    {
+                      "channel": "ntfy",
+                      "detail": "",
+                      "ok": true
+                    }
+                  ],
+                  "code": "alert_tested",
+                  "failed": "",
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/AlertTested"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Send a test message",
+        "tags": [
+          "alerts"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_api.alert_test"
+        ]
+      }
+    },
+    "/v1/servers/{server}/alerts/{channel}": {
+      "delete": {
+        "operationId": "removeAlertChannel",
+        "parameters": [
+          {
+            "description": "Channel name (`discord` is the legacy webhook announcement channel, read-only).",
+            "example": "ntfy",
+            "in": "path",
+            "name": "channel",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "channel": "ntfy",
+                  "code": "alert_removed",
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/AlertRemoved"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Remove an alert channel",
+        "tags": [
+          "alerts"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.alert_remove"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ]
+    }
+  }
+}

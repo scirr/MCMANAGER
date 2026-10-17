@@ -1,0 +1,827 @@
+{
+  "components": {
+    "schemas": {
+      "AuditEntry": {
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string"
+          },
+          "device": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "result": {
+            "description": "Result code.",
+            "type": "string"
+          },
+          "server": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "at",
+          "action",
+          "ok"
+        ],
+        "type": "object"
+      },
+      "AuditLog": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "entries": {
+                "items": {
+                  "$ref": "#/components/schemas/AuditEntry"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "entries"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Device": {
+        "description": "A paired device. The token is never listed (stored hashed).",
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_ip": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_seen": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "revoked": {
+            "type": "boolean"
+          },
+          "roles": {
+            "$ref": "#/components/schemas/DeviceRoles"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "roles",
+          "created_at",
+          "last_seen"
+        ],
+        "type": "object"
+      },
+      "DeviceList": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "devices": {
+                "items": {
+                  "$ref": "#/components/schemas/Device"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "devices"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "DeviceRevoked": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "DeviceRoles": {
+        "properties": {
+          "default": {
+            "description": "Role.",
+            "enum": [
+              "viewer",
+              "operator",
+              "admin"
+            ],
+            "type": "string"
+          },
+          "servers": {
+            "additionalProperties": {
+              "description": "Role.",
+              "enum": [
+                "viewer",
+                "operator",
+                "admin"
+              ],
+              "type": "string"
+            },
+            "description": "Role override per server name.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "default"
+        ],
+        "type": "object"
+      },
+      "DeviceRolesRequest": {
+        "properties": {
+          "roles": {
+            "$ref": "#/components/schemas/DeviceRoles"
+          }
+        },
+        "required": [
+          "roles"
+        ],
+        "type": "object"
+      },
+      "PairCode": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "expires_in_s": {
+                "description": "300",
+                "type": "integer"
+              },
+              "pairing_code": {
+                "description": "8 digits, single use.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "pairing_code",
+              "expires_in_s"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PairRequest": {
+        "properties": {
+          "code": {
+            "description": "Pairing code shown by `mc remote pair`.",
+            "pattern": "^[0-9]{8}$",
+            "type": "string"
+          },
+          "name": {
+            "description": "Device name shown in `mc remote devices list`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "type": "object"
+      },
+      "PairResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "device_id": {
+                "type": "string"
+              },
+              "fingerprint": {
+                "description": "SHA-256 fingerprint of the server certificate, to pin (TOFU).",
+                "type": "string"
+              },
+              "roles": {
+                "$ref": "#/components/schemas/DeviceRoles"
+              },
+              "token": {
+                "description": "Device token, 256 bits, returned only here and only once.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "device_id",
+              "token",
+              "fingerprint"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RemoteEnableRequest": {
+        "properties": {
+          "bind": {
+            "description": "host:port, default 0.0.0.0:8765.",
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "RemoteStatus": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "bind": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "devices": {
+                "type": "integer"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "fingerprint": {
+                "description": "SHA-256 fingerprint of the self-signed certificate.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "tls": {
+                "description": "Certificate generator: cryptography, openssl or null.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "enabled"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/v1/audit": {
+      "get": {
+        "description": "Content of logs/audit.log.",
+        "operationId": "listAuditLog",
+        "parameters": [
+          {
+            "description": "Entries returned, newest first (default 100, maximum 1000).",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 1000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Filter by device id.",
+            "in": "query",
+            "name": "device",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by server name.",
+            "in": "query",
+            "name": "server",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "audit_log",
+                  "entries": [
+                    {
+                      "action": "stopServer",
+                      "at": "2026-10-08T10:00:03Z",
+                      "device": "d_7f3a",
+                      "ok": true,
+                      "result": "stopped",
+                      "server": "survie"
+                    }
+                  ],
+                  "ok": true,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLog"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Audit log",
+        "tags": [
+          "remote"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": []
+      }
+    },
+    "/v1/devices": {
+      "get": {
+        "operationId": "listDevices",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "device_list",
+                  "devices": [
+                    {
+                      "created_at": "2026-10-08T09:00:00Z",
+                      "id": "d_7f3a",
+                      "last_ip": "203.0.113.7",
+                      "last_seen": "2026-10-08T10:00:00Z",
+                      "name": "Phone de Cris",
+                      "revoked": false,
+                      "roles": {
+                        "default": "viewer",
+                        "servers": {
+                          "survie": "operator"
+                        }
+                      }
+                    }
+                  ],
+                  "ok": true,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceList"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Paired devices",
+        "tags": [
+          "remote"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": []
+      }
+    },
+    "/v1/devices/{device}": {
+      "delete": {
+        "description": "Takes effect immediately; open streams are closed.",
+        "operationId": "revokeDevice",
+        "parameters": [
+          {
+            "description": "Device id.",
+            "example": "d_7f3a",
+            "in": "path",
+            "name": "device",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "device_revoked",
+                  "id": "d_7f3a",
+                  "ok": true,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceRevoked"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Revoke a device",
+        "tags": [
+          "remote"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": []
+      }
+    },
+    "/v1/devices/{device}/roles": {
+      "put": {
+        "operationId": "setDeviceRoles",
+        "parameters": [
+          {
+            "description": "Device id.",
+            "example": "d_7f3a",
+            "in": "path",
+            "name": "device",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "roles": {
+                  "default": "viewer",
+                  "servers": {
+                    "survie": "operator"
+                  }
+                }
+              },
+              "schema": {
+                "$ref": "#/components/schemas/DeviceRolesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "device_updated",
+                  "created_at": "2026-10-08T09:00:00Z",
+                  "id": "d_7f3a",
+                  "last_seen": null,
+                  "name": "Phone de Cris",
+                  "ok": true,
+                  "roles": {
+                    "default": "viewer",
+                    "servers": {
+                      "survie": "operator"
+                    }
+                  },
+                  "schema": 1
+                },
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Result"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Device"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Set the roles of a device",
+        "tags": [
+          "remote"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": []
+      }
+    },
+    "/v1/pair": {
+      "post": {
+        "description": "No bearer token needed. `bad_pair_code` (422). Ten failures from one IP lock pairing for 15 minutes (429 `pair_locked`). New devices get the default role `viewer`; an admin raises it.",
+        "operationId": "pairDevice",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "code": "48201937",
+                "name": "Phone de Cris"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/PairRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "paired",
+                  "device_id": "d_7f3a",
+                  "fingerprint": "9F:2A:...:C1",
+                  "ok": true,
+                  "roles": {
+                    "default": "viewer"
+                  },
+                  "schema": 1,
+                  "token": "mcm_Zk3x...redacted"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PairResult"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "security": [],
+        "summary": "Exchange a pairing code for a device token",
+        "tags": [
+          "remote"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": []
+      }
+    },
+    "/v1/pair/codes": {
+      "post": {
+        "description": "Local socket only. The code is valid 5 minutes and single use.",
+        "operationId": "createPairingCode",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "pair_code",
+                  "expires_in_s": 300,
+                  "ok": true,
+                  "pairing_code": "48201937",
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PairCode"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Generate a pairing code",
+        "tags": [
+          "remote"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": []
+      }
+    },
+    "/v1/remote": {
+      "get": {
+        "operationId": "getRemoteStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "bind": "0.0.0.0:8765",
+                  "code": "remote_status",
+                  "devices": 2,
+                  "enabled": true,
+                  "fingerprint": "9F:2A:...:C1",
+                  "ok": true,
+                  "schema": 1,
+                  "tls": "openssl"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RemoteStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Remote access status",
+        "tags": [
+          "remote"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_ipc.daemon_listening"
+        ]
+      },
+      "put": {
+        "description": "Local socket only (403 from a remote device). Generates the certificate on first use; `tls_unavailable` (422) when neither the cryptography module nor openssl exists.",
+        "operationId": "setRemoteAccess",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "bind": "0.0.0.0:8765",
+                "enabled": true
+              },
+              "schema": {
+                "$ref": "#/components/schemas/RemoteEnableRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "bind": "0.0.0.0:8765",
+                  "code": "remote_enabled",
+                  "devices": 0,
+                  "enabled": true,
+                  "fingerprint": "9F:2A:...:C1",
+                  "ok": true,
+                  "schema": 1,
+                  "tls": "openssl"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RemoteStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Enable or disable remote access",
+        "tags": [
+          "remote"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": []
+      }
+    }
+  }
+}

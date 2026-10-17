@@ -1,0 +1,647 @@
+{
+  "components": {
+    "schemas": {
+      "Task": {
+        "properties": {
+          "action": {
+            "enum": [
+              "restart",
+              "backup",
+              "command",
+              "stop",
+              "start"
+            ],
+            "type": "string"
+          },
+          "command": {
+            "description": "Action command only.",
+            "type": "string"
+          },
+          "cron": {
+            "description": "Five-field cron expression.",
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "last_result": {
+            "description": "Outcome of the last run.",
+            "oneOf": [
+              {
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "ok": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "ok",
+                  "code"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_run": {
+            "description": "ISO 8601 local time.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_run_ts": {
+            "description": "Epoch seconds.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "next_run": {
+            "description": "ISO 8601 local time.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "next_run_ts": {
+            "description": "Epoch seconds.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "warn": {
+            "description": "Seconds before the action at which players are warned, largest first.",
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "cron",
+          "action",
+          "enabled",
+          "last_run",
+          "last_result",
+          "next_run_ts",
+          "last_run_ts"
+        ],
+        "type": "object"
+      },
+      "TaskCreateRequest": {
+        "properties": {
+          "action": {
+            "enum": [
+              "restart",
+              "backup",
+              "command",
+              "stop",
+              "start"
+            ],
+            "type": "string"
+          },
+          "command": {
+            "description": "Required for the command action, forbidden otherwise.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cron": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "warn": {
+            "description": "Durations such as 10m,5m,1m; restart and stop only.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "cron",
+          "action"
+        ],
+        "type": "object"
+      },
+      "TaskCreated": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "id": {
+                "description": "Same as `task.id`.",
+                "type": "integer"
+              },
+              "name": {
+                "description": "Same as `task.name`.",
+                "type": "string"
+              },
+              "next_run": {
+                "description": "Same as `task.next_run`.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "task": {
+                "$ref": "#/components/schemas/Task"
+              }
+            },
+            "required": [
+              "task"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "TaskList": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "tasks": {
+                "items": {
+                  "$ref": "#/components/schemas/Task"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "tasks"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "TaskPatchRequest": {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "TaskRunRequest": {
+        "properties": {
+          "skip_warn": {
+            "description": "Do not wait for the warning countdown.",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      }
+    }
+  },
+  "paths": {
+    "/v1/servers/{server}/tasks": {
+      "get": {
+        "operationId": "listTasks",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "task_list",
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie",
+                  "tasks": [
+                    {
+                      "action": "restart",
+                      "cron": "0 4 * * *",
+                      "enabled": true,
+                      "id": 1,
+                      "last_result": {
+                        "code": "task_restart_done",
+                        "ok": true
+                      },
+                      "last_run": "2026-10-08T04:00:00",
+                      "last_run_ts": 1791374400,
+                      "name": "restart-1",
+                      "next_run": "2026-10-09T04:00:00",
+                      "next_run_ts": 1791460800,
+                      "warn": [
+                        300,
+                        60
+                      ]
+                    }
+                  ]
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/TaskList"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Scheduled tasks",
+        "tags": [
+          "tasks"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_api.task_list"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "422: `invalid_cron`, `invalid_action`, `command_required`, `command_not_allowed`, `invalid_warn`, `warn_not_allowed`. `task_name_taken` (409).",
+        "operationId": "createTask",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "action": "restart",
+                "cron": "0 4 * * *",
+                "name": "restart-nightly",
+                "warn": "5m,1m"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/TaskCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "task_added",
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie",
+                  "task": {
+                    "action": "restart",
+                    "cron": "0 4 * * *",
+                    "enabled": true,
+                    "id": 2,
+                    "last_result": null,
+                    "last_run": null,
+                    "last_run_ts": null,
+                    "name": "restart-nightly",
+                    "next_run": "2026-10-09T04:00:00",
+                    "next_run_ts": 1791460800,
+                    "warn": [
+                      300,
+                      60
+                    ]
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCreated"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Add a scheduled task",
+        "tags": [
+          "tasks"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.task_add"
+        ]
+      }
+    },
+    "/v1/servers/{server}/tasks/{task}": {
+      "delete": {
+        "description": "`task_not_found` (404).",
+        "operationId": "deleteTask",
+        "parameters": [
+          {
+            "description": "Task id or name.",
+            "example": "3",
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "task_removed",
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie",
+                  "task": {
+                    "action": "restart",
+                    "cron": "0 4 * * *",
+                    "enabled": true,
+                    "id": 2,
+                    "last_result": null,
+                    "last_run": null,
+                    "last_run_ts": null,
+                    "name": "restart-nightly",
+                    "next_run_ts": null
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCreated"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Delete a task",
+        "tags": [
+          "tasks"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.task_remove"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "patch": {
+        "operationId": "updateTask",
+        "parameters": [
+          {
+            "description": "Task id or name.",
+            "example": "3",
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "enabled": false
+              },
+              "schema": {
+                "$ref": "#/components/schemas/TaskPatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "task_disabled",
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie",
+                  "task": {
+                    "action": "restart",
+                    "cron": "0 4 * * *",
+                    "enabled": false,
+                    "id": 2,
+                    "last_result": null,
+                    "last_run": null,
+                    "last_run_ts": null,
+                    "name": "restart-nightly",
+                    "next_run_ts": null
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCreated"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Enable or disable a task",
+        "tags": [
+          "tasks"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.task_enable"
+        ]
+      }
+    },
+    "/v1/servers/{server}/tasks/{task}/run": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Job result code is the task outcome (task_backup_done, task_command_done, task_restart_done, blocked_by_maintenance...). The outcome is stored in the task.",
+        "operationId": "runTask",
+        "parameters": [
+          {
+            "description": "Task id or name.",
+            "example": "3",
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "skip_warn": true
+              },
+              "schema": {
+                "$ref": "#/components/schemas/TaskRunRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": null,
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_runtask",
+                  "kind": "runTask",
+                  "progress": 0,
+                  "result": null,
+                  "server": null,
+                  "state": "running",
+                  "updated_at": "2026-10-08T10:00:00Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Operation accepted; follow it on the job.",
+            "headers": {
+              "Location": {
+                "description": "URL of the job.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Run a task now",
+        "tags": [
+          "tasks"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_api.task_run",
+          "mc_api.task_find"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,628 @@
+{
+  "components": {
+    "schemas": {
+      "ConsoleCommand": {
+        "properties": {
+          "command": {
+            "description": "Command without the leading slash.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command"
+        ],
+        "type": "object"
+      },
+      "ConsoleReply": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "output": {
+                "description": "Raw RCON reply (may be empty: say and many commands answer nothing).",
+                "type": "string"
+              }
+            },
+            "required": [
+              "output"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Event": {
+        "description": "JSON carried in the `data:` field of each SSE message; the SSE `event:` name equals `type`.",
+        "discriminator": {
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/EventState"
+          },
+          {
+            "$ref": "#/components/schemas/EventPlayers"
+          },
+          {
+            "$ref": "#/components/schemas/EventAlert"
+          },
+          {
+            "$ref": "#/components/schemas/EventJob"
+          }
+        ]
+      },
+      "EventAlert": {
+        "description": "An alert event was raised.",
+        "properties": {
+          "at": {
+            "type": "string"
+          },
+          "detail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "event": {
+            "enum": [
+              "start",
+              "stop",
+              "crash",
+              "crash_loop",
+              "backup_failed",
+              "update",
+              "sleep",
+              "wake"
+            ],
+            "type": "string"
+          },
+          "server": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "alert"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "server",
+          "event",
+          "at"
+        ],
+        "type": "object"
+      },
+      "EventJob": {
+        "description": "A job changed state or progress.",
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/Job"
+          },
+          "type": {
+            "enum": [
+              "job"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "job"
+        ],
+        "type": "object"
+      },
+      "EventPlayers": {
+        "description": "Player list changed.",
+        "properties": {
+          "at": {
+            "type": "string"
+          },
+          "joined": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "left": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "max": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "online": {
+            "type": "integer"
+          },
+          "players": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "server": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "players"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "server",
+          "online",
+          "players",
+          "at"
+        ],
+        "type": "object"
+      },
+      "EventState": {
+        "description": "A server changed state.",
+        "properties": {
+          "at": {
+            "type": "string"
+          },
+          "previous": {
+            "description": "Previous state.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "server": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ServerState"
+          },
+          "type": {
+            "enum": [
+              "state"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "server",
+          "state",
+          "at"
+        ],
+        "type": "object"
+      },
+      "JobCancelled": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/v1/events": {
+      "get": {
+        "description": "Long-lived `text/event-stream`. Events: state, players, alert, job (progress of long operations). A comment line `: keepalive` is sent every 15 s. Counts against the 20 req/s limit once, not per event.",
+        "operationId": "streamEvents",
+        "parameters": [
+          {
+            "description": "Resume after this event id.",
+            "in": "header",
+            "name": "Last-Event-ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Comma-separated server names to follow (default: every server the device may read).",
+            "example": "survie",
+            "in": "query",
+            "name": "servers",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "example": "id: 41\nevent: state\ndata: {\"type\":\"state\",\"server\":\"survie\",\"state\":\"running\",\"previous\":\"starting\",\"at\":\"2026-10-08T10:00:31Z\"}\n\n",
+                "schema": {
+                  "contentMediaType": "application/json",
+                  "contentSchema": {
+                    "$ref": "#/components/schemas/Event"
+                  },
+                  "description": "SSE messages whose data is an Event.",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Event stream."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Event stream (Server-Sent Events)",
+        "tags": [
+          "events"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": []
+      }
+    },
+    "/v1/jobs": {
+      "get": {
+        "operationId": "listJobs",
+        "parameters": [
+          {
+            "description": "Filter by state.",
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "enum": [
+                "queued",
+                "running",
+                "succeeded",
+                "failed",
+                "cancelled"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "jobs",
+                  "jobs": [
+                    {
+                      "code": null,
+                      "created_at": "2026-10-08T10:00:00Z",
+                      "id": "j_01",
+                      "kind": "createBackup",
+                      "progress": 40,
+                      "result": null,
+                      "server": "survie",
+                      "state": "running",
+                      "updated_at": "2026-10-08T10:00:05Z"
+                    }
+                  ],
+                  "ok": true,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/JobList"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Running and recent jobs",
+        "tags": [
+          "events"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": []
+      }
+    },
+    "/v1/jobs/{job}": {
+      "delete": {
+        "description": "`job_finished` (409) when the job already ended. Operations that cannot be interrupted safely (restore, upgrade) answer `not_cancellable` (409).",
+        "operationId": "cancelJob",
+        "parameters": [
+          {
+            "description": "Job id.",
+            "example": "j_01",
+            "in": "path",
+            "name": "job",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "job_cancelled",
+                  "id": "j_01",
+                  "ok": true,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/JobCancelled"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Cancel a running job",
+        "tags": [
+          "events"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": []
+      },
+      "get": {
+        "description": "Finished jobs are kept for 24 hours. Poll, or follow the `job` events of /v1/events.",
+        "operationId": "getJob",
+        "parameters": [
+          {
+            "description": "Job id.",
+            "example": "j_01",
+            "in": "path",
+            "name": "job",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "backup_done",
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_01",
+                  "kind": "createBackup",
+                  "progress": 100,
+                  "result": {
+                    "code": "backup_done",
+                    "ok": true,
+                    "schema": 1,
+                    "server": "survie"
+                  },
+                  "server": "survie",
+                  "state": "succeeded",
+                  "updated_at": "2026-10-08T10:02:10Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "State and progress of a job",
+        "tags": [
+          "events"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": []
+      }
+    },
+    "/v1/servers/{server}/console": {
+      "get": {
+        "description": "One `line` event per log line (`data` is the raw text). At most 3 simultaneous streams per device, otherwise 429.",
+        "operationId": "streamConsole",
+        "parameters": [
+          {
+            "description": "Resume after this event id.",
+            "in": "header",
+            "name": "Last-Event-ID",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Lines of history sent first (default 50, maximum 1000).",
+            "in": "query",
+            "name": "tail",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "example": "event: line\ndata: [10:00:31] [Server thread/INFO]: Done (8.2s)! For help, type \"help\"\n\n",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Log stream."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Server log lines (Server-Sent Events)",
+        "tags": [
+          "events"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_api.rcon_exec"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Retries RCON for 5 s while the server starts, then `rcon_failed` (503). `console_offline` (409) when the server is stopped. Every command is written to the audit log.",
+        "operationId": "sendConsoleCommand",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "command": "list"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ConsoleCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "console_reply",
+                  "ok": true,
+                  "output": "There are 2 of a max of 20 players online: Steve, Alex",
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ConsoleReply"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Run a command over RCON",
+        "tags": [
+          "events"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_api.rcon_exec"
+        ]
+      }
+    }
+  }
+}

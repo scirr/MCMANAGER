@@ -1,0 +1,959 @@
+{
+  "components": {
+    "schemas": {
+      "RouterAccessRequest": {
+        "properties": {
+          "action": {
+            "enum": [
+              "add",
+              "remove"
+            ],
+            "type": "string"
+          },
+          "cidr": {
+            "description": "Address or CIDR range.",
+            "type": "string"
+          },
+          "list": {
+            "enum": [
+              "allow",
+              "deny"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "list",
+          "action",
+          "cidr"
+        ],
+        "type": "object"
+      },
+      "RouterConfig": {
+        "properties": {
+          "allow": {
+            "description": "CIDR ranges allowed; empty allows everyone.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "bind_host": {
+            "type": "string"
+          },
+          "default": {
+            "description": "Server answering unknown hosts.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "deny": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "max_connections": {
+            "type": "integer"
+          },
+          "per_ip": {
+            "type": "integer"
+          },
+          "per_second": {
+            "type": "integer"
+          },
+          "port": {
+            "description": "Public port the router listens on.",
+            "type": "integer"
+          },
+          "proxy_in": {
+            "description": "Accept the PROXY protocol from trusted proxies.",
+            "type": "boolean"
+          },
+          "proxy_out": {
+            "description": "Forward connections to the servers with the PROXY protocol.",
+            "type": "boolean"
+          },
+          "routes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Host name to server name.",
+            "type": "object"
+          },
+          "trusted_proxies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "enabled",
+          "port",
+          "bind_host",
+          "routes",
+          "default",
+          "allow",
+          "deny",
+          "max_connections",
+          "per_ip",
+          "per_second",
+          "proxy_in",
+          "trusted_proxies",
+          "proxy_out"
+        ],
+        "type": "object"
+      },
+      "RouterEnableRequest": {
+        "properties": {
+          "per_ip": {
+            "type": "integer"
+          },
+          "per_second": {
+            "type": "integer"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "proxy_in": {
+            "type": "boolean"
+          },
+          "proxy_out": {
+            "type": "boolean"
+          },
+          "trusted_proxies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "RouterStatus": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "config": {
+                "$ref": "#/components/schemas/RouterConfig"
+              },
+              "notes": {
+                "description": "Messages about servers moved behind the router or put back on their public port.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "pending_restart": {
+                "description": "Servers started before their port settings last changed: they have to be restarted.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "released": {
+                "description": "Servers put back on their public port by this change.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "restart_required": {
+                "description": "This change needs a restart of at least one server.",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "config",
+              "pending_restart"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RouterTargetRequest": {
+        "properties": {
+          "server": {
+            "description": "Server name or id.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "server"
+        ],
+        "type": "object"
+      },
+      "StatusPageDisabled": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "path": {
+                "description": "Folder whose page was removed; absent when the page was already off (`status_page_already_off`).",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
+      "StatusPageEnabled": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "interval": {
+                "description": "Seconds.",
+                "type": "integer"
+              },
+              "path": {
+                "type": "string"
+              },
+              "players": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "path",
+              "interval",
+              "players"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "StatusPageRequest": {
+        "properties": {
+          "dir": {
+            "description": "Output folder (default: status_page in the server folder).",
+            "type": "string"
+          },
+          "interval_s": {
+            "description": "Refresh period, at least 10 (default 60).",
+            "type": "integer"
+          },
+          "show_players": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      }
+    }
+  },
+  "paths": {
+    "/v1/router": {
+      "get": {
+        "description": "Hostname router in front of several servers. `pending_restart` lists the servers that have to be restarted for a port change to apply.",
+        "operationId": "getRouter",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "router_status",
+                  "config": {
+                    "allow": [],
+                    "bind_host": "0.0.0.0",
+                    "default": "survie",
+                    "deny": [],
+                    "enabled": true,
+                    "max_connections": 128,
+                    "per_ip": 16,
+                    "per_second": 8,
+                    "port": 25565,
+                    "proxy_in": false,
+                    "proxy_out": false,
+                    "routes": {
+                      "survie.example.org": "survie"
+                    },
+                    "trusted_proxies": []
+                  },
+                  "notes": [],
+                  "ok": true,
+                  "pending_restart": [],
+                  "released": [],
+                  "restart_required": false,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RouterStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Router configuration and pending restarts",
+        "tags": [
+          "router"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_api.router_command"
+        ]
+      }
+    },
+    "/v1/router/access": {
+      "post": {
+        "operationId": "editRouterAccess",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "action": "add",
+                "cidr": "203.0.113.0/24",
+                "list": "deny"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/RouterAccessRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "router_updated",
+                  "config": {
+                    "allow": [],
+                    "bind_host": "0.0.0.0",
+                    "default": "survie",
+                    "deny": [
+                      "203.0.113.0/24"
+                    ],
+                    "enabled": true,
+                    "max_connections": 128,
+                    "per_ip": 16,
+                    "per_second": 8,
+                    "port": 25565,
+                    "proxy_in": false,
+                    "proxy_out": false,
+                    "routes": {
+                      "survie.example.org": "survie"
+                    },
+                    "trusted_proxies": []
+                  },
+                  "notes": [],
+                  "ok": true,
+                  "pending_restart": [],
+                  "released": [],
+                  "restart_required": false,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RouterStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Add or remove an allow/deny range",
+        "tags": [
+          "router"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.router_command"
+        ]
+      }
+    },
+    "/v1/router/default": {
+      "put": {
+        "operationId": "setRouterDefault",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "server": "survie"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/RouterTargetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "router_updated",
+                  "config": {
+                    "allow": [],
+                    "bind_host": "0.0.0.0",
+                    "default": "survie",
+                    "deny": [],
+                    "enabled": true,
+                    "max_connections": 128,
+                    "per_ip": 16,
+                    "per_second": 8,
+                    "port": 25565,
+                    "proxy_in": false,
+                    "proxy_out": false,
+                    "routes": {
+                      "survie.example.org": "survie"
+                    },
+                    "trusted_proxies": []
+                  },
+                  "notes": [],
+                  "ok": true,
+                  "pending_restart": [],
+                  "released": [],
+                  "restart_required": false,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RouterStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Set the default server",
+        "tags": [
+          "router"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.router_command"
+        ]
+      }
+    },
+    "/v1/router/disable": {
+      "post": {
+        "description": "Servers that are no longer behind the router nor in hold mode are put back on their public port (`released`); they need a restart.",
+        "operationId": "disableRouter",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "router_updated",
+                  "config": {
+                    "allow": [],
+                    "bind_host": "0.0.0.0",
+                    "default": "survie",
+                    "deny": [],
+                    "enabled": false,
+                    "max_connections": 128,
+                    "per_ip": 16,
+                    "per_second": 8,
+                    "port": 25565,
+                    "proxy_in": false,
+                    "proxy_out": false,
+                    "routes": {
+                      "survie.example.org": "survie"
+                    },
+                    "trusted_proxies": []
+                  },
+                  "notes": [
+                    "survie: back on its public port 25565."
+                  ],
+                  "ok": true,
+                  "pending_restart": [
+                    "survie"
+                  ],
+                  "released": [
+                    "survie"
+                  ],
+                  "restart_required": true,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RouterStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Disable the router",
+        "tags": [
+          "router"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.router_command"
+        ]
+      }
+    },
+    "/v1/router/enable": {
+      "post": {
+        "description": "`router_port_conflict` (409) when the port is a game or RCON port of a server; `router_usage` (422) for an invalid option. Servers behind the router need a restart.",
+        "operationId": "enableRouter",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "port": 25565,
+                "proxy_in": false
+              },
+              "schema": {
+                "$ref": "#/components/schemas/RouterEnableRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "router_updated",
+                  "config": {
+                    "allow": [],
+                    "bind_host": "0.0.0.0",
+                    "default": "survie",
+                    "deny": [],
+                    "enabled": true,
+                    "max_connections": 128,
+                    "per_ip": 16,
+                    "per_second": 8,
+                    "port": 25565,
+                    "proxy_in": false,
+                    "proxy_out": false,
+                    "routes": {
+                      "survie.example.org": "survie"
+                    },
+                    "trusted_proxies": []
+                  },
+                  "notes": [
+                    "survie: moved to internal port 25570."
+                  ],
+                  "ok": true,
+                  "pending_restart": [
+                    "survie"
+                  ],
+                  "released": [],
+                  "restart_required": true,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RouterStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Enable the router",
+        "tags": [
+          "router"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.router_command"
+        ]
+      }
+    },
+    "/v1/router/routes/{host}": {
+      "delete": {
+        "description": "A server left without route or default is put back on its public port (`released`) and needs a restart.",
+        "operationId": "removeRouterRoute",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "router_updated",
+                  "config": {
+                    "allow": [],
+                    "bind_host": "0.0.0.0",
+                    "default": null,
+                    "deny": [],
+                    "enabled": true,
+                    "max_connections": 128,
+                    "per_ip": 16,
+                    "per_second": 8,
+                    "port": 25565,
+                    "proxy_in": false,
+                    "proxy_out": false,
+                    "routes": {},
+                    "trusted_proxies": []
+                  },
+                  "notes": [],
+                  "ok": true,
+                  "pending_restart": [],
+                  "released": [
+                    "survie"
+                  ],
+                  "restart_required": true,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RouterStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Remove a route",
+        "tags": [
+          "router"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.router_command"
+        ]
+      },
+      "parameters": [
+        {
+          "description": "Host name clients connect to (case-insensitive, no port).",
+          "example": "survie.example.org",
+          "in": "path",
+          "name": "host",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "description": "The server is moved behind the router: a restart is required (`restart_required`).",
+        "operationId": "setRouterRoute",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "server": "survie"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/RouterTargetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "router_updated",
+                  "config": {
+                    "allow": [],
+                    "bind_host": "0.0.0.0",
+                    "default": "survie",
+                    "deny": [],
+                    "enabled": true,
+                    "max_connections": 128,
+                    "per_ip": 16,
+                    "per_second": 8,
+                    "port": 25565,
+                    "proxy_in": false,
+                    "proxy_out": false,
+                    "routes": {
+                      "survie.example.org": "survie"
+                    },
+                    "trusted_proxies": []
+                  },
+                  "notes": [],
+                  "ok": true,
+                  "pending_restart": [
+                    "survie"
+                  ],
+                  "released": [],
+                  "restart_required": true,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RouterStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Route a host name to a server",
+        "tags": [
+          "router"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.router_command"
+        ]
+      }
+    },
+    "/v1/servers/{server}/status-page": {
+      "delete": {
+        "operationId": "disableStatusPage",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "status_page_disabled",
+                  "ok": true,
+                  "path": "/home/mc/survie/status_page",
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/StatusPageDisabled"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Disable the static status page",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.statuspage_disable"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "put": {
+        "description": "`status_page_interval_too_short` (422) below 10 seconds; `status_page_unwritable` (500).",
+        "operationId": "enableStatusPage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "interval_s": 60,
+                "show_players": false
+              },
+              "schema": {
+                "$ref": "#/components/schemas/StatusPageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "status_page_enabled",
+                  "interval": 60,
+                  "ok": true,
+                  "path": "/home/mc/survie/status_page",
+                  "players": false,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/StatusPageEnabled"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Enable the static status page",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.statuspage_enable"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,934 @@
+{
+  "components": {
+    "schemas": {
+      "Backup": {
+        "properties": {
+          "created": {
+            "description": "ISO 8601 local time, seconds.",
+            "type": "string"
+          },
+          "created_ts": {
+            "description": "Epoch seconds.",
+            "type": "integer"
+          },
+          "encrypted": {
+            "type": "boolean"
+          },
+          "file": {
+            "type": "string"
+          },
+          "id": {
+            "description": "Archive id (file name without extension).",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "size": {
+            "description": "Bytes.",
+            "type": "integer"
+          },
+          "type": {
+            "description": "Kind derived from the name: midi, minuit, manual, pre-restore, upgrade...",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "file",
+          "path",
+          "size",
+          "type",
+          "created",
+          "encrypted",
+          "created_ts"
+        ],
+        "type": "object"
+      },
+      "BackupCreated": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "backup": {
+                "description": "Archive id.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "created_ts": {
+                "description": "Epoch seconds.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "message": {
+                "description": "Outcome text, remote upload failures included.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "path": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
+      "BackupList": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "backups": {
+                "description": "Newest first.",
+                "items": {
+                  "$ref": "#/components/schemas/Backup"
+                },
+                "type": "array"
+              },
+              "count": {
+                "type": "integer"
+              },
+              "keep": {
+                "description": "0 = unlimited.",
+                "type": "integer"
+              },
+              "remotes": {
+                "description": "Names of the configured destinations.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "retention_days": {
+                "description": "0 = unlimited.",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "backups",
+              "count"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "BackupRemote": {
+        "description": "Credentials, key and password file paths are never returned; `secrets_set` names the ones configured (`access_key`, `secret_key`, `password`, `key`, `password_file`).",
+        "properties": {
+          "bucket": {
+            "type": "string"
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "path_style": {
+            "type": "boolean"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "region": {
+            "type": "string"
+          },
+          "repo": {
+            "type": "string"
+          },
+          "secrets_set": {
+            "description": "Names of the secret fields that are configured (never their value).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "target": {
+            "description": "Readable address (sftp://user@host:22/path, s3://bucket/prefix, restic:repo).",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "sftp",
+              "s3",
+              "restic"
+            ],
+            "type": "string"
+          },
+          "user": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "target"
+        ],
+        "type": "object"
+      },
+      "BackupRemoteAddRequest": {
+        "properties": {
+          "access_key": {
+            "description": "S3 access key id. Write-only.",
+            "type": "string",
+            "writeOnly": true
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "key": {
+            "description": "SFTP: private key file path on the host.",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "password": {
+            "description": "Restic repository password. Write-only.",
+            "type": "string",
+            "writeOnly": true
+          },
+          "password_file": {
+            "description": "Restic: existing password file on the host.",
+            "type": "string"
+          },
+          "path_style": {
+            "type": "boolean"
+          },
+          "region": {
+            "type": "string"
+          },
+          "secret_key": {
+            "description": "S3 secret key. Write-only.",
+            "type": "string",
+            "writeOnly": true
+          },
+          "url": {
+            "description": "sftp://user@host:22/path, s3://bucket/prefix or restic:<repo>.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url"
+        ],
+        "type": "object"
+      },
+      "BackupRemoteAdded": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "remote": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "remote",
+              "type",
+              "target"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "BackupRemoteList": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "count": {
+                "type": "integer"
+              },
+              "encrypted": {
+                "description": "A backup encryption key file is configured.",
+                "type": "boolean"
+              },
+              "remotes": {
+                "items": {
+                  "$ref": "#/components/schemas/BackupRemote"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "remotes",
+              "count",
+              "encrypted"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "BackupRemoteRemoved": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "remote": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "remote"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "BackupRestoreRequest": {
+        "properties": {
+          "confirm": {
+            "description": "Must be true: the current world is replaced.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "confirm"
+        ],
+        "type": "object"
+      },
+      "BackupRestored": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "backup": {
+                "type": "string"
+              },
+              "restored": {
+                "description": "Folders replaced.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "safety": {
+                "description": "Pre-restore archive kept.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "backup"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "CheckList": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "checks": {
+                "items": {
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "remote": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "failed": {
+                "description": "Names of the failed checks, comma-separated.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "checks"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RemoteTestRequest": {
+        "properties": {
+          "remote": {
+            "description": "Test one destination; all when null.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      }
+    }
+  },
+  "paths": {
+    "/v1/servers/{server}/backups": {
+      "get": {
+        "operationId": "listBackups",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "backups": [
+                    {
+                      "created": "2026-10-08T12:00:03",
+                      "created_ts": 1791460803,
+                      "encrypted": false,
+                      "file": "survie_midi_2026-10-08_12-00.zip",
+                      "id": "survie_midi_2026-10-08_12-00",
+                      "path": "/home/mc/Backup/survie_midi_2026-10-08_12-00.zip",
+                      "size": 1288490188,
+                      "type": "midi"
+                    }
+                  ],
+                  "code": "backup_list",
+                  "count": 1,
+                  "keep": 3,
+                  "ok": true,
+                  "remotes": [
+                    "offsite"
+                  ],
+                  "retention_days": 0,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/BackupList"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Local backup archives",
+        "tags": [
+          "backups"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_api.backup_list"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Same as `mc backup`: freezes saving, archives the world, applies retention, pushes to remote destinations. Job result: BackupCreated (`backup_created` or `backup_error`, `ok:false` on error).",
+        "operationId": "createBackup",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": null,
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_createbackup",
+                  "kind": "createBackup",
+                  "progress": 0,
+                  "result": null,
+                  "server": null,
+                  "state": "running",
+                  "updated_at": "2026-10-08T10:00:00Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Operation accepted; follow it on the job.",
+            "headers": {
+              "Location": {
+                "description": "URL of the job.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Create a backup now",
+        "tags": [
+          "backups"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_core.backup_server",
+          "mc_api.backup_now"
+        ]
+      }
+    },
+    "/v1/servers/{server}/backups/remotes": {
+      "get": {
+        "operationId": "listBackupRemotes",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "backup_remote_list",
+                  "count": 1,
+                  "encrypted": true,
+                  "ok": true,
+                  "remotes": [
+                    {
+                      "bucket": "mc-backups",
+                      "name": "offsite",
+                      "prefix": "survie",
+                      "region": "eu-west-3",
+                      "secrets_set": [
+                        "secret_key"
+                      ],
+                      "target": "s3://mc-backups/survie",
+                      "type": "s3"
+                    }
+                  ],
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/BackupRemoteList"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Remote backup destinations",
+        "tags": [
+          "backups"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_api.backup_remote_list"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "`remote_exists` (409); 422: `bad_remote_name`, `bad_remote_url`, `bad_url`, `key_not_found`, `s3_credentials_missing`, `restic_password_missing`.",
+        "operationId": "addBackupRemote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "access_key": "AKIA...",
+                "name": "offsite",
+                "region": "eu-west-3",
+                "secret_key": "...",
+                "url": "s3://mc-backups/survie"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/BackupRemoteAddRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "backup_remote_added",
+                  "ok": true,
+                  "remote": "offsite",
+                  "schema": 1,
+                  "server": "survie",
+                  "target": "s3://mc-backups/survie",
+                  "type": "s3"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/BackupRemoteAdded"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Add a remote destination",
+        "tags": [
+          "backups"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.backup_remote_add"
+        ]
+      }
+    },
+    "/v1/servers/{server}/backups/remotes/test": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "A failing check answers 200 with `ok:false` and code `backup_remote_test_failed`; `no_remote` and `remote_not_found` are 404.",
+        "operationId": "testBackupRemotes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "remote": "offsite"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/RemoteTestRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "checks": [
+                    {
+                      "detail": "",
+                      "ok": true,
+                      "remote": "offsite"
+                    }
+                  ],
+                  "code": "backup_remote_tested",
+                  "failed": "",
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/CheckList"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Check that destinations are reachable",
+        "tags": [
+          "backups"
+        ],
+        "x-mcm-role": "operator",
+        "x-mcm-source": [
+          "mc_api.backup_remote_test"
+        ]
+      }
+    },
+    "/v1/servers/{server}/backups/remotes/{remote}": {
+      "delete": {
+        "operationId": "removeBackupRemote",
+        "parameters": [
+          {
+            "description": "Destination name (letters, digits, - and _, 32 characters at most).",
+            "example": "offsite",
+            "in": "path",
+            "name": "remote",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "backup_remote_removed",
+                  "ok": true,
+                  "remote": "offsite",
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/BackupRemoteRemoved"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Remove a remote destination",
+        "tags": [
+          "backups"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.backup_remote_remove"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ]
+    },
+    "/v1/servers/{server}/backups/{backup}/restore": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Job result: BackupRestored. `confirm_required` (422) without confirmation. `server_running` and `stop_first` (409): the server must be in maintenance. `backup_not_found` (404), `encrypt_key_missing`, `safety_backup_failed`.",
+        "operationId": "restoreBackup",
+        "parameters": [
+          {
+            "description": "Archive id, file name or `latest`.",
+            "example": "latest",
+            "in": "path",
+            "name": "backup",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "confirm": true
+              },
+              "schema": {
+                "$ref": "#/components/schemas/BackupRestoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": null,
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_restorebacku",
+                  "kind": "restoreBackup",
+                  "progress": 0,
+                  "result": null,
+                  "server": null,
+                  "state": "running",
+                  "updated_at": "2026-10-08T10:00:00Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Operation accepted; follow it on the job.",
+            "headers": {
+              "Location": {
+                "description": "URL of the job.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Replace the world with a backup",
+        "tags": [
+          "backups"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.backup_restore"
+        ]
+      }
+    }
+  }
+}
