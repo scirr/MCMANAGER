@@ -22,6 +22,7 @@ import mc_api
 import mc_config
 import mc_core
 import mc_servers
+from mc_platform import plat
 
 DEFAULT_BIND = "127.0.0.1:9225"
 CACHE_TTL = 10
@@ -100,13 +101,7 @@ def parse_tps(text):
 
 def proc_cpu_seconds(pid):
     """User + system CPU time of a process in seconds, or None."""
-    try:
-        with open(f"/proc/{pid}/stat") as f:
-            fields = f.read().rsplit(")", 1)[1].split()
-        ticks = int(fields[11]) + int(fields[12])
-        return ticks / os.sysconf("SC_CLK_TCK")
-    except Exception:
-        return None
+    return plat.process_cpu_seconds(pid)
 
 
 def last_backup_timestamp(config):

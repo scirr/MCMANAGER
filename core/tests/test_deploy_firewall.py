@@ -29,8 +29,8 @@ class TestDeployFirewall(unittest.TestCase):
             mock.patch("mc_core._port_in_use", return_value=False),
             mock.patch("mc_java.install", return_value={"ok": False, "code": "java_download_failed"}),
             mock.patch("builtins.input", side_effect=AssertionError("must not prompt")),
-            mock.patch("mc_firewall.detect", return_value="ufw"),
-            mock.patch("mc_firewall._run", side_effect=self._fake_run),
+            mock.patch("platform_linux.firewall_name", return_value="ufw"),
+            mock.patch("platform_linux._run", side_effect=self._fake_run),
         ]
         for p in patches:
             p.start()

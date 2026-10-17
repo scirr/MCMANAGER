@@ -18,6 +18,7 @@ sys.path.append(BASE_DIR)
 import mc_config
 import mc_metrics
 from mc_lang import T
+from mc_platform import plat
 
 DEFAULT_INTERVAL = 60
 MIN_INTERVAL = 10
@@ -132,7 +133,7 @@ def _write_atomic(path, text):
     tmp = f"{path}.tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(text)
-    os.replace(tmp, path)
+    plat.atomic_replace(tmp, path)
 
 
 def write_page(directory, doc):

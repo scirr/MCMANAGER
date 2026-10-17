@@ -23,6 +23,7 @@ sys.path.append(BASE_DIR)
 import mc_content
 import mc_http
 import mc_software
+from mc_platform import plat
 
 MODRINTH = "https://api.modrinth.com/v2"
 CURSEFORGE = "https://api.curseforge.com/v1"
@@ -86,7 +87,7 @@ def save_manifest(config, manifest):
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2, ensure_ascii=False)
-    os.replace(tmp, path)
+    plat.atomic_replace(tmp, path)
 
 
 def _curseforge_key(config):

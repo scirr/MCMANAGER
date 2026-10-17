@@ -18,6 +18,7 @@ import mc_config
 import mc_core
 import mc_doctor
 import mc_ipc
+import platform_linux
 import mc_servers
 import mc_sleep
 
@@ -82,7 +83,7 @@ class TestRunDir(unittest.TestCase):
 class TestUnitAndPolkit(unittest.TestCase):
 
     def test_unit_is_hardened(self):
-        unit = mc_config._unit_directives(mc_config._service_unit_content("cris"))
+        unit = platform_linux._unit_directives(platform_linux._service_unit_content("cris"))
         for key, value in (("NoNewPrivileges", "yes"), ("PrivateTmp", "yes"), ("ProtectKernelTunables", "yes"),
                            ("ProtectKernelModules", "yes"), ("ProtectKernelLogs", "yes"),
                            ("LockPersonality", "yes"), ("KillMode", "process")):
@@ -96,22 +97,22 @@ class TestUnitAndPolkit(unittest.TestCase):
         path = os.path.join(tempfile.mkdtemp(), "u.service")
         with open(path, "w") as f:
             f.write(old)
-        with mock.patch.object(mc_config, "SERVICE_FILE", path):
-            state, diffs = mc_config.check_service_unit()
+        with mock.patch.object(platform_linux, "SERVICE_FILE", path):
+            state, diffs = platform_linux.service_unit_drift()
         self.assertEqual(state, "outdated")
         self.assertIn("NoNewPrivileges", [k for k, _, _ in diffs])
 
     def test_polkit_rule_scope(self):
-        rule = mc_config._polkit_rule_content("cris")
+        rule = platform_linux._polkit_rule_content("cris")
         self.assertIn('subject.user == "cris"', rule)
         self.assertIn('"mc_manager.service"', rule)
         self.assertIn("org.freedesktop.systemd1.manage-units", rule)
         self.assertNotIn("enable", rule)
 
     def test_no_polkit_rule_for_root_or_without_polkit(self):
-        self.assertFalse(mc_config.install_polkit_rule("root"))
-        with mock.patch.object(mc_config, "POLKIT_RULE_FILE", "/nonexistent/dir/rule"):
-            self.assertFalse(mc_config.install_polkit_rule("cris"))
+        self.assertFalse(platform_linux._install_polkit_rule("root"))
+        with mock.patch.object(platform_linux, "POLKIT_RULE_FILE", "/nonexistent/dir/rule"):
+            self.assertFalse(platform_linux._install_polkit_rule("cris"))
 
 
 class TestSleepLimits(unittest.TestCase):

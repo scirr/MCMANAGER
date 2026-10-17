@@ -13,11 +13,13 @@ import ipaddress
 import json
 import os
 import re
+import shutil
 import time
 import uuid
 
 import mc_core
 import mc_http
+from mc_platform import plat
 
 NAME_RE = re.compile(r"[A-Za-z0-9_]{3,16}")
 MOJANG_PROFILE = "https://api.mojang.com/users/profiles/minecraft/"
@@ -112,10 +114,10 @@ def _atomic_write(path, text):
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(text)
     try:
-        os.chmod(tmp, os.stat(path).st_mode & 0o777)
+        shutil.copymode(path, tmp)
     except OSError:
         pass
-    os.replace(tmp, path)
+    plat.atomic_replace(tmp, path)
 
 
 def _path(config, kind):

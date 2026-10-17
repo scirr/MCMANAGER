@@ -11,6 +11,7 @@ import json
 import os
 import re
 import time
+from mc_platform import plat
 
 MARKER = ".mcmanager_crash.json"
 WINDOW = 600
@@ -40,7 +41,7 @@ def _write(config, data):
     tmp = f"{path}.tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f)
-    os.replace(tmp, path)
+    plat.atomic_replace(tmp, path)
 
 
 def clear(config):

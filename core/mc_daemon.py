@@ -22,6 +22,7 @@ import mc_metrics
 import mc_statuspage
 import threading
 from mc_lang import T
+from mc_platform import plat
 
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
 os.makedirs(LOGS_DIR, exist_ok=True)
@@ -45,15 +46,7 @@ def _reap_children():
 
     Without it they stay zombies (state Z) for hours: 'kill -0', 'pgrep java'
     and third-party scripts then believe a JVM is still running."""
-    while True:
-        try:
-            pid, _ = os.waitpid(-1, os.WNOHANG)
-        except ChildProcessError:
-            return
-        except Exception:
-            return
-        if pid == 0:
-            return
+    plat.reap_children()
 
 def _new_state():
     return {

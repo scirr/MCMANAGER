@@ -15,6 +15,7 @@ import json
 import os
 import time
 import uuid
+from mc_platform import plat
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RUN_DIR = os.path.join(BASE_DIR, "run")
@@ -27,28 +28,18 @@ REQUEST_MAX_AGE = 300      # the daemon drops requests nobody waits for anymore
 
 
 def _private_dir(path):
-    """Create run/ and its sub-folders as 0700, owned like the application
-    folder (a request made with sudo must not lock the service out)."""
+    """Create run/ and its sub-folders readable by their owner only, owned like
+    the application folder (a request made with sudo must not lock the service
+    out)."""
     for folder in (RUN_DIR, path):
         if not os.path.isdir(folder):
             os.makedirs(folder, mode=0o700, exist_ok=True)
-            if hasattr(os, "geteuid") and os.geteuid() == 0:
-                st = os.stat(BASE_DIR)
-                os.chown(folder, st.st_uid, st.st_gid)
-        try:
-            if os.stat(folder).st_uid == os.geteuid():
-                os.chmod(folder, 0o700)
-        except OSError:
-            pass
+        plat.secure_dir(folder)
 
 
 def _write_atomic(path, data):
     _private_dir(os.path.dirname(path))
-    tmp = f"{path}.{os.getpid()}.tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f)
-    os.chmod(tmp, 0o644)   # a request made with sudo must stay readable by the daemon user
-    os.replace(tmp, path)
+    plat.write_private_file(path, json.dumps(data))
 
 
 def _read(path):
@@ -104,12 +95,9 @@ def daemon_listening():
     if time.time() - hb.get("at", 0) > HEARTBEAT_MAX_AGE:
         return False
     try:
-        os.kill(int(hb.get("pid")), 0)
-    except PermissionError:
-        pass
+        return plat.process_alive(int(hb.get("pid")))
     except Exception:
         return False
-    return True
 
 
 def call(action, timeout=120, **params):

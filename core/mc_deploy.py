@@ -21,6 +21,7 @@ import mc_config
 import mc_servers
 from mc_lang import T, VERSION
 from mc_validate import valid_port, valid_ram
+from mc_platform import plat
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -335,9 +336,10 @@ def deploy_neoforge(server_dir, mc_version):
         except OSError:
             pass
 
-    if os.path.exists(os.path.join(server_dir, "run.sh")):
+    script = plat.server_script_name()
+    if os.path.exists(os.path.join(server_dir, script)):
         pr("ok", T["neoforge_ok"])
-        return "@run.sh"
+        return "@" + script
 
     jars = [f for f in os.listdir(server_dir)
             if f.endswith(".jar") and "neoforge" in f.lower() and "installer" not in f.lower()]
@@ -498,7 +500,7 @@ def _software(loader):
             return None
         if res.get("unstable"):
             pr("warn", T["software_unstable"].format(loader=loader))
-        return "@run.sh" if res["jar_name"] == "run.sh" else res["jar_name"]
+        return "@" + res["jar_name"] if res["jar_name"] == plat.server_script_name() else res["jar_name"]
     return deploy
 
 

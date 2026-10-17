@@ -1,54 +1,10 @@
 import os
-import shutil
-import subprocess
+from mc_platform import plat
 
 
 def pick_file_dialog():
-    """Open a native file picker (tkinter, then zenity/kdialog as fallback).
-    Returns the selected path or None."""
-    try:
-        import tkinter as tk
-        from tkinter import filedialog
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes("-topmost", True)
-        path = filedialog.askopenfilename(
-            title="Select server icon",
-            filetypes=[
-                ("Image files", "*.png *.jpg *.jpeg *.webp *.bmp *.gif *.tiff"),
-                ("All files", "*.*"),
-            ],
-        )
-        root.destroy()
-        return path or None
-    except Exception:
-        pass
-
-    if shutil.which("zenity"):
-        try:
-            result = subprocess.run(
-                ["zenity", "--file-selection", "--title=Select server icon",
-                 "--file-filter=Images | *.png *.jpg *.jpeg *.webp *.bmp *.gif *.tiff"],
-                capture_output=True, text=True, timeout=300
-            )
-            path = result.stdout.strip()
-            return path if result.returncode == 0 and path else None
-        except Exception:
-            pass
-
-    if shutil.which("kdialog"):
-        try:
-            result = subprocess.run(
-                ["kdialog", "--getopenfilename", os.path.expanduser("~"),
-                 "image/png image/jpeg image/webp image/bmp image/gif image/tiff"],
-                capture_output=True, text=True, timeout=300
-            )
-            path = result.stdout.strip()
-            return path if result.returncode == 0 and path else None
-        except Exception:
-            pass
-
-    return None
+    """Open a native file picker. Returns the selected path or None."""
+    return plat.pick_file_dialog()
 
 SERVER_ICON = "server-icon.png"
 ICON_SIZE = (64, 64)

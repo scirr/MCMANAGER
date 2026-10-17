@@ -1,5 +1,4 @@
 import os
-import signal
 import subprocess
 import json
 import logging
@@ -19,6 +18,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 import mc_config
 from mc_lang import T
+from mc_platform import plat, Unsupported
 
 DEFAULT_CPU = "0-3"
 DEFAULT_RAM = "4G"
@@ -45,10 +45,7 @@ def cores_to_cpu_set(cores_str: str) -> set:
     return cpu_set
 
 def set_process_affinity(pid: int, cpu_set: set):
-    try:
-        os.sched_setaffinity(pid, cpu_set)
-    except Exception:
-        pass
+    plat.set_affinity(pid, cpu_set)
 
 # ==========================================
 # SERVER DETECTION
@@ -79,46 +76,6 @@ def _remove_pid_file(config):
     except Exception:
         pass
 
-# /proc helpers. Every one of them returns None when the information cannot be
-# read (process gone, or owned by another user) so callers can tell "unknown"
-# apart from "different".
-
-def _proc_state(pid):
-    try:
-        with open(f"/proc/{pid}/stat") as f:
-            return f.read().rsplit(")", 1)[1].split()[0]
-    except Exception:
-        return None
-
-def _proc_cwd(pid):
-    try:
-        return os.path.realpath(os.readlink(f"/proc/{pid}/cwd"))
-    except Exception:
-        return None
-
-def _proc_name(pid):
-    try:
-        with open(f"/proc/{pid}/comm") as f:
-            return f.read().strip()
-    except Exception:
-        return None
-
-def _proc_argv0(pid):
-    try:
-        with open(f"/proc/{pid}/cmdline", "rb") as f:
-            first = f.read().split(b"\x00", 1)[0]
-        return os.path.basename(first.decode("utf-8", "replace"))
-    except Exception:
-        return None
-
-def _is_java(pid):
-    return "java" in ((_proc_name(pid) or "") + " " + (_proc_argv0(pid) or "")).lower()
-
-def _same_dir(a, b):
-    if not a or not b:
-        return False
-    return os.path.realpath(a) == os.path.realpath(b)
-
 def is_pid_running(pid: int, dossier=None) -> bool:
     """True if `pid` is alive, not a zombie, and — when `dossier` is given — is
     really this server (its working directory is the server folder).
@@ -126,153 +83,30 @@ def is_pid_running(pid: int, dossier=None) -> bool:
     PIDs get recycled after a reboot, and a zombie still answers kill(pid, 0):
     neither may make us believe the server is up.
     """
-    # Reap the child first if it is ours and already exited (the daemon spawns
-    # the servers, the CLI may too).
-    try:
-        os.waitpid(pid, os.WNOHANG)
-    except (ChildProcessError, OSError):
-        pass
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        pass
-    except Exception:
-        return False
-    if _proc_state(pid) == "Z":
-        return False
-    if dossier:
-        cwd = _proc_cwd(pid)
-        if cwd is not None:
-            return _same_dir(cwd, dossier)
-    # Working directory unreadable (another user's process): fall back to the
-    # command line, permissive on read failure.
-    argv0 = _proc_argv0(pid)
-    if argv0 and not any(m in argv0 for m in ("java", "bash", "sh")):
-        return False
-    return True
+    return plat.process_alive(pid, dossier)
 
 def server_java_pids(dossier) -> list:
     """Live (non-zombie) java processes whose working directory is this server
     folder — the one reliable way to find a server's JVM, whatever its PID file
     or its port say."""
-    found = []
-    if not dossier:
-        return found
-    target = os.path.realpath(dossier)
-    try:
-        entries = os.listdir("/proc")
-    except Exception:
-        return found
-    for entry in entries:
-        if not entry.isdigit():
-            continue
-        pid = int(entry)
-        if pid == os.getpid():
-            continue
-        cwd = _proc_cwd(pid)
-        if cwd != target or not _is_java(pid) or _proc_state(pid) in (None, "Z"):
-            continue
-        found.append(pid)
-    return sorted(found)
+    return plat.find_server_processes(dossier)
 
 def _port_in_use(port) -> bool:
-    """True if something already LISTENS on this TCP port.
-
-    SO_REUSEADDR mirrors how the JVM binds: without it, a socket lingering in
-    TIME_WAIT after a closed connection makes the port look busy for a minute
-    and blocks a perfectly safe start.
-    """
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.bind(("0.0.0.0", int(port)))  # nosec B104 - probes the public game port
-        return False
-    except OSError:
-        return True
-    except Exception:
-        return False
-
-def _listen_inodes(port):
-    """Socket inodes LISTENing on this TCP port, read from /proc/net/tcp{,6}."""
-    inodes = set()
-    for table in ("/proc/net/tcp", "/proc/net/tcp6"):
-        try:
-            with open(table) as f:
-                next(f, None)
-                for line in f:
-                    cols = line.split()
-                    if len(cols) > 9 and cols[3] == "0A" and int(cols[1].rsplit(":", 1)[1], 16) == int(port):
-                        inodes.add(cols[9])
-        except Exception:
-            continue
-    return inodes
+    """True if something already LISTENS on this TCP port."""
+    return plat.port_in_use(port)
 
 def listens_on_all_interfaces(port):
     """True if something listens on 0.0.0.0 / :: for this TCP port (reachable
     from outside unless a firewall blocks it), False if only on specific
     addresses, None if nothing listens."""
-    found = None
-    for table in ("/proc/net/tcp", "/proc/net/tcp6"):
-        try:
-            with open(table) as f:
-                next(f, None)
-                for line in f:
-                    cols = line.split()
-                    if len(cols) < 4 or cols[3] != "0A":
-                        continue
-                    addr, _, hexport = cols[1].rpartition(":")
-                    if int(hexport, 16) != int(port):
-                        continue
-                    if set(addr) == {"0"}:
-                        return True
-                    found = False
-        except Exception:
-            continue
-    return found
-
-def _port_listener_pid(port) -> int | None:
-    """PID listening on the given TCP port, or None if unknown.
-
-    Reads /proc directly (no dependency on 'ss'); only processes we are allowed
-    to inspect can be found — others yield None ("busy, owner unknown")."""
-    try:
-        inodes = _listen_inodes(port)
-    except Exception:
-        return None
-    if not inodes:
-        return None
-    wanted = {f"socket:[{i}]" for i in inodes}
-    try:
-        entries = os.listdir("/proc")
-    except Exception:
-        return None
-    for entry in entries:
-        if not entry.isdigit():
-            continue
-        fd_dir = f"/proc/{entry}/fd"
-        try:
-            fds = os.listdir(fd_dir)
-        except Exception:
-            continue
-        for fd in fds:
-            try:
-                if os.readlink(f"{fd_dir}/{fd}") in wanted:
-                    return int(entry)
-            except Exception:
-                continue
-    return None
+    return plat.listens_on_all_interfaces(port)
 
 def port_occupant(port):
     """(pid, program) of whatever listens on `port`, (None, None) if the port is
     busy but its owner cannot be read, or None if the port is free."""
     if not port or not _port_in_use(port):
         return None
-    pid = _port_listener_pid(port)
-    if not pid:
-        return (None, None)
-    return (pid, _proc_name(pid) or "?")
+    return plat.port_listener(port)
 
 def is_server_running(config) -> bool:
     dossier = config.get("dossier_serveur", "")
@@ -295,49 +129,15 @@ def is_server_running(config) -> bool:
 
 def proc_memory(pid):
     """(rss_kb, swap_kb) of a process, or (None, None) if unreadable."""
-    rss = swap = None
-    try:
-        with open(f"/proc/{pid}/status") as f:
-            for line in f:
-                if line.startswith("VmRSS:"):
-                    rss = int(line.split()[1])
-                elif line.startswith("VmSwap:"):
-                    swap = int(line.split()[1])
-    except Exception:
-        pass
-    return rss, swap
+    return plat.process_memory(pid)
 
 def proc_cgroup(pid):
-    """The process's cgroup path (cgroup v2 unified line), or None."""
-    try:
-        with open(f"/proc/{pid}/cgroup") as f:
-            for line in f:
-                if line.startswith("0::"):
-                    return line.strip()[3:]
-            return None
-    except Exception:
-        return None
+    """The process's cgroup path, or None."""
+    return plat.cgroup_of(pid)
 
 def zombie_java_pids():
     """[(pid, parent_pid)] of java processes left as zombies (never reaped)."""
-    out = []
-    try:
-        entries = os.listdir("/proc")
-    except Exception:
-        return out
-    for entry in entries:
-        if not entry.isdigit():
-            continue
-        try:
-            with open(f"/proc/{entry}/stat") as f:
-                raw = f.read()
-        except Exception:
-            continue
-        name = raw[raw.find("(") + 1:raw.rfind(")")]
-        rest = raw.rsplit(")", 1)[1].split()
-        if rest and rest[0] == "Z" and "java" in name.lower():
-            out.append((int(entry), int(rest[1])))
-    return out
+    return plat.find_zombie_java()
 
 def java_major_version(version_line):
     """'openjdk version "21.0.4" ...' -> 21 ; '"1.8.0_402"' -> 8 ; None if unknown."""
@@ -571,15 +371,7 @@ def send_rcon(config, command):
 
 def proc_uptime(pid):
     """Seconds since the process started, or None."""
-    try:
-        with open(f"/proc/{pid}/stat") as f:
-            fields = f.read().rsplit(")", 1)[1].split()
-        start_ticks = int(fields[19])  # field 22 of stat, 0-based after 'comm'
-        with open("/proc/uptime") as f:
-            boot_uptime = float(f.read().split()[0])
-        return max(0, int(boot_uptime - start_ticks / os.sysconf("SC_CLK_TCK")))
-    except Exception:
-        return None
+    return plat.process_uptime(pid)
 
 def rcon_responds(config):
     """True when RCON answers, False when it does not, None when no RCON is
@@ -720,13 +512,7 @@ def find_java(config=None):
     if java:
         return java
     import glob
-    candidates = [
-        "/usr/lib/jvm/*/bin/java",
-        "/usr/java/*/bin/java",
-        "/opt/java/*/bin/java",
-        "/opt/jdk*/bin/java",
-    ]
-    for pattern in candidates:
+    for pattern in plat.java_search_paths():
         for exe in sorted(glob.glob(pattern), reverse=True):
             if os.access(exe, os.X_OK):
                 return exe
@@ -796,7 +582,7 @@ def _sync_run_script_ram(dossier, ram):
         tmp = args_file + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             f.writelines(kept)
-        os.replace(tmp, args_file)
+        plat.atomic_replace(tmp, args_file)
     except Exception:
         pass  # a broken sync must never prevent the server from starting
 
@@ -852,7 +638,7 @@ def edit_yaml_scalar(path, key, value):
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8", errors="surrogateescape", newline="") as f:
             f.write(text)
-        os.replace(tmp, path)
+        plat.atomic_replace(tmp, path)
     return old
 
 
@@ -947,7 +733,7 @@ def _edit_properties(props, wanted, apply):
         tmp = props + ".tmp"
         with open(tmp, "w", encoding="utf-8", errors="surrogateescape") as f:
             f.writelines(out)
-        os.replace(tmp, props)
+        plat.atomic_replace(tmp, props)
     except Exception:
         return []
     return changes
@@ -1021,7 +807,7 @@ def start_server(config, send_webhook=True):
         # starts headless — otherwise it opens its Swing GUI window, and closing
         # that window kills the server. Interact through 'mc console' instead.
         _sync_run_script_ram(dossier, ram)
-        launch_args = ["bash", jar_name, "nogui"]
+        launch_args = plat.script_launch_args(jar_name)
         logging.info(f"Forge/NeoForge launch via script: {jar_name}")
     else:
         launch_args = [java_exe] + java_flags.split() + [
@@ -1039,15 +825,7 @@ def start_server(config, send_webhook=True):
         env["PATH"] = os.path.dirname(java_exe) + os.pathsep + env.get("PATH", "")
 
     try:
-        proc = subprocess.Popen(
-            launch_args,
-            cwd=dossier,
-            env=env,
-            start_new_session=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            stdin=subprocess.DEVNULL
-        )
+        proc = plat.spawn_server(launch_args, dossier, env)
     except Exception as e:
         logging.error(f"Java launch error: {e}")
         return False, T["launch_error"].format(e=e)
@@ -1115,27 +893,23 @@ STOP_TIMEOUT = 120     # seconds for a clean 'stop' before escalating
 TERM_TIMEOUT = 30      # after SIGTERM, before SIGKILL
 STARTUP_WAIT = 120     # a stop requested during startup waits this long for RCON
 
-def _signal_server(config, sig):
-    """Send `sig` to this server's processes: the recorded PID (and its process
-    group when it leads one — the run.sh wrapper) plus every JVM running in the
-    server folder. Never anything identified by the port alone."""
+def _signal_server(config, action):
+    """Apply `action` ('terminate', 'kill', 'suspend' or 'resume') to this
+    server's processes: the recorded PID (and its process group when it leads
+    one — the run.sh wrapper) plus every JVM running in the server folder.
+    Never anything identified by the port alone."""
     dossier = config.get("dossier_serveur", "")
     targets = set(server_java_pids(dossier))
     sent = False
     pid = get_server_pid(config)
+    leader = None
     if pid and is_pid_running(pid, dossier):
         targets.add(pid)
-        try:
-            if os.getpgid(pid) == pid:
-                os.killpg(pid, sig)
-        except Exception:
-            pass
+        leader = pid
+    do = getattr(plat, action)
     for p in targets:
-        try:
-            os.kill(p, sig)
+        if do(p, tree=(p == leader)):
             sent = True
-        except Exception:
-            pass
     return sent
 
 # Webhook template sent for each 'mc stop --reason'. Missing templates fall back
@@ -1172,11 +946,11 @@ def stop_server(config, manual=True, wait=True, timeout=None, reason=None, quiet
 
     if is_proxy(config):
         # Proxies have no RCON and no world: SIGTERM is their clean shutdown.
-        _signal_server(config, signal.SIGTERM)
+        _signal_server(config, "terminate")
         if wait_for_exit(config, TERM_TIMEOUT):
             _remove_pid_file(config)
             return True, T["stop_done"]
-        _signal_server(config, signal.SIGKILL)
+        _signal_server(config, "kill")
         wait_for_exit(config, 10)
         _remove_pid_file(config)
         return True, T["stop_done_kill"].format(secs=TERM_TIMEOUT)
@@ -1210,7 +984,7 @@ def stop_server(config, manual=True, wait=True, timeout=None, reason=None, quiet
                 startup_term = True
 
     if startup_term:
-        _signal_server(config, signal.SIGTERM)
+        _signal_server(config, "terminate")
 
     if manual and not quiet:
         # The scheduler raises the maintenance flag before stopping, so that the
@@ -1234,12 +1008,12 @@ def stop_server(config, manual=True, wait=True, timeout=None, reason=None, quiet
         _remove_pid_file(config)
         return True, T["stop_done_startup_term"] if startup_term else T["stop_done"]
 
-    _signal_server(config, signal.SIGTERM)
+    _signal_server(config, "terminate")
     if wait_for_exit(config, TERM_TIMEOUT):
         _remove_pid_file(config)
         return True, T["stop_done_term"].format(secs=timeout)
 
-    _signal_server(config, signal.SIGKILL)
+    _signal_server(config, "kill")
     gone = wait_for_exit(config, 10)
     if gone:
         _remove_pid_file(config)
@@ -1288,6 +1062,17 @@ def is_suspended(config):
         pass
     return False
 
+def freeze_supported():
+    """False when this platform cannot suspend a process (Windows). Probes with
+    a PID that cannot exist, so nothing is ever signalled."""
+    try:
+        plat.suspend(2 ** 31 - 1)
+    except Unsupported:
+        return False
+    except Exception:
+        pass
+    return True
+
 def suspend_server(config):
     """SIGSTOP the server once its world is flushed. RAM stays allocated, CPU
     drops to zero. Returns (ok, code)."""
@@ -1302,7 +1087,12 @@ def suspend_server(config):
             json.dump({"since": int(time.time())}, f)
     except OSError:
         return False, "marker_error"
-    if not _signal_server(config, signal.SIGSTOP):
+    try:
+        signaled = _signal_server(config, "suspend")
+    except Unsupported:
+        os.remove(_suspended_path(config))
+        return False, "unsupported"
+    if not signaled:
         os.remove(_suspended_path(config))
         return False, "signal_error"
     return True, "suspended"
@@ -1312,7 +1102,11 @@ def resume_server(config):
     path = _suspended_path(config)
     if not is_suspended(config):
         return False
-    if not _signal_server(config, signal.SIGCONT):
+    try:
+        resumed = _signal_server(config, "resume")
+    except Unsupported:
+        return False
+    if not resumed:
         return False
     try:
         os.remove(path)
@@ -1324,7 +1118,7 @@ def force_kill_server(config):
     """SIGKILL this server's processes (identified by PID file and java + server
     folder — never by the port, which a legitimate third-party program may
     hold) and wait for them to be gone. Returns True if nothing survives."""
-    _signal_server(config, signal.SIGKILL)
+    _signal_server(config, "kill")
     gone = wait_for_exit(config, 10)
     if gone:
         _remove_pid_file(config)

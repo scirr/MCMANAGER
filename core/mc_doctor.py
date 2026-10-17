@@ -4,8 +4,6 @@ Checks Java, RCON (configured + reachable), firewall (game port), mc_manager
 systemd service, and port conflict — without modifying anything.
 """
 import os
-import shutil
-import subprocess
 
 import mc_servers
 import mc_config
@@ -14,6 +12,7 @@ import mc_crash
 import mc_firewall
 import mc_deploy
 from mc_lang import T
+from mc_platform import plat
 
 
 def _check_port_in_use(port):
@@ -21,43 +20,27 @@ def _check_port_in_use(port):
 
 
 def _check_daemon_service():
-    if not shutil.which("systemctl"):
-        return False, T["doctor_svc_no_sc"]
-    try:
-        result = subprocess.run(
-            ["systemctl", "show", "-p", "LoadState,ActiveState",
-             f"{mc_config.SERVICE_NAME}.service"],
-            capture_output=True, text=True, timeout=10
-        )
-    except Exception:
-        return False, T["doctor_svc_no_sc"]
-    states = dict(
-        line.split("=", 1) for line in result.stdout.splitlines() if "=" in line
-    )
-    if states.get("LoadState") != "loaded":
+    if not plat.service_installed():
         return False, T["doctor_svc_not_inst"]
-    running = states.get("ActiveState") == "active"
+    running = plat.service_running()
     return running, (T["doctor_svc_running"] if running else T["doctor_svc_stopped"])
 
 
 def check_private_file(path):
-    """Files holding secrets must be 0600. Tightening them is safe, so doctor
-    does it and says so; returns a result line, or None if nothing to say."""
-    try:
-        st = os.stat(path)
-    except OSError:
-        return None
-    if not st.st_mode & 0o077:
+    """Files holding secrets must be readable by their owner only. Tightening
+    them is safe, so doctor does it and says so; returns a result line, or None
+    if nothing to say."""
+    private, fix = plat.file_is_private(path)
+    if private is not False:
         return None
     name = os.path.basename(path)
-    if st.st_uid == os.geteuid() or os.geteuid() == 0:
-        try:
-            os.chmod(path, 0o600)
-            return ("ok", T["doctor_label_perms"], T["doctor_perms_fixed"].format(file=name), None)
-        except OSError:
-            pass
-    return ("warn", T["doctor_label_perms"], T["doctor_perms_open"].format(file=name, mode=oct(st.st_mode & 0o777)),
-            f"chmod 600 {path}")
+    if plat.secure_file(path):
+        return ("ok", T["doctor_label_perms"], T["doctor_perms_fixed"].format(file=name), None)
+    try:
+        mode = oct(os.stat(path).st_mode & 0o777)
+    except OSError:
+        mode = "?"
+    return ("warn", T["doctor_label_perms"], T["doctor_perms_open"].format(file=name, mode=mode), fix)
 
 
 def _daemon_pid():
@@ -99,11 +82,8 @@ def check_host():
     if registry_perms:
         results.append(registry_perms)
     run_dir = os.path.join(mc_config.BASE_DIR, "run")
-    try:
-        if os.stat(run_dir).st_mode & 0o077:
-            os.chmod(run_dir, 0o700)
-    except OSError:
-        pass
+    if os.path.isdir(run_dir):
+        plat.secure_dir(run_dir)
 
     zombies = mc_core.zombie_java_pids()
     if zombies:

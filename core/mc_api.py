@@ -22,6 +22,7 @@ import mc_core
 import mc_crash
 import mc_servers
 from mc_lang import T
+from mc_platform import plat
 
 SCHEMA_VERSION = 1
 
@@ -624,6 +625,8 @@ def sleep_configure(name, config, enabled=None, after_s=None, allow_add=(), allo
     effective_enabled = enabled if enabled is not None else bool(config.get("sleep_enabled"))
     if effective_mode == "hold" and (not effective_enabled or mc_core.is_proxy(config)):
         return result(False, "sleep_setting_refused", message=T["join_mode_needs_sleep"])
+    if freeze and not mc_core.freeze_supported():
+        return result(False, "unsupported_on_windows", server=name)
     if freeze and effective_mode != "hold":
         return result(False, "sleep_setting_refused", message=T["freeze_needs_hold"])
     if enabled is not None:
@@ -678,6 +681,8 @@ def wake(name, config):
 def suspend(name, config):
     """sleep_freeze: flush the world and SIGSTOP the server instead of stopping it."""
     ok, code = mc_core.suspend_server(config)
+    if code == "unsupported":
+        return result(False, "unsupported_on_windows", server=name)
     return result(ok, "suspended" if ok else f"suspend_{code}", server=name)
 
 
@@ -922,7 +927,7 @@ def upgrade(name, config, target="latest", progress=None):
         if os.path.exists(old_path):
             keep = os.path.join(config["dossier_serveur"], ".mcmanager", "previous-jars")
             os.makedirs(keep, exist_ok=True)
-            os.replace(old_path, os.path.join(keep, old_jar))
+            plat.atomic_replace(old_path, os.path.join(keep, old_jar))
     config.update(loader=loader, jar_name=res["jar_name"], loader_version=res.get("loader_version"))
     if not proxy:
         config["mc_version"] = target
@@ -1090,7 +1095,7 @@ def backup_remote_add(name, config, rname, url, key=None, endpoint=None, region=
             password_file = os.path.abspath(os.path.expanduser(password_file))
             if not os.path.isfile(password_file):
                 return result(False, "key_not_found", path=password_file)
-            os.chmod(password_file, 0o600)
+            plat.secure_file(password_file)
         elif password:
             password_file = os.path.join(config["dossier_serveur"], ".mcmanager", f"restic-{rname}.pass")
             mc_servers.write_private_file(password_file, password)

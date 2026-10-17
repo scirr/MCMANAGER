@@ -21,6 +21,7 @@ import mc_update
 import mc_api
 import mc_crash
 from mc_lang import T, VERSION
+from mc_platform import plat, Unsupported
 
 # Exit codes (documented in README_Linux.md — scripts rely on them).
 EXIT_OK = 0          # success, or the requested state already holds
@@ -68,9 +69,6 @@ def save_config(config):
 def rcon_console(config):
     import time
     import threading
-    import select
-    import termios
-    import tty
 
     if not mc_core.is_server_running(config):
         print_res(False, T["console_offline"])
@@ -130,51 +128,46 @@ def rcon_console(config):
 
     print("\033[96m>\033[0m ", end='', flush=True)
 
-    fd = sys.stdin.fileno()
-    old_settings = termios.tcgetattr(fd)
     try:
-        tty.setcbreak(fd)
-        while True:
-            readable, _, _ = select.select([sys.stdin], [], [], 0.05)
-            if not readable:
-                continue
-            ch = sys.stdin.read(1)
-            if ch in ('\r', '\n'):
-                with lock:
-                    cmd = typed_ref[0].strip()
-                    typed_ref[0] = ''
-                print()
-                if cmd.lower() in ('exit', 'quit', 'q'):
-                    print(T["console_disconnect"])
-                    break
-                if cmd and sock:
-                    try:
-                        response = mc_core.rcon_command(sock, cmd)
-                        if response:
-                            print(f"\033[90m{response}\033[0m")
-                    except socket.timeout:
-                        pass
-                    except Exception:
-                        pass
-                print("\033[96m>\033[0m ", end='', flush=True)
-            elif ch == '\x1b':  # escape sequence (arrows, F-keys) — discard it
-                while select.select([sys.stdin], [], [], 0.005)[0]:
-                    sys.stdin.read(1)
-            elif ch in ('\x7f', '\x08'):  # Backspace
-                with lock:
-                    if typed_ref[0]:
-                        typed_ref[0] = typed_ref[0][:-1]
-                        print('\b \b', end='', flush=True)
-            elif ch and ord(ch) >= 32:  # printable
-                with lock:
-                    typed_ref[0] += ch
-                    print(ch, end='', flush=True)
+        with plat.console_raw_mode() as keys:
+            while True:
+                ch = keys.read_key(0.05)
+                if ch is None:
+                    continue
+                if ch in ('\r', '\n'):
+                    with lock:
+                        cmd = typed_ref[0].strip()
+                        typed_ref[0] = ''
+                    print()
+                    if cmd.lower() in ('exit', 'quit', 'q'):
+                        print(T["console_disconnect"])
+                        break
+                    if cmd and sock:
+                        try:
+                            response = mc_core.rcon_command(sock, cmd)
+                            if response:
+                                print(f"\033[90m{response}\033[0m")
+                        except socket.timeout:
+                            pass
+                        except Exception:
+                            pass
+                    print("\033[96m>\033[0m ", end='', flush=True)
+                elif len(ch) > 1:  # escape sequence (arrows, F-keys) — discard it
+                    continue
+                elif ch in ('\x7f', '\x08'):  # Backspace
+                    with lock:
+                        if typed_ref[0]:
+                            typed_ref[0] = typed_ref[0][:-1]
+                            print('\b \b', end='', flush=True)
+                elif ch and ord(ch) >= 32:  # printable
+                    with lock:
+                        typed_ref[0] += ch
+                        print(ch, end='', flush=True)
     except KeyboardInterrupt:
         print(f"\n{T['console_disconnect']}")
     except Exception as e:
         print_res(False, T["console_error"].format(e=e))
     finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         stop_event.set()
         if sock:
             try: sock.close()
@@ -1002,9 +995,8 @@ def main():
         mc_config.run_setup(active_name)
 
     elif args.action == "edit":
-        import shlex
         import subprocess
-        editor = shlex.split(os.environ.get("VISUAL") or os.environ.get("EDITOR") or "nano")
+        editor = plat.default_editor()
         path = mc_config.config_path(dossier_serveur) if args.what == "config" else mc_config.webhooks_path(dossier_serveur)
         try:
             subprocess.call(editor + [path])
@@ -1012,9 +1004,7 @@ def main():
             print_res(False, T["editor_not_found"].format(editor=editor[0]))
 
     elif args.action == "open":
-        import subprocess
-        subprocess.Popen(["xdg-open", dossier_serveur],
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        plat.open_folder(dossier_serveur)
         print_res(True, T["folder_opened"].format(path=dossier_serveur))
 
     elif args.action == "start":
@@ -2053,22 +2043,18 @@ def dispatch_daemon(daemon_action):
     }
     label = labels[daemon_action]
 
-    # Goes through sudo when not root: a plain systemctl call would be handed to
-    # polkit, which asks for a password the CLI cannot answer.
-    result = mc_config.run_systemctl(daemon_action)
+    code, detail = plat.service_control(daemon_action)
 
-    if result.returncode == 0:
+    if code == "ok":
         print_res(True, T["daemon_ok"].format(label=label))
         return EXIT_OK
 
-    detail = (result.stdout or "") + (result.stderr or "")
-    detail_lower = detail.lower()
-    if "not found" in detail_lower or "not-found" in detail_lower or "no such" in detail_lower or "not loaded" in detail_lower:
+    if code == "not_installed":
         print_res(False, T["daemon_not_installed"])
-    elif "access denied" in detail_lower or "permission denied" in detail_lower or "authentication" in detail_lower or "interactive" in detail_lower:
+    elif code == "no_permission":
         print_res(False, T["daemon_no_perms"].format(action=daemon_action))
     else:
-        print_res(False, T["daemon_error_msg"].format(action=daemon_action, code=result.returncode, detail=detail.strip()))
+        print_res(False, T["daemon_error_msg"].format(action=daemon_action, code=code, detail=detail))
 
 # ==========================================
 # PLAYERS / WORLDS / SCHEDULED TASKS (2.10)
@@ -2267,6 +2253,7 @@ class _AnsiStripper:
         return getattr(self._stream, name)
 
 def _setup_output():
+    plat.setup_console()
     for name in ("stdout", "stderr"):
         stream = getattr(sys, name)
         try:
@@ -2303,6 +2290,12 @@ def run():
         code = EXIT_INTERRUPTED
     except SystemExit:
         raise
+    except Unsupported:
+        if "--json" in sys.argv:
+            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": Unsupported.code})
+        else:
+            print_res(False, T["res_unsupported_on_windows"])
+        code = EXIT_ERROR
     except mc_servers.DataFileError as e:
         print(f"\033[91m[{T['icon_err']}]\033[0m {T['data_file_unreadable'].format(path=e.path, detail=e.detail)}")
         print(f"\033[90m[i]\033[0m {T['data_file_fix'].format(path=e.path)}")

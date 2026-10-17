@@ -25,6 +25,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 import mc_sig
 from mc_lang import VERSION
+from mc_platform import plat
 
 REPO = "scirr/MCMANAGER"
 API = f"https://api.github.com/repos/{REPO}/releases"
@@ -215,7 +216,7 @@ def _copy_program(src, dest):
         target = os.path.join(dest, name)
         shutil.copy2(os.path.join(src, name), target)
         if name.endswith(".sh"):
-            os.chmod(target, 0o755)  # nosec B103 - shell scripts must be executable
+            plat.set_executable(target)
 
 
 def _backup_current():
@@ -230,8 +231,7 @@ def _clear_pycache():
 
 def _restart_daemon():
     try:
-        import mc_config
-        return mc_config.run_systemctl("restart").returncode == 0
+        return plat.service_control("restart")[0] == "ok"
     except Exception:
         return False
 

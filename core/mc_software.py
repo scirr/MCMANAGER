@@ -23,6 +23,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
 import mc_http
+from mc_platform import plat
 
 MOJANG_MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
 PAPER_FILL = "https://fill.papermc.io/v3/projects"
@@ -332,9 +333,10 @@ def install(folder, loader, mc_version, loader_version=None, java="java", progre
                         os.remove(leftover)
             if not ok:
                 return result(False, "installer_failed", loader=loader, mc_version=mc_version, detail=detail)
-            if not os.path.exists(os.path.join(folder, "run.sh")):
-                return result(False, "installer_failed", loader=loader, mc_version=mc_version, detail="no run.sh")
-            return result(True, "installed", loader=loader, mc_version=mc_version, jar_name="run.sh",
+            script = plat.server_script_name()
+            if not os.path.exists(os.path.join(folder, script)):
+                return result(False, "installer_failed", loader=loader, mc_version=mc_version, detail=f"no {script}")
+            return result(True, "installed", loader=loader, mc_version=mc_version, jar_name=script,
                           loader_version=loader_version)
 
         if loader == "Spigot":
@@ -350,8 +352,7 @@ def install(folder, loader, mc_version, loader_version=None, java="java", progre
 
 
 def _buildtools_cache():
-    base = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
-    return os.path.join(base, "mcmanager", "buildtools")
+    return os.path.join(plat.cache_dir(), "mcmanager", "buildtools")
 
 
 def _free_bytes(path):

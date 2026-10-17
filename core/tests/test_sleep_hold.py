@@ -382,18 +382,17 @@ class TestHoldConfiguration(unittest.TestCase):
         self.assertEqual(status, "conflict")
 
     def test_suspend_flushes_then_stops_the_processes_and_resume_continues_them(self):
-        import signal
         core = self.core
         with mock.patch.object(core, "is_server_running", return_value=True), \
              mock.patch.object(core, "send_rcon", return_value=True) as rcon, \
              mock.patch.object(core, "_signal_server", return_value=True) as sig:
             self.assertEqual(core.suspend_server(self.config), (True, "suspended"))
             rcon.assert_called_once_with(self.config, "save-all flush")
-            sig.assert_called_once_with(self.config, signal.SIGSTOP)
+            sig.assert_called_once_with(self.config, "suspend")
             self.assertTrue(core.is_suspended(self.config))
             self.assertEqual(core.suspend_server(self.config), (True, "already_suspended"))
             self.assertTrue(core.resume_server(self.config))
-            sig.assert_called_with(self.config, signal.SIGCONT)
+            sig.assert_called_with(self.config, "resume")
             self.assertFalse(core.is_suspended(self.config))
             self.assertFalse(core.resume_server(self.config))
 

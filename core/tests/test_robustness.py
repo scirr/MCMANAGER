@@ -20,6 +20,7 @@ sys.path.insert(0, APP)
 import mc_servers
 import mc_config
 import mc_core
+import platform_linux
 
 
 class TestReadJson(unittest.TestCase):
@@ -145,7 +146,7 @@ class TestPorts(unittest.TestCase):
         port = srv.getsockname()[1]
         try:
             self.assertTrue(mc_core._port_in_use(port))
-            self.assertEqual(mc_core._port_listener_pid(port), os.getpid())
+            self.assertEqual(platform_linux._listener_pid(port), os.getpid())
             pid, _prog = mc_core.port_occupant(port)
             self.assertEqual(pid, os.getpid())
         finally:
@@ -168,11 +169,11 @@ class TestProcessIdentity(unittest.TestCase):
         proc = subprocess.Popen(["true"])
         # Wait for it to exit without reaping it.
         for _ in range(100):
-            if mc_core._proc_state(proc.pid) == "Z":
+            if platform_linux._proc_state(proc.pid) == "Z":
                 break
             import time
             time.sleep(0.02)
-        self.assertEqual(mc_core._proc_state(proc.pid), "Z")
+        self.assertEqual(platform_linux._proc_state(proc.pid), "Z")
         with mock.patch("os.waitpid", side_effect=ChildProcessError):
             self.assertFalse(mc_core.is_pid_running(proc.pid))
         proc.wait()
@@ -207,23 +208,23 @@ class TestServiceUnit(unittest.TestCase):
         if content is not None:
             with open(path, "w") as f:
                 f.write(content)
-        with mock.patch.object(mc_config, "SERVICE_FILE", path):
-            return mc_config.check_service_unit()
+        with mock.patch.object(platform_linux, "SERVICE_FILE", path):
+            return platform_linux.service_unit_drift()
 
     def test_missing(self):
         self.assertEqual(self._check(None)[0], "missing")
 
     def test_current_unit_is_ok(self):
-        self.assertEqual(self._check(mc_config._service_unit_content("cris")), ("ok", []))
+        self.assertEqual(self._check(platform_linux._service_unit_content("cris")), ("ok", []))
 
     def test_other_python_and_env_are_ignored(self):
-        unit = mc_config._service_unit_content("cris").replace(
+        unit = platform_linux._service_unit_content("cris").replace(
             "ExecStart=" + (sys.executable or "/usr/bin/python3"), "ExecStart=/opt/py/bin/python3")
         unit = unit.replace("[Service]\n", "[Service]\nEnvironment=\"MCMANAGER_DATA_DIR=/srv\"\n")
         self.assertEqual(self._check(unit)[0], "ok")
 
     def test_missing_killmode_is_outdated(self):
-        unit = mc_config._service_unit_content("cris").replace("KillMode=process\n", "")
+        unit = platform_linux._service_unit_content("cris").replace("KillMode=process\n", "")
         state, diffs = self._check(unit)
         self.assertEqual(state, "outdated")
         self.assertIn("KillMode", [k for k, _, _ in diffs])

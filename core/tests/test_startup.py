@@ -3,7 +3,6 @@ test_startup.py — a server is "running" only once RCON answers (F4): state,
 stop during startup, short RCON retry.
 """
 import os
-import signal
 import sys
 import tempfile
 import time
@@ -114,7 +113,7 @@ class TestStopDuringStartup(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(msg, mc_core.T["stop_done_startup_term"])
         self.assertEqual(sent, [])
-        self.assertEqual(signals, [signal.SIGTERM])
+        self.assertEqual(signals, ["terminate"])
 
     def test_process_gone_while_waiting_is_a_success(self):
         (ok, _msg), sent, signals = self._stop(rcon_comes=False, alive_after_wait=False)
@@ -175,7 +174,7 @@ class TestStopWithRconRefused(unittest.TestCase):
         for port_open in (True, False):
             (ok, msg), signals, clock = self._run("[10:00:00] [main/INFO] Loading\n", port_open)
             self.assertTrue(ok, port_open)
-            self.assertEqual(signals, [signal.SIGTERM])
+            self.assertEqual(signals, ["terminate"])
             self.assertGreaterEqual(clock.slept, mc_core.STARTUP_WAIT)
             self.assertNotEqual(msg, mc_core.T["stop_rcon_unreachable"])
 
@@ -201,7 +200,7 @@ class TestStopWithRconRefused(unittest.TestCase):
     def test_server_judged_ready_but_rcon_refuses_still_ends_in_sigterm(self):
         (ok, msg), signals, clock = self._run("Done (3s)!\n", True)
         self.assertTrue(ok)
-        self.assertEqual(signals, [signal.SIGTERM])
+        self.assertEqual(signals, ["terminate"])
         self.assertNotEqual(msg, mc_core.T["stop_rcon_unreachable"])
 
     def test_rcon_opening_late_gets_a_clean_stop(self):
@@ -229,7 +228,7 @@ class TestStopWithRconRefused(unittest.TestCase):
              mock.patch.object(mc_api, "is_frozen", return_value=False):
             res = mc_api.stop("srv", cfg, quiet=True)
         self.assertTrue(res["ok"], res)
-        self.assertEqual(signals, [signal.SIGTERM])
+        self.assertEqual(signals, ["terminate"])
 
 
 if __name__ == "__main__":

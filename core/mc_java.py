@@ -14,11 +14,13 @@ import shutil
 import sys
 import tarfile
 import tempfile
+import zipfile
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
 import mc_http
+from mc_platform import plat
 
 JAVA_DIR = os.path.join(BASE_DIR, "java")
 MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
@@ -65,7 +67,7 @@ def required_java(mc_version, manifest=None):
 # ── installed runtimes ───────────────────────────────────────────────────────
 
 def java_bin(major):
-    return os.path.join(JAVA_DIR, str(major), "bin", "java")
+    return os.path.join(JAVA_DIR, str(major), plat.java_exe_name())
 
 
 def installed():
@@ -101,6 +103,16 @@ def _safe_members(tar, root):
         yield member
 
 
+def _extract_zip(archive, root):
+    root = os.path.realpath(root)
+    with zipfile.ZipFile(archive) as z:
+        for name in z.namelist():
+            target = os.path.realpath(os.path.join(root, name))
+            if not (target == root or target.startswith(root + os.sep)):
+                raise ValueError(f"unsafe path in archive: {name}")
+        z.extractall(root)
+
+
 def install(major, progress=None):
     """Download and install Temurin `major` (JRE, or JDK when no JRE exists)."""
     major = int(major)
@@ -110,7 +122,7 @@ def install(major, progress=None):
     for image in ("jre", "jdk"):
         try:
             assets = mc_http.get_json(mc_http.url(ADOPTIUM.format(major=major), architecture=_arch(),
-                                                  image_type=image, os="linux", vendor="eclipse"))
+                                                  image_type=image, os=plat.adoptium_os(), vendor="eclipse"))
         except mc_http.HttpError as e:
             if e.status == 404:
                 continue
@@ -132,13 +144,16 @@ def install(major, progress=None):
         extract = os.path.join(tmp, "x")
         os.makedirs(extract)
         try:
-            with tarfile.open(archive) as tar:
-                tar.extractall(extract, members=list(_safe_members(tar, extract)))  # nosec B202 - members checked
-        except (tarfile.TarError, ValueError) as e:
+            if plat.java_archive_kind() == "zip":
+                _extract_zip(archive, extract)
+            else:
+                with tarfile.open(archive) as tar:
+                    tar.extractall(extract, members=list(_safe_members(tar, extract)))  # nosec B202 - members checked
+        except (tarfile.TarError, zipfile.BadZipFile, ValueError) as e:
             return result(False, "java_download_failed", major=major, detail=str(e))
         tops = os.listdir(extract)
         home = os.path.join(extract, tops[0]) if len(tops) == 1 else extract
-        if not os.access(os.path.join(home, "bin", "java"), os.X_OK):
+        if not os.access(os.path.join(home, plat.java_exe_name()), os.X_OK):
             return result(False, "java_download_failed", major=major, detail="no bin/java in archive")
         if os.path.isdir(target):
             shutil.rmtree(target)

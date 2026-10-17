@@ -1,5 +1,4 @@
 import os
-import subprocess
 import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -8,11 +7,11 @@ import mc_servers
 import mc_lang
 from mc_lang import T
 from mc_validate import valid_port, valid_ram, valid_cpu, valid_bool
+from mc_platform import plat
 
 WEBHOOK_TEMPLATES_FILE = os.path.join(BASE_DIR, "webhook_templates.json")
 
 SERVICE_NAME = "mc_manager"
-SERVICE_FILE = f"/etc/systemd/system/{SERVICE_NAME}.service"
 
 _FALLBACK_WEBHOOKS = {
     "fr": {
@@ -188,8 +187,9 @@ def detect_default_jar(dossier):
     try:
         # Forge/NeoForge servers launch through run.sh (no single runnable
         # jar), so 'mc add' must suggest the script, not a jar.
-        if os.path.exists(os.path.join(dossier, "run.sh")):
-            return "run.sh"
+        script = plat.server_script_name()
+        if os.path.exists(os.path.join(dossier, script)):
+            return script
         jars = [f for f in os.listdir(dossier) if f.endswith('.jar')]
         if not jars: return fallback
         if len(jars) == 1: return jars[0]
@@ -226,26 +226,16 @@ def install_mc_command():
     print(f"   {T['install_mc_header']}")
     print("=========================================\033[0m")
 
-    python_exe = sys.executable or "python3"
-    launcher_content = f'#!/bin/sh\nexec "{python_exe}" "{BASE_DIR}/mc_cli.py" "$@"\n'
-    launcher_path = os.path.join(BASE_DIR, "mc")
-
-    with open(launcher_path, 'w', encoding='utf-8') as f:
-        f.write(launcher_content)
-    os.chmod(launcher_path, 0o755)  # nosec B103 - the mc launcher is an executable
-
-    dest_path = "/usr/local/bin/mc"
-    try:
-        import shutil
-        shutil.copy(launcher_path, dest_path)
-        os.chmod(dest_path, 0o755)  # nosec B103 - the mc launcher is an executable
+    ok, detail = plat.install_launcher()
+    if ok:
         print(f"\033[92m[{T['icon_ok']}]\033[0m {T['install_mc_ok']}")
         print(f"\033[90m[{T['icon_info']}]\033[0m {T['install_mc_new_term']}\033[0m")
-    except PermissionError:
+    elif detail.startswith("permission:"):
+        _tag, src, dst = detail.split(":", 2)
         print(f"\033[93m[{T['icon_warn']}]\033[0m {T['install_mc_perms']}")
-        print(f"\033[90m[{T['icon_info']}]\033[0m {T['install_mc_manual'].format(src=launcher_path, dst=dest_path)}\033[0m")
-    except Exception as e:
-        print(f"\033[91m[{T['icon_err']}]\033[0m {e}")
+        print(f"\033[90m[{T['icon_info']}]\033[0m {T['install_mc_manual'].format(src=src, dst=dst)}\033[0m")
+    else:
+        print(f"\033[91m[{T['icon_err']}]\033[0m {detail}")
 
 def _smart_ask_nonempty(prompt_text, key, config, default_val):
     while True:
@@ -562,6 +552,8 @@ def apply_freeze(config, name, enabled):
     import mc_core
     if mc_core.is_suspended(config):
         return "conflict", T["sleep_wake_before_config"]
+    if enabled and not mc_core.freeze_supported():
+        return "conflict", T["res_unsupported_on_windows"]
     if enabled and config.get("sleep_join_mode") != "hold":
         return "conflict", T["freeze_needs_hold"]
     if enabled and config.get("sleep_enabled", 0) != 1:
@@ -773,135 +765,13 @@ def run_setup(target=None):
     print(f"\n\033[92m[{T['icon_ok']}]\033[0m {T['setup_success']}")
     print(f"\033[90m[{T['icon_info']}]\033[0m {T['webhooks_edit_hint']}")
 
-def _service_unit_content(user):
-    python_exe = sys.executable or "/usr/bin/python3"
-    daemon_path = os.path.join(BASE_DIR, "mc_daemon.py")
-    # A systemd service does not inherit the installing shell's environment, so
-    # if a shared data dir is configured we must bake it into the unit — else the
-    # daemon would fall back to the local registry and manage nothing shared.
-    env_line = ""
-    shared = os.environ.get("MCMANAGER_DATA_DIR", "").strip()
-    if shared:
-        env_line = f'Environment="MCMANAGER_DATA_DIR={shared}"\n'
-    # A service running as the user needs no capability at all; root (install
-    # without sudo) keeps its own, or it could no longer reach users' files.
-    caps = "" if user == "root" else "CapabilityBoundingSet=\nAmbientCapabilities=\n"
-    return f"""[Unit]
-Description=MC Manager Daemon
-After=network.target
-
-[Service]
-Type=simple
-User={user}
-WorkingDirectory={BASE_DIR}
-{env_line}ExecStart={python_exe} {daemon_path}
-Restart=on-failure
-RestartSec=10
-# Only kill the daemon itself, never the Minecraft servers it spawned: with the
-# default control-group mode, restarting the service would take the servers down
-# (leaving a stale server.pid) instead of just reloading the supervisor.
-KillMode=process
-# Hardening. Servers live anywhere under /home or /srv, so the filesystem stays
-# writable except system directories; the JVM needs W+X memory for its JIT, so
-# MemoryDenyWriteExecute is deliberately absent.
-NoNewPrivileges=yes
-PrivateTmp=yes
-PrivateDevices=yes
-ProtectSystem=full
-ProtectKernelTunables=yes
-ProtectKernelModules=yes
-ProtectKernelLogs=yes
-ProtectControlGroups=yes
-ProtectClock=yes
-ProtectHostname=yes
-RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
-RestrictNamespaces=yes
-RestrictRealtime=yes
-RestrictSUIDSGID=yes
-LockPersonality=yes
-SystemCallArchitectures=native
-{caps}
-[Install]
-WantedBy=multi-user.target
-"""
-
-POLKIT_RULE_FILE = "/etc/polkit-1/rules.d/50-mc-manager.rules"
-
-
-def _polkit_rule_content(user):
-    """Lets the service user start/stop/restart mc_manager.service, and
-    nothing else, without sudo."""
-    return f"""// Installed by MC Manager (install.sh). Allows '{user}' to start, stop and
-// restart the {SERVICE_NAME} service only.
-polkit.addRule(function(action, subject) {{
-    if (action.id == "org.freedesktop.systemd1.manage-units" &&
-        action.lookup("unit") == "{SERVICE_NAME}.service" &&
-        subject.user == "{user}") {{
-        var verb = action.lookup("verb");
-        if (verb == "start" || verb == "stop" || verb == "restart") {{
-            return polkit.Result.YES;
-        }}
-    }}
-}});
-"""
-
-
-def install_polkit_rule(user):
-    """Returns True if the rule was installed (polkit present, root)."""
-    folder = os.path.dirname(POLKIT_RULE_FILE)
-    if not os.path.isdir(folder) or user == "root":
-        return False
-    try:
-        with open(POLKIT_RULE_FILE, "w", encoding="utf-8") as f:
-            f.write(_polkit_rule_content(user))
-        os.chmod(POLKIT_RULE_FILE, 0o644)
-        return True
-    except OSError:
-        return False
-
-
-def _unit_directives(text):
-    """Map directive -> value for a unit file, ignoring comments and sections."""
-    out = {}
-    for line in text.splitlines():
-        line = line.strip()
-        if not line or line.startswith(("#", ";", "[")) or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        out.setdefault(key.strip(), value.strip())
-    return out
-
 def check_service_unit():
-    """Compare the installed systemd unit with the one this version would write.
-
-    'mc update' only replaces program files, never the unit, so a release that
-    changes the unit (KillMode=process, for one) is not applied until
-    'sudo ./install.sh' is re-run. Returns (state, differing_directives) with
-    state in 'missing' / 'ok' / 'outdated'. User, the Python path and
-    environment lines are local choices and are not compared.
-    """
-    try:
-        with open(SERVICE_FILE, "r", encoding="utf-8") as f:
-            installed = _unit_directives(f.read())
-    except FileNotFoundError:
-        return "missing", []
-    except Exception:
-        return "missing", []
-    expected = _unit_directives(_service_unit_content(installed.get("User", "root")))
-    diffs = []
-    for key, value in expected.items():
-        if key in ("User", "Environment"):
-            continue
-        have = installed.get(key)
-        if key == "ExecStart":
-            # Only the daemon script matters, not which python runs it.
-            daemon_path = os.path.join(BASE_DIR, "mc_daemon.py")
-            if not have or not have.endswith(daemon_path):
-                diffs.append((key, have, value))
-            continue
-        if have != value:
-            diffs.append((key, have, value))
-    return ("outdated" if diffs else "ok"), diffs
+    """Compare the installed service definition with the one this version would
+    write. 'mc update' only replaces program files, never the service, so a
+    release that changes it is not applied until the installer is re-run.
+    Returns (state, differing_directives) with state in 'missing' / 'ok' /
+    'outdated'."""
+    return plat.service_unit_drift()
 
 def print_unit_check():
     state, diffs = check_service_unit()
@@ -917,53 +787,17 @@ def print_unit_check():
     print(f"\033[90m[{T['icon_info']}]\033[0m {T['unit_reinstall_hint'].format(path=BASE_DIR)}")
     return 1
 
-def run_systemctl(action):
-    """Run 'systemctl <action>' on the service.
-
-    As root: directly. Otherwise through polkit first — install.sh grants the
-    service user start/stop/restart on this unit only — and '--no-ask-password'
-    so nothing ever prompts; sudo is only the fallback for older installs.
-    """
-    base = ["systemctl", action, SERVICE_NAME]
-    if os.geteuid() == 0:
-        return subprocess.run(base, capture_output=True, text=True)
-    result = subprocess.run(["systemctl", "--no-ask-password", action, SERVICE_NAME],
-                            capture_output=True, text=True)
-    if result.returncode == 0:
-        return result
-    try:
-        fallback = subprocess.run(["sudo"] + base, capture_output=True, text=True)
-        if fallback.returncode == 0:
-            return fallback
-    except Exception:
-        pass
-    return result
-
 def install_daemon_service(user=None):
     print("\n\033[96m=========================================")
     print(f"   {T['daemon_inst_header']}")
     print("=========================================\033[0m")
 
-    if user is None:
-        user = os.environ.get("SUDO_USER") or os.environ.get("USER") or "root"
+    os.makedirs(os.path.join(BASE_DIR, "logs"), exist_ok=True)
 
-    logs_dir = os.path.join(BASE_DIR, "logs")
-    os.makedirs(logs_dir, exist_ok=True)
-
-    try:
-        with open(SERVICE_FILE, 'w', encoding='utf-8') as f:
-            f.write(_service_unit_content(user))
-    except PermissionError:
-        print(f"\033[91m[{T['icon_err']}]\033[0m {T['daemon_inst_failed']}")
-        print(f"\033[90m[{T['icon_info']}]\033[0m {T['daemon_inst_rerun']}\033[0m")
-        return
-
-    if install_polkit_rule(user):
-        print(f"\033[92m[{T['icon_ok']}]\033[0m {T['polkit_ok'].format(user=user)}")
-    subprocess.run(["systemctl", "daemon-reload"], capture_output=True)
-    subprocess.run(["systemctl", "enable", SERVICE_NAME], capture_output=True)
-    result = subprocess.run(["systemctl", "restart", SERVICE_NAME], capture_output=True, text=True)
-    if result.returncode == 0:
+    ok, detail = plat.service_install(user)
+    if detail == "polkit":
+        print(f"\033[92m[{T['icon_ok']}]\033[0m {T['polkit_ok'].format(user=user or plat.current_user())}")
+    if ok:
         print(f"\033[92m[{T['icon_ok']}]\033[0m {T['daemon_inst_ok'].format(name=SERVICE_NAME)}")
         print(f"\033[92m[{T['icon_ok']}]\033[0m {T['daemon_inst_silent']}")
     else:

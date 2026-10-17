@@ -9,6 +9,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
 from mc_lang import T
+from mc_platform import plat
 
 # Optional shared data directory. Set MCMANAGER_DATA_DIR to a folder on a disk
 # shared between Windows and Linux (same physical folder, addressed by each OS's
@@ -22,7 +23,7 @@ if _SHARED_DATA_DIR:
     DATA_ROOT = os.path.join(DATA_DIR, "Servers")
 else:
     REGISTRY_FILE = os.path.join(BASE_DIR, "servers.json")
-    DATA_ROOT = os.path.expanduser("~/MCManager/Servers")
+    DATA_ROOT = plat.data_dir()
 
 # Directory the registry lives in — the anchor for portable (relative) paths.
 REGISTRY_DIR = os.path.dirname(REGISTRY_FILE)
@@ -56,34 +57,10 @@ def read_json(path, default=None):
         raise DataFileError(path, str(e)) from e
 
 
-def owner_to_keep(path):
-    """(uid, gid) a file written as root must keep: the existing file's owner,
-    else the folder's. Without it, 'sudo mc ...' would leave a root-owned
-    file the service (running as the user) can no longer read."""
-    if not hasattr(os, "geteuid") or os.geteuid() != 0:
-        return None
-    for candidate in (path, os.path.dirname(path) or "."):
-        try:
-            st = os.stat(candidate)
-            return st.st_uid, st.st_gid
-        except OSError:
-            continue
-    return None
-
-
 def write_private_file(path, text):
-    """Atomic write, readable by the owner only (0600): these files hold the
-    RCON password and the Discord webhook URL."""
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    owner = owner_to_keep(path)
-    tmp_path = path + ".tmp"
-    fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, 'w', encoding='utf-8') as f:
-        f.write(text)
-    os.chmod(tmp_path, 0o600)
-    if owner:
-        os.chown(tmp_path, *owner)
-    os.replace(tmp_path, path)
+    """Atomic write, readable by the owner only: these files hold the RCON
+    password and the Discord webhook URL."""
+    plat.write_private_file(path, text)
 
 
 def _atomic_write_json(path, data):

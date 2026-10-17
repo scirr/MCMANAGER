@@ -11,6 +11,7 @@ import zipfile
 
 import mc_core
 from mc_lang import T
+from mc_platform import plat
 
 EXPORT_SKIP_NAMES = ("session.lock",)
 RESET_FOLDERS = ("region", "entities", "poi")
@@ -113,7 +114,7 @@ def export_world(config, output=None):
                             files += 1
                         except OSError:
                             continue
-        os.replace(tmp, output)
+        plat.atomic_replace(tmp, output)
     except (OSError, zipfile.BadZipFile) as e:
         if os.path.exists(tmp):
             os.remove(tmp)
@@ -182,7 +183,7 @@ def import_world(config, source, confirmed=False):
             if copy:
                 shutil.copytree(src, dst, symlinks=True)
             else:
-                os.replace(src, dst)
+                plat.atomic_replace(src, dst)
 
         parent, world_name = os.path.dirname(world), os.path.basename(world)
         prepared = os.path.join(staging, "new")
@@ -197,9 +198,9 @@ def import_world(config, source, confirmed=False):
         aside = os.path.join(staging, "old")
         os.makedirs(aside)
         for name in world_roots(config):
-            os.replace(os.path.join(base, name), os.path.join(aside, name))
+            plat.atomic_replace(os.path.join(base, name), os.path.join(aside, name))
         for name in os.listdir(prepared):
-            os.replace(os.path.join(prepared, name), os.path.join(base, name))
+            plat.atomic_replace(os.path.join(prepared, name), os.path.join(base, name))
         return result(True, "world_imported", level=level, source=source)
     except (OSError, zipfile.BadZipFile) as e:
         return result(False, "import_failed", detail=str(e))
