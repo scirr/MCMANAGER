@@ -66,11 +66,11 @@ current_user = _files.current_user
 java_archive_kind = _files.java_archive_kind
 
 
-def suspend(pid):
+def suspend(pid, tree=False):
     raise Unsupported("suspend is not available on Windows")
 
 
-def resume(pid):
+def resume(pid, tree=False):
     raise Unsupported("resume is not available on Windows")
 
 

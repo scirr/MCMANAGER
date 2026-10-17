@@ -76,6 +76,9 @@ MC_Manager/
 │   ├── mc_sleep.py     # sleep listener (status/login answered while the server sleeps)
 │   ├── mc_ipc.py       # request channel CLI -> daemon
 │   ├── mc_setup.py     # Java check
+│   ├── mc_platform.py  # platform contract: the `plat` object every system call goes through
+│   ├── platform_linux.py # Linux implementation (/proc, systemd, ufw/firewalld, termios)
+│   ├── platform_windows.py, plat_win_*.py # Windows implementation
 │   ├── webhook_templates.json
 │   └── tests/
 │

@@ -58,6 +58,8 @@ PACKAGE_FILES = [
     "mc_alert.py",
     "mc_metrics.py",
     "mc_statuspage.py",
+    "mc_platform.py",
+    "platform_linux.py",
     "install.sh",
     "uninstall.sh",
     "webhook_templates.json",

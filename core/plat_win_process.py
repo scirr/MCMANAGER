@@ -200,11 +200,11 @@ def kill(pid, tree=False):
     return rc == 0
 
 
-def suspend(pid):
+def suspend(pid, tree=False):
     raise Unsupported("suspend is not available on Windows")
 
 
-def resume(pid):
+def resume(pid, tree=False):
     raise Unsupported("resume is not available on Windows")
 
 

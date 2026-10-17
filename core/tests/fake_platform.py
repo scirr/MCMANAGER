@@ -28,11 +28,11 @@ class FakePlatform:
         value = self.results[name]
         return value(*args) if callable(value) else value
 
-    def suspend(self, pid):
+    def suspend(self, pid, tree=False):
         self.calls.append(("suspend", (pid,)))
         raise Unsupported("suspend")
 
-    def resume(self, pid):
+    def resume(self, pid, tree=False):
         self.calls.append(("resume", (pid,)))
         raise Unsupported("resume")
 

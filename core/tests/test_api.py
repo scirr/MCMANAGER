@@ -214,7 +214,7 @@ class TestPackaging(unittest.TestCase):
             if not fname.endswith(".py"):
                 continue
             with open(build_release.source_path(fname), encoding="utf-8") as f:
-                for mod in re.findall(r"^\s*import (mc_\w+)|^\s*from (mc_\w+) import", f.read(), re.M):
+                for mod in re.findall(r"^\s*import (mc_\w+|platform_linux)|^\s*from (mc_\w+|platform_linux) import", f.read(), re.M):
                     name = (mod[0] or mod[1]) + ".py"
                     self.assertIn(name, shipped, f"{fname} imports {name}, which is not packaged")
 
