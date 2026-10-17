@@ -800,6 +800,71 @@ def _sync_run_script_ram(dossier, ram):
     except Exception:
         pass  # a broken sync must never prevent the server from starting
 
+def is_hold_mode(config):
+    return config.get("sleep_join_mode") == "hold" and config.get("sleep_enabled", 0) == 1
+
+
+def game_port(config):
+    """Port the server itself listens on: the internal one in hold mode (the
+    sleep listener owns the public port), the configured one otherwise."""
+    if (is_hold_mode(config) or config.get("router_backend")) and config.get("internal_port"):
+        return int(config["internal_port"])
+    return config.get("port")
+
+
+def default_internal_port(port):
+    port = int(port)
+    return port + 10000 if port + 10000 <= 65535 else port - 10000
+
+
+def edit_yaml_scalar(path, key, value):
+    """Set `key: value` on the first line of a YAML file that defines `key`,
+    leaving every other byte alone. Returns the previous value, or None when
+    the file or the key does not exist (nothing is written then)."""
+    import re
+    try:
+        with open(path, "r", encoding="utf-8", errors="surrogateescape", newline="") as f:
+            text = f.read()
+    except OSError:
+        return None
+    pattern = re.compile(r"(?m)^(\s*" + re.escape(key) + r":[ \t]*)([^\s#]*)")
+    match = pattern.search(text)
+    if not match:
+        return None
+    old = match.group(2)
+    if old != str(value):
+        text = text[:match.start(2)] + str(value) + text[match.end(2):]
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8", errors="surrogateescape", newline="") as f:
+            f.write(text)
+        os.replace(tmp, path)
+    return old
+
+
+def paper_proxy_protocol(config):
+    """True/False when a Paper-family server's config/paper-global.yml says
+    whether it expects PROXY protocol; None for a server without that file."""
+    path = os.path.join(config.get("dossier_serveur", ""), "config", "paper-global.yml")
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            import re
+            match = re.search(r"(?m)^\s*proxy-protocol:\s*(\w+)", f.read())
+    except OSError:
+        return None
+    return match.group(1).lower() == "true" if match else None
+
+
+def use_proxy_protocol(config):
+    """Whether the sleep listener should send a PROXY v2 header to the server.
+    'auto' follows what the server is configured to expect."""
+    setting = str(config.get("sleep_proxy_protocol", "auto")).lower()
+    if setting == "on":
+        return True
+    if setting == "off":
+        return False
+    return paper_proxy_protocol(config) is True
+
+
 def sync_server_properties(config, apply=True):
     """Make server.properties agree with config.json, the single source of truth
     for the ports and RCON. A port changed by hand in config.json used to leave
@@ -814,12 +879,25 @@ def sync_server_properties(config, apply=True):
     if not dossier or not os.path.exists(props):
         return []
     wanted = {}
-    if config.get("port"):
-        wanted["server-port"] = str(config["port"])
+    port = game_port(config)
+    if port:
+        wanted["server-port"] = str(port)
+    if is_hold_mode(config) or config.get("router_backend"):
+        wanted["server-ip"] = "127.0.0.1"
     if config.get("mcrcon_pass"):
         wanted["enable-rcon"] = "true"
         wanted["rcon.port"] = str(config.get("rcon_port", DEFAULT_RCON_PORT))
         wanted["rcon.password"] = str(config["mcrcon_pass"])
+    return _edit_properties(props, wanted, apply)
+
+def set_properties(config, wanted):
+    """Set server.properties keys (a dict of strings); returns the changes."""
+    props = os.path.join(config.get("dossier_serveur", ""), "server.properties")
+    if not os.path.exists(props):
+        return []
+    return _edit_properties(props, wanted, True)
+
+def _edit_properties(props, wanted, apply):
     if not wanted:
         return []
     try:
@@ -872,7 +950,7 @@ def start_server(config, send_webhook=True):
     # could not attribute to a PID, a foreign program...). Launching anyway
     # would start a JVM that fails on the world DirectoryLock and then lingers,
     # eating GBs of RAM without ever serving anything.
-    port = config.get("port")
+    port = game_port(config)
     occupant = port_occupant(port) if port else None
     if occupant:
         pid, prog = occupant
@@ -1028,6 +1106,7 @@ def _signal_server(config, sig):
     server folder. Never anything identified by the port alone."""
     dossier = config.get("dossier_serveur", "")
     targets = set(server_java_pids(dossier))
+    sent = False
     pid = get_server_pid(config)
     if pid and is_pid_running(pid, dossier):
         targets.add(pid)
@@ -1039,9 +1118,10 @@ def _signal_server(config, sig):
     for p in targets:
         try:
             os.kill(p, sig)
+            sent = True
         except Exception:
             pass
-    return bool(targets)
+    return sent
 
 # Webhook template sent for each 'mc stop --reason'. Missing templates fall back
 # to the built-in ones (mc_config._FALLBACK_WEBHOOKS).
@@ -1067,6 +1147,7 @@ def stop_server(config, manual=True, wait=True, timeout=None, reason=None, quiet
     """
     if not is_server_running(config):
         return False, T["already_offline"]
+    resume_server(config)
 
     if timeout is None:
         try:
@@ -1173,6 +1254,57 @@ def send_start_webhook(config):
     payload = {"embeds": [_build_embed(tpl, variables, display_ip)]}
     return send_discord_webhook(config, payload, force=True)
 
+SUSPENDED_MARKER = ".mcmanager_suspended"
+
+def _suspended_path(config):
+    return os.path.join(config.get("dossier_serveur", ""), SUSPENDED_MARKER)
+
+def is_suspended(config):
+    """True while the server's processes are held by SIGSTOP (sleep_freeze). A
+    marker left behind by a JVM that has since died is removed."""
+    path = _suspended_path(config)
+    if not os.path.exists(path):
+        return False
+    if is_server_running(config):
+        return True
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+    return False
+
+def suspend_server(config):
+    """SIGSTOP the server once its world is flushed. RAM stays allocated, CPU
+    drops to zero. Returns (ok, code)."""
+    if not is_server_running(config):
+        return False, "offline"
+    if is_suspended(config):
+        return True, "already_suspended"
+    if not send_rcon(config, "save-all flush"):
+        return False, "rcon_error"
+    try:
+        with open(_suspended_path(config), "w", encoding="utf-8") as f:
+            json.dump({"since": int(time.time())}, f)
+    except OSError:
+        return False, "marker_error"
+    if not _signal_server(config, signal.SIGSTOP):
+        os.remove(_suspended_path(config))
+        return False, "signal_error"
+    return True, "suspended"
+
+def resume_server(config):
+    """SIGCONT a suspended server. True if it was suspended."""
+    path = _suspended_path(config)
+    if not is_suspended(config):
+        return False
+    if not _signal_server(config, signal.SIGCONT):
+        return False
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+    return True
+
 def force_kill_server(config):
     """SIGKILL this server's processes (identified by PID file and java + server
     folder — never by the port, which a legitimate third-party program may
@@ -1254,7 +1386,7 @@ def backup_server(config, type_backup=None, housekeeping=True):
     import mc_backup
     owns_freeze = False
     try:
-        if is_server_running(config) and not mc_api.is_frozen(config):
+        if is_server_running(config) and not mc_api.is_frozen(config) and not is_suspended(config):
             ok, code = mc_api.freeze(config, FREEZE_BACKUP_MAX)
             if not ok and code != "already_frozen":
                 return False, T["backup_error"].format(e=code)

@@ -98,7 +98,9 @@ def server_state(config, now=None):
     running = mc_core.is_server_running(config)
     maintenance = config.get("mode_maintenance", 0) == 1
     if running:
-        ready = _is_listening(config.get("port")) and mc_core.server_ready(config)
+        if mc_core.is_suspended(config):
+            return "sleeping"
+        ready = _is_listening(mc_core.game_port(config)) and mc_core.server_ready(config)
         return "running" if ready else "starting"
     if maintenance:
         reason = config.get("stop_reason") or "user"
@@ -145,6 +147,7 @@ def server_snapshot(name, info, active_name=None):
         "loader": loader,
         "version": version,
         "frozen": is_frozen(config),
+        "suspended": mc_core.is_suspended(config) if state == "sleeping" else False,
         "pid": None,
         "uptime_s": None,
         "rss_kb": None,
@@ -157,7 +160,9 @@ def server_snapshot(name, info, active_name=None):
             "open": "%02d:%02d" % (int(config.get("heure_ouverture", 20)), int(config.get("minute_ouverture", 0))),
             "close": "%02d:%02d" % (int(config.get("heure_fermeture", 3)), int(config.get("minute_fermeture", 0))),
         }
-    if state in ("running", "starting"):
+    if mc_core.is_hold_mode(config):
+        snap["internal_port"] = mc_core.game_port(config)
+    if state in ("running", "starting") or snap["suspended"]:
         pid = _main_pid(config)
         snap["pid"] = pid
         if pid:
@@ -306,7 +311,7 @@ def freeze(config, max_seconds=DEFAULT_FREEZE_MAX):
         return False, "already_frozen"
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump({"since": now, "expires": now + int(max_seconds), "pid": os.getpid()}, f)
-    if not mc_core.is_server_running(config):
+    if not mc_core.is_server_running(config) or mc_core.is_suspended(config):
         return True, "offline"
     if not mc_core.send_rcon(config, "save-off") or not mc_core.send_rcon(config, "save-all flush"):
         _remove_marker(config)
@@ -326,7 +331,7 @@ def thaw(config):
     """Re-enable world saving. Safe to call when not frozen.
     Returns (ok, code) with code in: thawed, not_frozen, offline, rcon_error."""
     was_frozen = is_frozen(config)
-    if not mc_core.is_server_running(config):
+    if not mc_core.is_server_running(config) or mc_core.is_suspended(config):
         _remove_marker(config)
         return True, "offline"
     sent = mc_core.send_rcon(config, "save-on")
@@ -508,6 +513,7 @@ def switch(target, force=False):
 # ── sleep settings ───────────────────────────────────────────────────────────
 
 DEFAULT_SLEEP_AFTER = 2 * 3600
+DEFAULT_HOLD_TIMEOUT = 120
 
 
 def sleep_info(config):
@@ -515,16 +521,37 @@ def sleep_info(config):
         "enabled": config.get("sleep_enabled", 0) == 1,
         "after_s": int(config.get("sleep_after", DEFAULT_SLEEP_AFTER)),
         "allow": list(config.get("sleep_allow", [])),
+        "join_mode": config.get("sleep_join_mode", "kick"),
+        "hold_timeout_s": int(config.get("sleep_hold_timeout", DEFAULT_HOLD_TIMEOUT)),
+        "freeze": config.get("sleep_freeze", 0) == 1,
+        "internal_port": config.get("internal_port") if config.get("sleep_join_mode") == "hold" else None,
+        "proxy_protocol": mc_core.use_proxy_protocol(config) if config.get("sleep_join_mode") == "hold" else None,
     }
 
 
-def sleep_configure(name, config, enabled=None, after_s=None, allow_add=(), allow_remove=()):
+def sleep_configure(name, config, enabled=None, after_s=None, allow_add=(), allow_remove=(),
+                    join_mode=None, freeze=None, hold_timeout_s=None):
+    config = dict(config)
+    if join_mode not in (None, "kick", "hold"):
+        return result(False, "sleep_setting_refused", message=T["join_mode_needs_sleep"])
+    if mc_core.is_suspended(config):
+        return result(False, "sleep_setting_refused", message=T["sleep_wake_before_config"])
+    effective_mode = "kick" if enabled is False else (join_mode or config.get("sleep_join_mode", "kick"))
+    effective_enabled = enabled if enabled is not None else bool(config.get("sleep_enabled"))
+    if effective_mode == "hold" and (not effective_enabled or mc_core.is_proxy(config)):
+        return result(False, "sleep_setting_refused", message=T["join_mode_needs_sleep"])
+    if freeze and effective_mode != "hold":
+        return result(False, "sleep_setting_refused", message=T["freeze_needs_hold"])
     if enabled is not None:
         config["sleep_enabled"] = 1 if enabled else 0
     if after_s is not None:
         if after_s < 300:
             return result(False, "sleep_after_too_short", minimum=300)
         config["sleep_after"] = int(after_s)
+    if hold_timeout_s is not None:
+        if not 10 <= hold_timeout_s <= 600:
+            return result(False, "sleep_hold_timeout_range", minimum=10, maximum=600)
+        config["sleep_hold_timeout"] = int(hold_timeout_s)
     allow = [n for n in config.get("sleep_allow", []) if n.lower() not in {a.lower() for a in allow_remove}]
     for n in allow_add:
         if n.lower() not in {a.lower() for a in allow}:
@@ -534,13 +561,27 @@ def sleep_configure(name, config, enabled=None, after_s=None, allow_add=(), allo
     if enabled and not config.get("mcrcon_pass"):
         return result(False, "sleep_needs_rcon", server=name)
     mc_config.save_config(config)
-    return result(True, "sleep_updated", server=name, **sleep_info(config))
+    notes = []
+    if enabled is False and config.get("sleep_join_mode") == "hold":
+        join_mode = "kick"
+    for key, value, apply in (("sleep_join_mode", join_mode, mc_config.apply_join_mode),
+                              ("sleep_freeze", freeze, mc_config.apply_freeze)):
+        if value is None:
+            continue
+        status, detail = apply(config, name, value if key == "sleep_join_mode" else bool(value))
+        if status != "ok":
+            return result(False, "sleep_setting_refused", server=name, key=key, message=detail)
+        notes += detail
+    return result(True, "sleep_updated", server=name, notes=notes, **sleep_info(config))
 
 
 def wake(name, config):
     """Wake a sleeping server now (same path as a known player joining)."""
     if server_state(config) != "sleeping":
         return result(False, "not_sleeping", server=name, state=server_state(config))
+    if mc_core.is_suspended(config):
+        ok = mc_core.resume_server(config)
+        return result(ok, "resumed" if ok else "suspend_signal_error", server=name)
     config["mode_maintenance"] = 0
     config.pop("stop_reason", None)
     mc_config.save_config(config)
@@ -548,6 +589,101 @@ def wake(name, config):
     if started["ok"]:
         mc_core._alert(config, "wake")
     return started
+
+
+def suspend(name, config):
+    """sleep_freeze: flush the world and SIGSTOP the server instead of stopping it."""
+    ok, code = mc_core.suspend_server(config)
+    return result(ok, "suspended" if ok else f"suspend_{code}", server=name)
+
+
+def router_command(action, operands=(), port=None, proxy_in=None, proxy_out=None,
+                   trusted_proxies=None, per_ip=None, per_second=None):
+    import mc_router
+    import mc_proxy
+    import ipaddress
+    try:
+        config = mc_router.load()
+        args = list(operands)
+        notes = []
+        if action in ("status", "disable", "enable"):
+            if args:
+                return result(False, "router_usage")
+            if action == "disable":
+                config["enabled"] = False
+            elif action == "enable":
+                for key, value in (("port", port), ("proxy_in", proxy_in), ("proxy_out", proxy_out),
+                                   ("trusted_proxies", trusted_proxies), ("per_ip", per_ip),
+                                   ("per_second", per_second)):
+                    if value is not None:
+                        config[key] = value
+                config = mc_router.validate(config)
+                for name, info in mc_servers.list_servers().items():
+                    loaded = mc_config.load_config(info["dossier_serveur"])
+                    if config["port"] in (mc_core.game_port(loaded), loaded.get("rcon_port")):
+                        return result(False, "router_port_conflict", server=name, port=config["port"])
+                config["enabled"] = True
+        elif action in ("route", "default"):
+            if action == "route" and args == ["list"]:
+                return result(True, "router_status", config=config)
+            if action == "route" and len(args) == 2 and args[0] == "remove":
+                config["routes"].pop(mc_router.hostname(args[1]), None)
+            else:
+                if action == "route":
+                    if len(args) != 3 or args[0] != "add":
+                        return result(False, "router_usage")
+                    host, target = mc_router.hostname(args[1]), args[2]
+                else:
+                    if len(args) != 1:
+                        return result(False, "router_usage")
+                    target = args[0]
+                loaded, error = load_server(target)
+                if error:
+                    return error
+                name, server = loaded
+                if mc_core.is_proxy(server):
+                    return result(False, "router_backend_invalid", server=name)
+                internal = server.get("internal_port") or mc_core.default_internal_port(server.get("port") or 25565)
+                for _ in range(100):
+                    if not 1 <= int(internal) <= 65535:
+                        return result(False, "router_port_conflict", server=name, port=internal)
+                    conflict = mc_servers.find_port_conflict(port=internal, rcon_port=internal, exclude_name=name)
+                    if not conflict and internal not in (config["port"], server.get("port"), server.get("rcon_port")):
+                        break
+                    internal += 1
+                else:
+                    return result(False, "router_port_conflict", server=name, port=internal)
+                changed = not server.get("router_backend") or server.get("internal_port") != internal
+                server.update(router_backend=True, internal_port=internal)
+                mc_config.save_config(server)
+                mc_core.sync_server_properties(server)
+                if changed:
+                    notes.append(T["router_backend_note"].format(server=name, port=internal))
+                if not mc_core.use_proxy_protocol(server) and not config["proxy_out"]:
+                    notes.append(T["join_mode_proxy_unsupported"])
+                if action == "default":
+                    config["default"] = name
+                else:
+                    config["routes"][host] = name
+        elif action in ("allow", "deny"):
+            if len(args) != 2 or args[0] not in ("add", "remove") or not mc_proxy.valid_cidr(args[1]):
+                return result(False, "router_usage")
+            cidr = str(ipaddress.ip_network(args[1], strict=False))
+            config[action] = [str(ipaddress.ip_network(value, strict=False)) for value in config[action]]
+            if args[0] == "add" and cidr not in config[action]:
+                config[action].append(cidr)
+            elif args[0] == "remove":
+                config[action] = [value for value in config[action] if value != cidr]
+        else:
+            return result(False, "router_usage")
+        if action != "status":
+            mc_router.save(config)
+        return result(True, "router_status" if action == "status" else "router_updated",
+                      config=config, notes=notes)
+    except (ValueError, TypeError):
+        return result(False, "router_usage")
+    except (OSError, mc_servers.DataFileError) as exc:
+        return result(False, "router_error", message=str(exc))
 
 
 # ── content: server software, Java, modpacks, mods by name (2.9) ────────────

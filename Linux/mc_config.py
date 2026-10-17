@@ -138,7 +138,9 @@ def load_config(dossier_serveur):
 def save_config(config):
     dossier_serveur = config["dossier_serveur"]
     mc_servers._atomic_write_json(config_path(dossier_serveur), config)
-    mc_servers.update_cached_ports(dossier_serveur, port=config.get("port"), rcon_port=config.get("rcon_port"))
+    internal = config.get("internal_port") if config.get("sleep_join_mode") == "hold" or config.get("router_backend") else None
+    mc_servers.update_cached_ports(dossier_serveur, port=config.get("port"), rcon_port=config.get("rcon_port"),
+                                   internal_port=internal)
 
 def _load_templates():
     lang = mc_lang.current_language()
@@ -378,6 +380,14 @@ def resume_mode(config):
 
 # Keys 'mc config set' may change, with their validation. Anything else goes
 # through 'mc configure' or 'mc edit config'.
+def _on_off(value):
+    text = str(value).strip().lower()
+    if text in ("1", "on", "true", "yes", "oui"):
+        return 1
+    if text in ("0", "off", "false", "no", "non"):
+        return 0
+    raise ValueError(value)
+
 def _int_min(minimum):
     def check(v):
         try:
@@ -415,9 +425,138 @@ SETTABLE_KEYS = {
     "curseforge_api_key":    (str, lambda v: len(str(v).strip()) >= 20),
     "metrics_bind":          (str, _valid_bind),
     "metrics_allow_remote":  (int, lambda v: v in (0, 1)),
+    "sleep_join_mode":       (lambda v: v.lower(), lambda v: v in ("kick", "hold")),
+    "sleep_hold_timeout":    (int, lambda v: 10 <= int(v) <= 600),
+    "sleep_freeze":          (lambda v: _on_off(v), lambda v: v in (0, 1)),
+    "sleep_proxy_protocol":  (lambda v: v.lower(), lambda v: v in ("auto", "on", "off")),
+    "internal_port":         (int, valid_port),
 }
 # Changes that only take effect when the server restarts.
-RESTART_KEYS = {"port", "rcon_port", "mcrcon_pass", "ram_allocation", "cpu_affinity", "jar_name"}
+RESTART_KEYS = {"port", "rcon_port", "mcrcon_pass", "ram_allocation", "cpu_affinity", "jar_name",
+                "sleep_join_mode", "internal_port", "sleep_freeze"}
+
+PAPER_FAMILY = ("paper", "purpur", "folia", "pufferfish")
+DEFAULT_MAX_TICK_TIME = "60000"
+DEFAULT_SPIGOT_TIMEOUT = "60"
+
+def _paper_like(config):
+    return str(config.get("loader") or "").lower() in PAPER_FAMILY
+
+def _fmt_changes(changes):
+    return [T["config_updated_file"].format(file="server.properties")] if changes else []
+
+def apply_join_mode(config, name, mode):
+    """Switch between 'kick' and 'hold' and move everything that depends on it:
+    the server's own port and bind address, the PROXY protocol setting of
+    Paper-family servers, the cached ports. Returns (status, detail)."""
+    import mc_core
+    import mc_servers
+    lines = []
+    if mc_core.is_suspended(config):
+        return "conflict", T["sleep_wake_before_config"]
+    if mode == "hold":
+        if config.get("sleep_enabled", 0) != 1:
+            return "conflict", T["join_mode_needs_sleep"]
+        if mc_core.is_proxy(config):
+            return "conflict", T["join_mode_not_for_proxy"]
+        internal = int(config.get("internal_port") or mc_core.default_internal_port(config.get("port") or 25565))
+        for _ in range(20):
+            if not 1 <= internal <= 65535:
+                return "conflict", T["config_invalid_value"].format(key="internal_port", val=internal)
+            clash = (mc_servers.find_port_conflict(port=internal, rcon_port=internal, exclude_name=name)
+                     or (name if internal in (int(config.get("port") or 0), int(config.get("rcon_port") or 0)) else None))
+            if not clash:
+                break
+            internal += 1
+        else:
+            return "conflict", T["config_port_taken"].format(port=internal, name=clash)
+        config["internal_port"] = internal
+        config["sleep_join_mode"] = "hold"
+        save_config(config)
+        lines.append(T["config_updated_file"].format(file="config.json"))
+        lines += _fmt_changes(mc_core.sync_server_properties(config))
+        lines.append(T["join_mode_hold_on"].format(public=config.get("port"), internal=internal))
+        yaml = os.path.join(config.get("dossier_serveur", ""), "config", "paper-global.yml")
+        if _paper_like(config) and mc_core.paper_proxy_protocol(config) is False \
+                and str(config.get("sleep_proxy_protocol", "auto")).lower() != "off":
+            mc_core.edit_yaml_scalar(yaml, "proxy-protocol", "true")
+            config["proxy_protocol_yaml_managed"] = 1
+            save_config(config)
+            lines.append(T["join_mode_proxy_enabled"])
+        elif not mc_core.use_proxy_protocol(config):
+            lines.append(T["join_mode_proxy_unsupported"])
+        return "ok", lines
+
+    config["sleep_join_mode"] = "kick"
+    if config.get("sleep_freeze"):
+        config["sleep_freeze"] = 0
+        lines += _release_tick_watchdog(config)
+    save_config(config)
+    lines.append(T["config_updated_file"].format(file="config.json"))
+    lines += _fmt_changes(mc_core.sync_server_properties(config))
+    props = os.path.join(config.get("dossier_serveur", ""), "server.properties")
+    if not config.get("router_backend") and _read_property(props, "server-ip") == "127.0.0.1":
+        lines += _fmt_changes(mc_core.set_properties(config, {"server-ip": ""}))
+    if config.pop("proxy_protocol_yaml_managed", None):
+        yaml = os.path.join(config.get("dossier_serveur", ""), "config", "paper-global.yml")
+        mc_core.edit_yaml_scalar(yaml, "proxy-protocol", "false")
+        save_config(config)
+        lines.append(T["join_mode_proxy_restored"])
+    if not config.get("router_backend"):
+        lines.append(T["join_mode_kick_on"])
+    return "ok", lines
+
+def _read_property(props, key):
+    try:
+        with open(props, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                k, sep, v = line.lstrip("\ufeff").partition("=")
+                if sep and k.strip() == key:
+                    return v.strip()
+    except OSError:
+        pass
+    return None
+
+def _release_tick_watchdog(config):
+    """Give back the server's watchdog settings changed for sleep_freeze."""
+    import mc_core
+    previous = config.pop("sleep_watchdog_previous", None)
+    if previous is None:
+        return []
+    lines = _fmt_changes(mc_core.set_properties(config, {"max-tick-time": previous["max-tick-time"]}))
+    spigot = os.path.join(config.get("dossier_serveur", ""), "spigot.yml")
+    if previous.get("timeout-time") is not None:
+        mc_core.edit_yaml_scalar(spigot, "timeout-time", previous["timeout-time"])
+    save_config(config)
+    return lines
+
+def apply_freeze(config, name, enabled):
+    """sleep_freeze needs hold mode (the JVM keeps its port while stopped, so
+    the listener must own the public one) and a server whose watchdog will
+    not kill it when it wakes up after hours without a tick."""
+    import mc_core
+    if mc_core.is_suspended(config):
+        return "conflict", T["sleep_wake_before_config"]
+    if enabled and config.get("sleep_join_mode") != "hold":
+        return "conflict", T["freeze_needs_hold"]
+    if enabled and config.get("sleep_enabled", 0) != 1:
+        return "conflict", T["join_mode_needs_sleep"]
+    config["sleep_freeze"] = 1 if enabled else 0
+    lines = [T["config_updated_file"].format(file="config.json")]
+    if enabled:
+        props = os.path.join(config.get("dossier_serveur", ""), "server.properties")
+        tick = _read_property(props, "max-tick-time") or DEFAULT_MAX_TICK_TIME
+        spigot = os.path.join(config.get("dossier_serveur", ""), "spigot.yml")
+        timeout = mc_core.edit_yaml_scalar(spigot, "timeout-time", "-1")
+        config.setdefault("sleep_watchdog_previous", {"max-tick-time": tick, "timeout-time": timeout})
+        lines += _fmt_changes(mc_core.set_properties(config, {"max-tick-time": "-1"}))
+        if timeout is not None:
+            lines.append(T["config_updated_file"].format(file="spigot.yml"))
+        lines.append(T["freeze_watchdog_off"])
+    else:
+        lines += _release_tick_watchdog(config)
+    save_config(config)
+    return "ok", lines
 
 def set_value(config, name, key, raw):
     """Validate and apply one setting, then propagate it everywhere it lives:
@@ -438,10 +577,20 @@ def set_value(config, name, key, raw):
         return "invalid", T["config_invalid_value"].format(key=key, val=raw)
     if key == "dossier_backup":
         value = os.path.abspath(os.path.expanduser(value))
+    if key == "sleep_join_mode":
+        return apply_join_mode(config, name, value)
+    if key == "sleep_freeze":
+        return apply_freeze(config, name, value)
+    if key == "internal_port":
+        if value in (config.get("port"), config.get("rcon_port")):
+            return "conflict", T["config_port_same"].format(port=value)
+        clash = mc_servers.find_port_conflict(port=value, rcon_port=value, exclude_name=name)
+        if clash:
+            return "conflict", T["config_port_taken"].format(port=value, name=clash)
 
     if key in ("port", "rcon_port"):
         other_key = "rcon_port" if key == "port" else "port"
-        if str(config.get(other_key)) == str(value):
+        if str(config.get(other_key)) == str(value) or str(config.get("internal_port")) == str(value):
             return "conflict", T["config_port_same"].format(port=value)
         # A port must be free among every other server's game AND RCON ports.
         clash = mc_servers.find_port_conflict(port=value, rcon_port=value, exclude_name=name)
@@ -454,7 +603,7 @@ def set_value(config, name, key, raw):
     updated = [T["config_updated_file"].format(file="config.json")]
     if key in ("port", "rcon_port"):
         updated.append(T["config_updated_file"].format(file="servers.json"))
-    if key in ("port", "rcon_port", "mcrcon_pass"):
+    if key in ("port", "rcon_port", "mcrcon_pass", "internal_port"):
         if mc_core.sync_server_properties(config):
             updated.append(T["config_updated_file"].format(file="server.properties"))
     if key == "port" and old != value:
