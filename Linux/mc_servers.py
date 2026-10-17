@@ -223,7 +223,7 @@ def set_dossier(name, dossier_serveur):
     return True
 
 
-def update_cached_ports(dossier_serveur, port=None, rcon_port=None):
+def update_cached_ports(dossier_serveur, port=None, rcon_port=None, internal_port=False):
     registry = load_registry()
     changed = False
     for info in registry["servers"].values():
@@ -233,6 +233,12 @@ def update_cached_ports(dossier_serveur, port=None, rcon_port=None):
                 changed = True
             if rcon_port is not None and info.get("rcon_port") != rcon_port:
                 info["rcon_port"] = rcon_port
+                changed = True
+            if internal_port is not False and info.get("internal_port") != internal_port:
+                if internal_port is None:
+                    info.pop("internal_port", None)
+                else:
+                    info["internal_port"] = internal_port
                 changed = True
     if changed:
         save_registry(registry)
@@ -324,6 +330,9 @@ def find_port_conflict(port=None, rcon_port=None, exclude_name=None):
         if port is not None and str(info.get("port")) == str(port):
             return name
         if rcon_port is not None and str(info.get("rcon_port")) == str(rcon_port):
+            return name
+        internal = info.get("internal_port")
+        if internal is not None and str(internal) in (str(port), str(rcon_port)):
             return name
     return None
 

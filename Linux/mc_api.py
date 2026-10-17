@@ -98,7 +98,9 @@ def server_state(config, now=None):
     running = mc_core.is_server_running(config)
     maintenance = config.get("mode_maintenance", 0) == 1
     if running:
-        ready = _is_listening(config.get("port")) and mc_core.server_ready(config)
+        if mc_core.is_suspended(config):
+            return "sleeping"
+        ready = _is_listening(mc_core.game_port(config)) and mc_core.server_ready(config)
         return "running" if ready else "starting"
     if maintenance:
         reason = config.get("stop_reason") or "user"
@@ -117,6 +119,7 @@ def server_snapshot(name, info, active_name=None):
     dossier = info.get("dossier_serveur", "")
     snap = {
         "name": name,
+        "server": name,
         "id": info.get("id"),
         "active": name == active_name,
         "path": dossier,
@@ -145,6 +148,9 @@ def server_snapshot(name, info, active_name=None):
         "loader": loader,
         "version": version,
         "frozen": is_frozen(config),
+        "frozen_since_ts": (read_freeze(config) or {}).get("since"),
+        "frozen_expires_ts": (read_freeze(config) or {}).get("expires"),
+        "suspended": mc_core.is_suspended(config) if state == "sleeping" else False,
         "pid": None,
         "uptime_s": None,
         "rss_kb": None,
@@ -157,7 +163,9 @@ def server_snapshot(name, info, active_name=None):
             "open": "%02d:%02d" % (int(config.get("heure_ouverture", 20)), int(config.get("minute_ouverture", 0))),
             "close": "%02d:%02d" % (int(config.get("heure_fermeture", 3)), int(config.get("minute_fermeture", 0))),
         }
-    if state in ("running", "starting"):
+    if mc_core.is_hold_mode(config):
+        snap["internal_port"] = mc_core.game_port(config)
+    if state in ("running", "starting") or snap["suspended"]:
         pid = _main_pid(config)
         snap["pid"] = pid
         if pid:
@@ -176,6 +184,7 @@ def server_snapshot(name, info, active_name=None):
         marker = mc_crash.read(config) or {}
         snap["crash"] = {
             "since": marker.get("since"),
+            "since_ts": marker.get("since"),
             "failures": len(marker.get("failures", [])),
             "startup": bool(marker.get("startup")),
             "errors": mc_crash.recent_errors(dossier),
@@ -192,6 +201,8 @@ def status_document(target_name=None):
     active = registry.get("active")
     return {
         "schema": SCHEMA_VERSION,
+        "ok": True,
+        "code": "status",
         "active": active,
         "servers": [server_snapshot(n, i, active) for n, i in servers.items()],
     }
@@ -306,7 +317,7 @@ def freeze(config, max_seconds=DEFAULT_FREEZE_MAX):
         return False, "already_frozen"
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump({"since": now, "expires": now + int(max_seconds), "pid": os.getpid()}, f)
-    if not mc_core.is_server_running(config):
+    if not mc_core.is_server_running(config) or mc_core.is_suspended(config):
         return True, "offline"
     if not mc_core.send_rcon(config, "save-off") or not mc_core.send_rcon(config, "save-all flush"):
         _remove_marker(config)
@@ -326,7 +337,7 @@ def thaw(config):
     """Re-enable world saving. Safe to call when not frozen.
     Returns (ok, code) with code in: thawed, not_frozen, offline, rcon_error."""
     was_frozen = is_frozen(config)
-    if not mc_core.is_server_running(config):
+    if not mc_core.is_server_running(config) or mc_core.is_suspended(config):
         _remove_marker(config)
         return True, "offline"
     sent = mc_core.send_rcon(config, "save-on")
@@ -396,6 +407,84 @@ def start(name, config):
     ok, msg = mc_core.start_server(config)
     return result(ok, "started" if ok else "start_failed", server=name, message=msg,
                   outside_service=not IN_DAEMON)
+
+
+def freeze_op(name, config, max_seconds=DEFAULT_FREEZE_MAX):
+    ok, code = freeze(config, max_seconds)
+    marker = read_freeze(config) or {}
+    return result(ok, code, server=name, max_s=int(max_seconds),
+                  since_ts=marker.get("since") if ok else None,
+                  expires_ts=marker.get("expires") if ok else None)
+
+
+def thaw_op(name, config):
+    ok, code = thaw(config)
+    return result(ok, code, server=name)
+
+
+def use(target):
+    if not mc_servers.set_active(target):
+        return result(False, "not_found", target=target)
+    name = mc_servers.get_active_name()
+    return result(True, "active_set", server=name, id=mc_servers.list_servers().get(name, {}).get("id"))
+
+
+def remove(target, confirmed=False):
+    registry = mc_servers.load_registry()
+    key = mc_servers._lookup_key(registry.get("servers", {}), target)
+    if not key:
+        return result(False, "not_found", target=target)
+    if not confirmed:
+        return result(False, "confirm_required", server=key)
+    ok, removed, folder = mc_servers.remove_server(target)
+    if not ok:
+        return result(False, "not_found", target=target)
+    return result(True, "deregistered", server=removed, path=folder, active=mc_servers.get_active_name())
+
+
+def set_mode(name, config, value):
+    setter = {"schedule": mc_config.set_mode_schedule, "always-on": mc_config.set_mode_always_on,
+              "maintenance": mc_config.set_mode_maintenance}[value]
+    config = setter(config)
+    mc_config.save_config(config)
+    return result(True, "mode_set", server=name, mode=value)
+
+
+def resume(name, config):
+    """Leave maintenance. A crashed server is restarted explicitly; any other
+    stopped server is handed back to the daemon."""
+    was_crashed = mc_crash.clear(config)
+    config = mc_config.resume_mode(config)
+    mc_config.save_config(config)
+    running = mc_core.is_server_running(config)
+    started = None
+    if not running and was_crashed:
+        started = start(name, config)
+    return result(True, "resumed", server=name, mode=mc_core.effective_mode(config),
+                  was_crashed=bool(was_crashed), running=running, start=started)
+
+
+def backup_now(name, config):
+    ok, message = mc_core.backup_server(config)
+    latest = None
+    if ok:
+        import mc_backup
+        found = mc_backup.list_backups(config.get("dossier_backup", ""))
+        latest = found[0] if found else None
+    return result(ok, "backup_created" if ok else "backup_error", server=name, message=message,
+                  backup=latest["id"] if latest else None, path=latest["path"] if latest else None,
+                  created_ts=latest["created_ts"] if latest else None)
+
+
+def log_lines(name=None, count=30):
+    log_file = os.path.join(BASE_DIR, "logs", "daemon.log")
+    if not os.path.exists(log_file):
+        return result(False, "no_log_file", server=name)
+    with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+        lines = f.read().splitlines()
+    if name is not None:
+        lines = [line for line in lines if f"[{name}]" in line]
+    return result(True, "logs", server=name, lines=lines[-count:])
 
 
 def stop(name, config, reason=None, quiet=False, force=False):
@@ -508,6 +597,7 @@ def switch(target, force=False):
 # ── sleep settings ───────────────────────────────────────────────────────────
 
 DEFAULT_SLEEP_AFTER = 2 * 3600
+DEFAULT_HOLD_TIMEOUT = 120
 
 
 def sleep_info(config):
@@ -515,16 +605,37 @@ def sleep_info(config):
         "enabled": config.get("sleep_enabled", 0) == 1,
         "after_s": int(config.get("sleep_after", DEFAULT_SLEEP_AFTER)),
         "allow": list(config.get("sleep_allow", [])),
+        "join_mode": config.get("sleep_join_mode", "kick"),
+        "hold_timeout_s": int(config.get("sleep_hold_timeout", DEFAULT_HOLD_TIMEOUT)),
+        "freeze": config.get("sleep_freeze", 0) == 1,
+        "internal_port": config.get("internal_port") if config.get("sleep_join_mode") == "hold" else None,
+        "proxy_protocol": mc_core.use_proxy_protocol(config) if config.get("sleep_join_mode") == "hold" else None,
     }
 
 
-def sleep_configure(name, config, enabled=None, after_s=None, allow_add=(), allow_remove=()):
+def sleep_configure(name, config, enabled=None, after_s=None, allow_add=(), allow_remove=(),
+                    join_mode=None, freeze=None, hold_timeout_s=None):
+    config = dict(config)
+    if join_mode not in (None, "kick", "hold"):
+        return result(False, "sleep_setting_refused", message=T["join_mode_needs_sleep"])
+    if mc_core.is_suspended(config):
+        return result(False, "sleep_setting_refused", message=T["sleep_wake_before_config"])
+    effective_mode = "kick" if enabled is False else (join_mode or config.get("sleep_join_mode", "kick"))
+    effective_enabled = enabled if enabled is not None else bool(config.get("sleep_enabled"))
+    if effective_mode == "hold" and (not effective_enabled or mc_core.is_proxy(config)):
+        return result(False, "sleep_setting_refused", message=T["join_mode_needs_sleep"])
+    if freeze and effective_mode != "hold":
+        return result(False, "sleep_setting_refused", message=T["freeze_needs_hold"])
     if enabled is not None:
         config["sleep_enabled"] = 1 if enabled else 0
     if after_s is not None:
         if after_s < 300:
             return result(False, "sleep_after_too_short", minimum=300)
         config["sleep_after"] = int(after_s)
+    if hold_timeout_s is not None:
+        if not 10 <= hold_timeout_s <= 600:
+            return result(False, "sleep_hold_timeout_range", minimum=10, maximum=600)
+        config["sleep_hold_timeout"] = int(hold_timeout_s)
     allow = [n for n in config.get("sleep_allow", []) if n.lower() not in {a.lower() for a in allow_remove}]
     for n in allow_add:
         if n.lower() not in {a.lower() for a in allow}:
@@ -534,13 +645,27 @@ def sleep_configure(name, config, enabled=None, after_s=None, allow_add=(), allo
     if enabled and not config.get("mcrcon_pass"):
         return result(False, "sleep_needs_rcon", server=name)
     mc_config.save_config(config)
-    return result(True, "sleep_updated", server=name, **sleep_info(config))
+    notes = []
+    if enabled is False and config.get("sleep_join_mode") == "hold":
+        join_mode = "kick"
+    for key, value, apply in (("sleep_join_mode", join_mode, mc_config.apply_join_mode),
+                              ("sleep_freeze", freeze, mc_config.apply_freeze)):
+        if value is None:
+            continue
+        status, detail = apply(config, name, value if key == "sleep_join_mode" else bool(value))
+        if status != "ok":
+            return result(False, "sleep_setting_refused", server=name, key=key, message=detail)
+        notes += detail
+    return result(True, "sleep_updated", server=name, notes=notes, **sleep_info(config))
 
 
 def wake(name, config):
     """Wake a sleeping server now (same path as a known player joining)."""
     if server_state(config) != "sleeping":
         return result(False, "not_sleeping", server=name, state=server_state(config))
+    if mc_core.is_suspended(config):
+        ok = mc_core.resume_server(config)
+        return result(ok, "resumed" if ok else "suspend_signal_error", server=name)
     config["mode_maintenance"] = 0
     config.pop("stop_reason", None)
     mc_config.save_config(config)
@@ -548,6 +673,189 @@ def wake(name, config):
     if started["ok"]:
         mc_core._alert(config, "wake")
     return started
+
+
+def suspend(name, config):
+    """sleep_freeze: flush the world and SIGSTOP the server instead of stopping it."""
+    ok, code = mc_core.suspend_server(config)
+    return result(ok, "suspended" if ok else f"suspend_{code}", server=name)
+
+
+def restart_pending(config):
+    """True when the running server was started before its server.properties
+    last changed, i.e. a port or bind change has not been applied yet."""
+    if not mc_core.is_server_running(config):
+        return False
+    pid = _main_pid(config)
+    uptime = _uptime_seconds(pid) if pid else None
+    if uptime is None:
+        return False
+    try:
+        changed = os.path.getmtime(os.path.join(config["dossier_serveur"], "server.properties"))
+    except OSError:
+        return False
+    return changed > time.time() - uptime
+
+
+def _router_attach(name, server, router, notes):
+    """Put a server behind the router: internal port on 127.0.0.1. Returns a
+    failure result, or None."""
+    if mc_core.is_proxy(server):
+        return result(False, "router_backend_invalid", server=name)
+    internal = server.get("internal_port") or mc_core.default_internal_port(server.get("port") or 25565)
+    for _ in range(100):
+        if not 1 <= int(internal) <= 65535:
+            return result(False, "router_port_conflict", server=name, port=internal)
+        conflict = mc_servers.find_port_conflict(port=internal, rcon_port=internal, exclude_name=name)
+        if not conflict and internal not in (router["port"], server.get("port"), server.get("rcon_port")):
+            break
+        internal += 1
+    else:
+        return result(False, "router_port_conflict", server=name, port=internal)
+    changed = not server.get("router_backend") or server.get("internal_port") != internal
+    server.update(router_backend=True, internal_port=internal)
+    mc_config.save_config(server)
+    mc_core.sync_server_properties(server)
+    if changed or restart_pending(server):
+        notes.append(T["router_backend_note"].format(server=name, port=internal))
+    if not mc_core.use_proxy_protocol(server) and not router["proxy_out"]:
+        notes.append(T["join_mode_proxy_unsupported"])
+    return None
+
+
+def _router_release(name, server, notes):
+    """Give a server back its public port once nothing routes to it."""
+    server.pop("router_backend", None)
+    if server.get("sleep_join_mode") != "hold":
+        server.pop("internal_port", None)
+    mc_config.save_config(server)
+    mc_core.sync_server_properties(server)
+    props = os.path.join(server["dossier_serveur"], "server.properties")
+    if not mc_core.is_hold_mode(server) and mc_config._read_property(props, "server-ip") == "127.0.0.1":
+        mc_core.set_properties(server, {"server-ip": ""})
+    notes.append(T["router_released_note"].format(server=name, port=server.get("port")))
+
+
+def _router_release_unused(router, notes, everything=False):
+    """Release every router backend no route points to (all of them when the
+    router is being disabled). Returns the names released."""
+    used = set() if everything else set(router["routes"].values()) | ({router["default"]} if router["default"] else set())
+    released = []
+    for name, info in mc_servers.list_servers().items():
+        if name in used or not info.get("dossier_serveur") or not os.path.isdir(info["dossier_serveur"]):
+            continue
+        server = mc_config.load_config(info["dossier_serveur"])
+        if not server.get("router_backend"):
+            continue
+        server["dossier_serveur"] = info["dossier_serveur"]
+        _router_release(name, server, notes)
+        released.append(name)
+    return released
+
+
+def _router_pending(servers):
+    pending = []
+    for name, info in servers.items():
+        if not info.get("dossier_serveur") or not os.path.isdir(info["dossier_serveur"]):
+            continue
+        try:
+            server = mc_config.load_config(info["dossier_serveur"])
+        except mc_servers.DataFileError:
+            continue
+        server["dossier_serveur"] = info["dossier_serveur"]
+        if restart_pending(server):
+            pending.append(name)
+    return pending
+
+
+def router_command(action, operands=(), port=None, proxy_in=None, proxy_out=None,
+                   trusted_proxies=None, per_ip=None, per_second=None):
+    import mc_router
+    import mc_proxy
+    import ipaddress
+    try:
+        config = mc_router.load()
+        args = list(operands)
+        notes = []
+        released = []
+        touched = []
+        if action in ("status", "disable", "enable"):
+            if args:
+                return result(False, "router_usage")
+            if action == "disable":
+                config["enabled"] = False
+                released = _router_release_unused(config, notes, everything=True)
+            elif action == "enable":
+                for key, value in (("port", port), ("proxy_in", proxy_in), ("proxy_out", proxy_out),
+                                   ("trusted_proxies", trusted_proxies), ("per_ip", per_ip),
+                                   ("per_second", per_second)):
+                    if value is not None:
+                        config[key] = value
+                config = mc_router.validate(config)
+                for name, info in mc_servers.list_servers().items():
+                    loaded = mc_config.load_config(info["dossier_serveur"])
+                    if config["port"] in (mc_core.game_port(loaded), loaded.get("rcon_port")):
+                        return result(False, "router_port_conflict", server=name, port=config["port"])
+                config["enabled"] = True
+                for target in sorted(set(config["routes"].values()) | ({config["default"]} if config["default"] else set())):
+                    found, error = load_server(target)
+                    if error:
+                        continue
+                    error = _router_attach(found[0], found[1], config, notes)
+                    if error:
+                        return error
+                    touched.append(found[0])
+        elif action in ("route", "default"):
+            if action == "route" and args == ["list"]:
+                return result(True, "router_status", config=config,
+                              pending_restart=_router_pending(mc_servers.list_servers()))
+            if action == "route" and len(args) == 2 and args[0] == "remove":
+                config["routes"].pop(mc_router.hostname(args[1]), None)
+                released = _router_release_unused(config, notes)
+            else:
+                if action == "route":
+                    if len(args) != 3 or args[0] != "add":
+                        return result(False, "router_usage")
+                    host, target = mc_router.hostname(args[1]), args[2]
+                else:
+                    if len(args) != 1:
+                        return result(False, "router_usage")
+                    target = args[0]
+                loaded, error = load_server(target)
+                if error:
+                    return error
+                name, server = loaded
+                error = _router_attach(name, server, config, notes)
+                if error:
+                    return error
+                touched.append(name)
+                if action == "default":
+                    config["default"] = name
+                else:
+                    config["routes"][host] = name
+        elif action in ("allow", "deny"):
+            if len(args) != 2 or args[0] not in ("add", "remove") or not mc_proxy.valid_cidr(args[1]):
+                return result(False, "router_usage")
+            cidr = str(ipaddress.ip_network(args[1], strict=False))
+            config[action] = [str(ipaddress.ip_network(value, strict=False)) for value in config[action]]
+            if args[0] == "add" and cidr not in config[action]:
+                config[action].append(cidr)
+            elif args[0] == "remove":
+                config[action] = [value for value in config[action] if value != cidr]
+        else:
+            return result(False, "router_usage")
+        if action != "status":
+            mc_router.save(config)
+        servers = mc_servers.list_servers()
+        pending = _router_pending(servers)
+        restart_required = action != "status" and bool(set(pending) & (set(touched) | set(released)))
+        return result(True, "router_status" if action == "status" else "router_updated",
+                      config=config, notes=notes, released=released, pending_restart=pending,
+                      restart_required=restart_required)
+    except (ValueError, TypeError):
+        return result(False, "router_usage")
+    except (OSError, mc_servers.DataFileError) as exc:
+        return result(False, "router_error", message=str(exc))
 
 
 # ── content: server software, Java, modpacks, mods by name (2.9) ────────────
@@ -821,7 +1129,7 @@ def backup_remote_test(name, config, rname=None):
             mc_backup.check_remote(remote)
             checks.append({"remote": remote["name"], "ok": True, "detail": ""})
         except mc_backup.BackupError as e:
-            checks.append({"remote": remote["name"], "ok": False, "detail": str(e)})
+            checks.append({"remote": remote["name"], "ok": False, "detail": mc_backup.redact(str(e), remote)})
     ok = all(c["ok"] for c in checks)
     return result(ok, "backup_remote_tested" if ok else "backup_remote_test_failed", server=name,
                   checks=checks, failed=", ".join(c["remote"] for c in checks if not c["ok"]))
@@ -989,3 +1297,66 @@ def task_run(name, config, task, skip_warn=False):
     res = mc_task.execute(name, config, task, skip_warn=skip_warn)
     mc_task.record_run(config, task.get("id"), res["ok"], res["code"])
     return dict(res, server=name)
+
+
+# ── metrics / status page ────────────────────────────────────────────────────
+
+def metrics_serve(bind=None, allow_remote=False, ready=None):
+    """Serve /metrics in the foreground until interrupted. `ready(bind)` is
+    called once the socket is bound."""
+    import mc_metrics
+    bind = bind or mc_metrics.DEFAULT_BIND
+    try:
+        server = mc_metrics.make_server(bind, allow_remote)
+    except ValueError:
+        return result(False, "metrics_bind_invalid", bind=bind)
+    except PermissionError:
+        return result(False, "metrics_remote_refused", bind=bind)
+    except OSError as e:
+        return result(False, "metrics_bind_failed", bind=bind, detail=str(e))
+    host, port = server.server_address[:2]
+    if ready:
+        ready(f"{host}:{port}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+    return result(True, "metrics_stopped", bind=f"{host}:{port}")
+
+
+STATUS_PAGE_DEFAULT_INTERVAL = 60
+STATUS_PAGE_MIN_INTERVAL = 10
+
+
+def statuspage_enable(name, config, directory=None, interval=None, show_players=None):
+    import mc_statuspage
+    directory = os.path.abspath(os.path.expanduser(
+        directory or config.get("status_page_dir") or os.path.join(config["dossier_serveur"], "status_page")))
+    interval = STATUS_PAGE_DEFAULT_INTERVAL if interval is None and "status_page_interval" not in config \
+        else (interval if interval is not None else int(config["status_page_interval"]))
+    if interval < STATUS_PAGE_MIN_INTERVAL:
+        return result(False, "status_page_interval_too_short", minimum=STATUS_PAGE_MIN_INTERVAL)
+    config["status_page_dir"] = directory
+    config["status_page_interval"] = interval
+    if show_players is not None:
+        config["status_page_players"] = 1 if show_players else 0
+    try:
+        mc_statuspage.generate(name, config)
+    except OSError as e:
+        return result(False, "status_page_unwritable", path=directory, detail=str(e))
+    mc_config.save_config(config)
+    return result(True, "status_page_enabled", server=name, path=directory, interval=interval,
+                  players=config.get("status_page_players", 0) == 1)
+
+
+def statuspage_disable(name, config):
+    import mc_statuspage
+    directory = config.pop("status_page_dir", None)
+    if not directory:
+        return result(True, "status_page_already_off", server=name)
+    mc_statuspage.remove_page(directory)
+    mc_config.save_config(config)
+    return result(True, "status_page_disabled", server=name, path=directory)
+

@@ -39,6 +39,9 @@ FAILING = [
     ["schedule", "25", "0", "3", "0"],
     ["schedule", "20", "0", "20", "0"],
     ["sleep", "wake"],
+    ["router", "route", "add", "x"],
+    ["router", "allow", "add", "nope"],
+    ["router", "status", "--port", "5"],
     ["sleep", "enable", "--after", "1m"],
     ["sleep", "enable", "--after", "nonsense"],
     ["freeze", "--max", "nonsense"],
@@ -51,6 +54,10 @@ FAILING = [
     ["alert", "test"],
     ["alert", "add", "sms"],
     ["announce"],
+    ["metrics", "serve", "--bind", "0.0.0.0:9225"],
+    ["metrics", "serve", "--bind", "nonsense"],
+    ["status-page", "enable", "zz"],
+    ["status-page", "disable", "zz"],
     ["fingerprint"],
 ]
 

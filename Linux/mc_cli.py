@@ -58,7 +58,7 @@ def resolve_for_json(target):
     with contextlib.redirect_stdout(sys.stderr):
         resolved = mc_servers.resolve_target(target)
     if not resolved:
-        print_json({"schema": mc_api.SCHEMA_VERSION,
+        print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": "not_found",
                     "error": {"code": "not_found", "target": target}})
     return resolved
 
@@ -429,8 +429,11 @@ def print_categorized_help():
             (f"alert add|list|remove|test [{tgt}]", T["help_alert"]),
             (f"freeze [{tgt}] [-- <cmd>]", T["help_freeze"]),
             (f"thaw [{tgt}]", T["help_thaw"]),
+            ("router enable|disable|status|route|default|allow|deny [--json]", T["help_router"]),
             (f"sleep enable|disable|status|wake [{tgt}] [--after 2h]", T["help_sleep"]),
             (f"sleep allow|deny <{T['arg_player']}> [{tgt}]", T["help_sleep_allow"]),
+            ("metrics serve [--bind 127.0.0.1:9225]", T["help_metrics"]),
+            (f"status-page enable|disable [{tgt}] [--dir D] [--interval 60]", T["help_status_page"]),
             (f"announce [{tgt}]", T["help_announce"]),
             (f"fingerprint [{tgt}]", T["help_fingerprint"]),
         ]),
@@ -563,7 +566,9 @@ def build_parser():
 
     p_freeze = subparsers.add_parser("freeze", parents=[target_parser], help=T["help_freeze"])
     p_freeze.add_argument("--max", default=None, metavar="DURATION", help=T["help_freeze_max"])
-    subparsers.add_parser("thaw", parents=[target_parser], help=T["help_thaw"])
+    p_freeze.add_argument("--json", action="store_true", help=T["help_json"])
+    p_thaw = subparsers.add_parser("thaw", parents=[target_parser], help=T["help_thaw"])
+    p_thaw.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_switch = subparsers.add_parser("switch", help=T["help_switch"])
     p_switch.add_argument("target", help=T["cli_target_help"])
@@ -574,7 +579,34 @@ def build_parser():
     p_sleep.add_argument("sleep_action", choices=["enable", "disable", "status", "wake", "allow", "deny"])
     p_sleep.add_argument("args", nargs="*", help=T["help_sleep_args"])
     p_sleep.add_argument("--after", default=None, metavar="DURATION", help=T["help_sleep_after"])
+    p_sleep.add_argument("--join-mode", choices=["kick", "hold"], default=None, help=T["help_sleep_join_mode"])
+    p_sleep.add_argument("--freeze", choices=["on", "off"], default=None, help=T["help_sleep_freeze"])
+    p_sleep.add_argument("--hold-timeout", default=None, metavar="DURATION", help=T["help_sleep_hold_timeout"])
     p_sleep.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_metrics = subparsers.add_parser("metrics", help=T["help_metrics"])
+    p_metrics.add_argument("metrics_action", choices=["serve"])
+    p_metrics.add_argument("--bind", default=None, metavar="HOST:PORT", help=T["help_metrics_bind"])
+    p_metrics.add_argument("--allow-remote", action="store_true", help=T["help_metrics_remote"])
+    p_metrics.add_argument("--json", action="store_true", help=T["help_json"])
+
+    p_sp = subparsers.add_parser("status-page", help=T["help_status_page"])
+    p_sp.add_argument("sp_action", choices=["enable", "disable"])
+    p_sp.add_argument("target", nargs="?", default=None, help=T["cli_target_help"])
+    p_sp.add_argument("--dir", default=None, metavar="FOLDER", help=T["help_status_page_dir"])
+    p_sp.add_argument("--interval", default=None, metavar="SECONDS", help=T["help_status_page_interval"])
+    p_sp.add_argument("--show-players", action="store_true", help=T["help_status_page_players"])
+    p_sp.add_argument("--json", action="store_true", help=T["help_json"])
+    p_router = subparsers.add_parser("router", help=T["help_router"])
+    p_router.add_argument("router_action", choices=["enable", "disable", "status", "route", "default", "allow", "deny"])
+    p_router.add_argument("operands", nargs="*", help=T["help_router_args"])
+    p_router.add_argument("--port", type=int, default=None, help=T["help_router_port"])
+    p_router.add_argument("--proxy-in", choices=["on", "off"], default=None, help=T["help_router_proxy_in"])
+    p_router.add_argument("--proxy-out", choices=["on", "off"], default=None, help=T["help_router_proxy_out"])
+    p_router.add_argument("--trusted-proxy", action="append", default=None, help=T["help_router_trust"])
+    p_router.add_argument("--per-ip", type=int, default=None, help=T["help_router_per_ip"])
+    p_router.add_argument("--per-second", type=int, default=None, help=T["help_router_rate"])
+    p_router.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_dp = subparsers.add_parser("datapack", help=T["help_datapack"])
     p_dp.add_argument("dp_action", choices=["list", "enable", "disable"])
@@ -622,14 +654,19 @@ def build_parser():
     p_config.add_argument("config_action", choices=["get", "set"])
     p_config.add_argument("key", nargs="?", default=None)
     p_config.add_argument("rest", nargs="*", help=T["help_config_rest"])
+    p_config.add_argument("--reveal", action="store_true", help=T["help_config_reveal"])
 
     p_use = subparsers.add_parser("use", help=T["help_use"])
     p_use.add_argument("target", help=T["help_use_target"])
+    p_use.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_remove = subparsers.add_parser("remove", help=T["help_remove"])
     p_remove.add_argument("target", help=T["help_remove_target"])
+    p_remove.add_argument("--yes", "-y", action="store_true", help=T["help_remove_yes"])
+    p_remove.add_argument("--json", action="store_true", help=T["help_json"])
 
-    subparsers.add_parser("doctor", parents=[target_parser], help=T["help_doctor"])
+    p_doctor = subparsers.add_parser("doctor", parents=[target_parser], help=T["help_doctor"])
+    p_doctor.add_argument("--json", action="store_true", help=T["help_json"])
 
     subparsers.add_parser("configure", parents=[target_parser], help=T["help_configure"])
     subparsers.add_parser("start", parents=[target_parser], help=T["help_start"])
@@ -641,14 +678,17 @@ def build_parser():
     subparsers.add_parser("console", parents=[target_parser], help=T["help_console"])
     _add_exploitation_parsers(subparsers)
     subparsers.add_parser("open", parents=[target_parser], help=T["help_open"])
-    subparsers.add_parser("resume", parents=[target_parser], help=T["help_resume"])
+    p_resume = subparsers.add_parser("resume", parents=[target_parser], help=T["help_resume"])
+    p_resume.add_argument("--json", action="store_true", help=T["help_json"])
     subparsers.add_parser("announce", parents=[target_parser], help=T["help_announce"])
     subparsers.add_parser("fingerprint", parents=[target_parser], help=T["help_fingerprint"])
-    subparsers.add_parser("logs", parents=[target_parser], help=T["help_logs"])
+    p_logs = subparsers.add_parser("logs", parents=[target_parser], help=T["help_logs"])
+    p_logs.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_mode = subparsers.add_parser("mode", help=T["help_mode"])
     p_mode.add_argument("value", choices=["schedule", "always-on", "maintenance"])
     p_mode.add_argument("target", nargs="?", default=None)
+    p_mode.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_schedule = subparsers.add_parser("schedule", help=T["help_schedule"])
     p_schedule.add_argument("open_h", type=int)
@@ -793,12 +833,14 @@ def main():
         info = registry["servers"].get(name) if name else None
         if not info:
             if args.json:
-                print_json({"schema": mc_api.SCHEMA_VERSION, "error": {"code": "no_active_server"}})
+                print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": "no_active_server",
+                            "error": {"code": "no_active_server"}})
             else:
                 print(f"\033[93m[!]\033[0m {T['no_active_short']}", file=sys.stderr)
             return EXIT_NOT_FOUND
         if args.json:
-            print_json({"schema": mc_api.SCHEMA_VERSION, **mc_api.server_snapshot(name, info, name)})
+            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "active",
+                        **mc_api.server_snapshot(name, info, name)})
         elif args.path:
             print(info.get("dossier_serveur", ""))
         else:
@@ -817,8 +859,17 @@ def main():
     if args.action == "switch":
         return cmd_switch(args)
 
+    if args.action == "router":
+        return cmd_router(args)
+
     if args.action == "sleep":
         return cmd_sleep(args)
+
+    if args.action == "metrics":
+        return cmd_metrics(args)
+
+    if args.action == "status-page":
+        return cmd_status_page(args)
 
     if args.action == "datapack":
         return cmd_datapack(args)
@@ -850,6 +901,9 @@ def main():
     if args.action == "task":
         return cmd_task(args)
 
+    if getattr(args, "json", False) and args.action in JSON_SIMPLE_ACTIONS:
+        return cmd_simple_json(args)
+
     if args.action == "use":
         if mc_servers.set_active(args.target):
             info = mc_servers.list_servers().get(mc_servers.get_active_name(), {})
@@ -867,7 +921,7 @@ def main():
         info = mc_servers.list_servers().get(name, {})
         print(f"\033[93m[!]\033[0m {T['deregister_warning'].format(name=name, sid=info.get('id', '?'))}")
         print(f"\033[90m[i]\033[0m {T['folder_preserved_info'].format(path=dossier)}")
-        if not mc_deploy.ask_yn(T["confirm_deregister"], default=False):
+        if not args.yes and not mc_deploy.ask_yn(T["confirm_deregister"], default=False):
             print_res(False, T["deregister_cancelled"])
             return
         ok, removed_name_or_msg, removed_dossier = mc_servers.remove_server(args.target)
@@ -921,7 +975,7 @@ def main():
         return
 
     if args.action == "doctor":
-        return mc_doctor.run_doctor(args.target)
+        return mc_doctor.run_doctor(args.target, as_json=args.json)
 
     if args.action == "logs":
         return print_logs(args.target)
@@ -1105,7 +1159,8 @@ def cmd_players(args):
     name, config = loaded
     if not mc_core.is_server_running(config):
         if args.json:
-            print_json({"schema": mc_api.SCHEMA_VERSION, "server": name, "online": 0, "max": None,
+            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "server_offline",
+                        "server": name, "online": 0, "max": None,
                         "players": [], "state": mc_api.server_state(config)})
             return EXIT_OK
         print_info(T["players_offline"])
@@ -1113,13 +1168,13 @@ def cmd_players(args):
     ok, data = mc_api.query_players(config, wait=mc_api.RCON_RETRY)
     if not ok:
         if args.json:
-            print_json({"schema": mc_api.SCHEMA_VERSION, "server": name,
+            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": "rcon_failed", "server": name,
                         "error": {"code": "rcon_failed", "detail": data}})
         else:
             print_res(False, T["players_failed"].format(detail=data))
         return EXIT_ERROR
     if args.json:
-        print_json({"schema": mc_api.SCHEMA_VERSION, "server": name, **data})
+        print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "players", "server": name, **data})
     else:
         names = ", ".join(data["players"]) or "-"
         print(T["players_line"].format(online=data["online"], max=data["max"], names=names))
@@ -1142,6 +1197,8 @@ def cmd_rcon(args):
     return EXIT_OK
 
 def cmd_freeze_thaw(args, command=None):
+    if args.json:
+        return cmd_freeze_thaw_json(args, command)
     loaded = _load_target_config(args.target)
     if not loaded:
         return EXIT_NOT_FOUND
@@ -1182,6 +1239,64 @@ def cmd_freeze_thaw(args, command=None):
         print_res(ok, T[f"thaw_{code}"])
     return rc
 
+def cmd_freeze_thaw_json(args, command=None):
+    loaded, code = _load(args.target, True)
+    if not loaded:
+        return code
+    name, config = loaded
+    if args.action == "thaw":
+        return _finish(mc_api.thaw_op(name, config), True)
+    try:
+        max_s = mc_api.parse_duration(args.max) if args.max else mc_api.DEFAULT_FREEZE_MAX
+    except ValueError:
+        print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": "invalid_duration", "value": args.max})
+        return EXIT_USAGE
+    res = mc_api.freeze_op(name, config, max_s)
+    if not res["ok"] or not command:
+        return _finish(res, True)
+    import subprocess
+    rc = EXIT_ERROR
+    try:
+        rc = subprocess.call(command, stdout=sys.stderr)
+    except FileNotFoundError:
+        pass
+    except KeyboardInterrupt:
+        rc = EXIT_INTERRUPTED
+    finally:
+        released = mc_api.thaw_op(name, config)
+    print_json({"schema": mc_api.SCHEMA_VERSION, **res, "command_exit_code": rc, "thaw": released})
+    return rc
+
+JSON_SIMPLE_ACTIONS = ("use", "remove", "mode", "resume", "backup", "logs")
+
+def cmd_simple_json(args):
+    """--json for the small server-management commands; every outcome is an
+    API result."""
+    action = args.action
+    if action == "use":
+        return _finish(mc_api.use(args.target), True)
+    if action == "remove":
+        return _finish_checked(mc_api.remove(args.target, confirmed=args.yes), True)
+    if action == "logs":
+        name = None
+        if args.target is not None:
+            loaded, code = _load(args.target, True)
+            if not loaded:
+                return code
+            name = loaded[0]
+        return _finish(mc_api.log_lines(name), True)
+    loaded, code = _load(args.target, True)
+    if not loaded:
+        return code
+    name, config = loaded
+    if action == "mode":
+        return _finish(mc_api.set_mode(name, config, args.value), True)
+    if action == "resume":
+        return _finish(mc_api.resume(name, config), True)
+    with _quiet(True):
+        res = mc_api.backup_now(name, config)
+    return _finish(res, True)
+
 def cmd_config(args):
     rest = list(args.rest or [])
     if args.config_action == "get":
@@ -1191,11 +1306,14 @@ def cmd_config(args):
             return EXIT_NOT_FOUND
         _name, config = loaded
         if args.key is None:
-            config.pop("dossier_serveur", None)
-            print_json(config)
+            shown, secrets_set = mc_config.redacted(config)
+            print_json({**shown, "secrets_set": secrets_set})
             return EXIT_OK
         if args.key not in config:
             print(f"\033[93m[!]\033[0m {T['config_key_unset'].format(key=args.key)}", file=sys.stderr)
+            return EXIT_ERROR
+        if args.key in mc_config.SECRET_KEYS and not args.reveal:
+            print(f"\033[93m[!]\033[0m {T['config_secret_refused'].format(key=args.key)}", file=sys.stderr)
             return EXIT_ERROR
         value = config[args.key]
         print(json.dumps(value, ensure_ascii=False) if isinstance(value, (dict, list)) else value)
@@ -1216,7 +1334,7 @@ def cmd_config(args):
         return EXIT_USAGE if status in ("unknown", "invalid") else EXIT_ERROR
     for line in detail:
         print_info(line)
-    print_res(True, T["config_set_ok"].format(key=args.key, value="***" if args.key in ("mcrcon_pass", "curseforge_api_key") else config[args.key]))
+    print_res(True, T["config_set_ok"].format(key=args.key, value="***" if args.key in mc_config.SECRET_KEYS else config[args.key]))
     if mc_core.is_server_running(config) and args.key in mc_config.RESTART_KEYS:
         print_info(T["config_restart_needed"])
     return EXIT_OK
@@ -1296,6 +1414,28 @@ def cmd_switch(args):
             print_info(start["message"])
     return _finish(res, args.json)
 
+def cmd_router(args):
+    options = {"port": args.port, "trusted_proxies": args.trusted_proxy,
+               "per_ip": args.per_ip, "per_second": args.per_second,
+               "proxy_in": None if args.proxy_in is None else args.proxy_in == "on",
+               "proxy_out": None if args.proxy_out is None else args.proxy_out == "on"}
+    if args.router_action != "enable" and any(value is not None for value in options.values()):
+        res = mc_api.result(False, "router_usage")
+    else:
+        res = mc_api.router_command(args.router_action, args.operands, **options)
+    code = _finish(res, args.json)
+    if not args.json and res["ok"]:
+        config = res["config"]
+        print_info(T["router_summary"].format(**config))
+        for host, server in sorted(config["routes"].items()):
+            print_info(f"{host} → {server}")
+        for note in res.get("notes", []):
+            print_info(note)
+        if res.get("pending_restart"):
+            print_info(T["router_pending_restart"].format(servers=", ".join(res["pending_restart"])))
+    return EXIT_USAGE if res["code"] == "router_usage" else code
+
+
 def cmd_sleep(args):
     action = args.sleep_action
     wanted = 1 if action in ("allow", "deny") else 0
@@ -1311,13 +1451,21 @@ def cmd_sleep(args):
         info = mc_api.sleep_info(config)
         state = mc_api.server_state(config)
         if args.json:
-            print_json({"schema": mc_api.SCHEMA_VERSION, "server": name, "state": state, **info})
+            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "sleep_status", "server": name,
+                        "state": state, **info})
             return EXIT_OK
         if info["enabled"]:
             print_res(True, T["sleep_status_on"].format(after=_human_duration(info["after_s"])))
         else:
             print_info(T["sleep_status_off"])
         print_info(T["sleep_status_state"].format(state=state))
+        if info["join_mode"] == "hold":
+            print_info(T["sleep_status_hold"].format(
+                public=config.get("port"), internal=info["internal_port"],
+                timeout=_human_duration(info["hold_timeout_s"]),
+                proxy=T["sleep_proxy_yes"] if info["proxy_protocol"] else T["sleep_proxy_no"]))
+        if info["freeze"]:
+            print_info(T["sleep_status_freeze"])
         if info["allow"]:
             print_info(T["sleep_status_allow"].format(names=", ".join(info["allow"])))
         return EXIT_OK
@@ -1330,8 +1478,17 @@ def cmd_sleep(args):
         except ValueError:
             print_res(False, T["invalid_duration"].format(val=args.after))
             return EXIT_USAGE
+    hold_timeout = None
+    if args.hold_timeout:
+        try:
+            hold_timeout = mc_api.parse_duration(args.hold_timeout)
+        except ValueError:
+            print_res(False, T["invalid_duration"].format(val=args.hold_timeout))
+            return EXIT_USAGE
+    extra = {"join_mode": args.join_mode, "hold_timeout_s": hold_timeout,
+             "freeze": None if args.freeze is None else args.freeze == "on"}
     if action == "enable":
-        res = mc_api.sleep_configure(name, config, enabled=True, after_s=after)
+        res = mc_api.sleep_configure(name, config, enabled=True, after_s=after, **extra)
     elif action == "disable":
         res = mc_api.sleep_configure(name, config, enabled=False)
     elif action == "allow":
@@ -1340,7 +1497,46 @@ def cmd_sleep(args):
         res = mc_api.sleep_configure(name, config, allow_remove=operands)
     if res["ok"] and not args.json:
         res = dict(res, after=_human_duration(res["after_s"]))
-    return _finish(res, args.json)
+    code = _finish(res, args.json)
+    if not args.json:
+        for note in res.get("notes") or []:
+            print_info(note)
+    return code
+
+def cmd_metrics(args):
+    def ready(bind):
+        if args.json:
+            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "metrics_listening", "bind": bind})
+        else:
+            print_res(True, T["metrics_listening"].format(bind=bind))
+        sys.stdout.flush()
+    res = mc_api.metrics_serve(args.bind, args.allow_remote, ready)
+    if res["ok"]:
+        return EXIT_OK
+    if args.json:
+        print_json({"schema": mc_api.SCHEMA_VERSION, **res})
+    else:
+        print_res(False, render(res))
+    return EXIT_USAGE if res["code"] in ("metrics_bind_invalid", "metrics_remote_refused") else EXIT_ERROR
+
+def cmd_status_page(args):
+    interval = None
+    if args.interval is not None:
+        try:
+            interval = int(args.interval)
+        except ValueError:
+            print_res(False, T["status_page_usage"])
+            return EXIT_USAGE
+    loaded, code = _load(args.target, args.json)
+    if not loaded:
+        return code
+    name, config = loaded
+    if args.sp_action == "enable":
+        res = mc_api.statuspage_enable(name, config, args.dir, interval, True if args.show_players else None)
+    else:
+        res = mc_api.statuspage_disable(name, config)
+    code = _finish(res, args.json)
+    return EXIT_USAGE if res["code"] == "status_page_interval_too_short" else code
 
 def cmd_datapack(args):
     import mc_content
@@ -1405,7 +1601,8 @@ def cmd_mod(args):
             for mod in res["mods"]:
                 entry = tracked.get(mod["file"])
                 if entry:
-                    mod.update(source=entry["source"], project=entry.get("slug"), version=entry.get("version"))
+                    mod.update(source=entry["source"], project=entry.get("slug"),
+                               tracked_version=entry.get("version"))
             return _finish(res, True)
         for mod in res["mods"]:
             where = []
@@ -1479,7 +1676,7 @@ def cmd_java(args):
             servers.append({"server": srv, "java": cfg.get("java") or cfg.get("java_major") or "system",
                             "minecraft": cfg.get("mc_version")})
         if args.json:
-            print_json({"schema": mc_api.SCHEMA_VERSION, "runtimes": {str(k): v for k, v in runtimes.items()},
+            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "java_list", "runtimes": {str(k): v for k, v in runtimes.items()},
                         "servers": servers})
             return EXIT_OK
         if runtimes:

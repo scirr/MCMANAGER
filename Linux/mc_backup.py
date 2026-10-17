@@ -21,7 +21,7 @@ NAME = re.compile(r"^backup_(.+?)_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$")
 REMOTE_TYPES = ("sftp", "s3", "restic")
 STAGING = "_mcmanager_restore_tmp"
 OLD_SUFFIX = ".mcmanager-old"
-SECRET_KEYS = ("secret_key", "password")
+SECRET_KEYS = ("access_key", "secret_key", "password", "password_file", "key")
 CMD_TIMEOUT = 3600
 
 
@@ -70,6 +70,7 @@ def list_backups(dossier_backup):
             m = NAME.match(ident)
             found.append({"id": ident, "file": fname, "path": path, "size": size,
                           "type": m.group(1) if m else "", "created": when.isoformat(timespec="seconds"),
+                          "created_ts": int(when.timestamp()),
                           "encrypted": fname.endswith(".enc")})
     found.sort(key=lambda b: (b["created"], b["file"]), reverse=True)
     return found
@@ -88,6 +89,7 @@ def find_backup(dossier_backup, ref):
         return {"id": _archive_id(os.path.basename(candidate)), "file": os.path.basename(candidate),
                 "path": candidate, "size": os.path.getsize(candidate), "type": "",
                 "created": archive_time(candidate).isoformat(timespec="seconds"),
+                "created_ts": int(archive_time(candidate).timestamp()),
                 "encrypted": candidate.endswith(".enc")}
     for b in backups:
         if ref in (b["id"], b["file"]):
@@ -263,7 +265,18 @@ def describe(remote):
 
 
 def masked(remote):
-    return {k: ("***" if k in SECRET_KEYS and v else v) for k, v in remote.items()}
+    """A destination as plain data that is safe to print: no credential, no
+    path to a key or password file, only the names of what is set."""
+    shown = {k: v for k, v in remote.items() if k not in SECRET_KEYS}
+    shown["secrets_set"] = [k for k in SECRET_KEYS if remote.get(k)]
+    return shown
+
+
+def redact(text, remote):
+    for k in SECRET_KEYS:
+        if remote.get(k):
+            text = text.replace(str(remote[k]), "***")
+    return text
 
 
 def _s3_client(remote):
@@ -391,7 +404,7 @@ def push_all(config, archive, warn=None):
                          config.get("dossier_backup"))
             out.append((remote.get("name"), True, sent))
         except BackupError as e:
-            out.append((remote.get("name"), False, str(e)))
+            out.append((remote.get("name"), False, redact(str(e), remote)))
         except (OSError, subprocess.SubprocessError) as e:
-            out.append((remote.get("name"), False, str(e)))
+            out.append((remote.get("name"), False, redact(str(e), remote)))
     return out

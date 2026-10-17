@@ -91,20 +91,29 @@ def channels(config):
     return [c for c in config.get("alerts", []) if isinstance(c, dict)]
 
 
+def public(ch):
+    """A channel as plain data that is safe to print: secrets masked, header
+    values replaced by their names, webhook URLs cut after the host."""
+    shown = {k: ("***" if k in SECRET_FIELDS and v else v) for k, v in ch.items() if k != "headers"}
+    secrets = [k for k in SECRET_FIELDS if ch.get(k)]
+    if ch.get("headers"):
+        shown["header_names"] = sorted(ch["headers"])
+        secrets.append("headers")
+    if shown.get("url"):
+        u = urlparse(shown["url"])
+        shown["url"] = f"{u.scheme}://{u.netloc}/..."
+    shown["secrets_set"] = secrets
+    return shown
+
+
 def listing(config):
     """Channels as plain data with every secret masked, the legacy Discord
     webhook included."""
-    out = []
-    for ch in channels(config):
-        shown = {k: ("***" if k in SECRET_FIELDS and v else v) for k, v in ch.items()}
-        if shown.get("url"):
-            u = urlparse(shown["url"])
-            shown["url"] = f"{u.scheme}://{u.netloc}/..."
-        out.append(shown)
+    out = [public(ch) for ch in channels(config)]
     if config.get("webhook_url"):
         u = urlparse(config["webhook_url"])
         out.append({"name": "discord", "type": "discord", "events": ["*"], "legacy": True,
-                    "url": f"{u.scheme}://{u.netloc}/..."})
+                    "url": f"{u.scheme}://{u.netloc}/...", "secrets_set": ["url"]})
     return out
 
 
@@ -216,6 +225,11 @@ def _redact(text, ch):
     for field in SECRET_FIELDS:
         if ch.get(field):
             text = text.replace(str(ch[field]), "***")
+    for value in (ch.get("headers") or {}).values():
+        if value:
+            text = text.replace(str(value), "***")
+    if ch.get("url"):
+        text = text.replace(str(ch["url"]), public(ch)["url"])
     return text
 
 
