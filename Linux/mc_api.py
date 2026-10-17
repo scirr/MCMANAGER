@@ -957,7 +957,7 @@ def backup_remote_test(name, config, rname=None):
             mc_backup.check_remote(remote)
             checks.append({"remote": remote["name"], "ok": True, "detail": ""})
         except mc_backup.BackupError as e:
-            checks.append({"remote": remote["name"], "ok": False, "detail": str(e)})
+            checks.append({"remote": remote["name"], "ok": False, "detail": mc_backup.redact(str(e), remote)})
     ok = all(c["ok"] for c in checks)
     return result(ok, "backup_remote_tested" if ok else "backup_remote_test_failed", server=name,
                   checks=checks, failed=", ".join(c["remote"] for c in checks if not c["ok"]))

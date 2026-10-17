@@ -431,6 +431,31 @@ SETTABLE_KEYS = {
     "sleep_proxy_protocol":  (lambda v: v.lower(), lambda v: v in ("auto", "on", "off")),
     "internal_port":         (int, valid_port),
 }
+SECRET_KEYS = ("mcrcon_pass", "webhook_url", "curseforge_api_key", "backup_encrypt_key_file",
+               "alerts", "backup_remotes")
+
+
+def redacted(config):
+    """(copy of the config that is safe to print, names of the secret keys
+    that are set). Structured secrets keep their shape through
+    mc_alert.public / mc_backup.masked; scalar ones become '***'."""
+    import mc_alert
+    import mc_backup
+    shown = {k: v for k, v in config.items() if k != "dossier_serveur"}
+    names = []
+    for key in SECRET_KEYS:
+        if not shown.get(key):
+            continue
+        names.append(key)
+        if key == "alerts":
+            shown[key] = [mc_alert.public(c) for c in mc_alert.channels(config)]
+        elif key == "backup_remotes":
+            shown[key] = [mc_backup.masked(r) for r in shown[key] if isinstance(r, dict)]
+        else:
+            shown[key] = "***"
+    return shown, names
+
+
 # Changes that only take effect when the server restarts.
 RESTART_KEYS = {"port", "rcon_port", "mcrcon_pass", "ram_allocation", "cpu_affinity", "jar_name",
                 "sleep_join_mode", "internal_port", "sleep_freeze"}

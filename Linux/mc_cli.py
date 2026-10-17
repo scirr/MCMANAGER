@@ -652,6 +652,7 @@ def build_parser():
     p_config.add_argument("config_action", choices=["get", "set"])
     p_config.add_argument("key", nargs="?", default=None)
     p_config.add_argument("rest", nargs="*", help=T["help_config_rest"])
+    p_config.add_argument("--reveal", action="store_true", help=T["help_config_reveal"])
 
     p_use = subparsers.add_parser("use", help=T["help_use"])
     p_use.add_argument("target", help=T["help_use_target"])
@@ -1230,11 +1231,14 @@ def cmd_config(args):
             return EXIT_NOT_FOUND
         _name, config = loaded
         if args.key is None:
-            config.pop("dossier_serveur", None)
-            print_json(config)
+            shown, secrets_set = mc_config.redacted(config)
+            print_json({**shown, "secrets_set": secrets_set})
             return EXIT_OK
         if args.key not in config:
             print(f"\033[93m[!]\033[0m {T['config_key_unset'].format(key=args.key)}", file=sys.stderr)
+            return EXIT_ERROR
+        if args.key in mc_config.SECRET_KEYS and not args.reveal:
+            print(f"\033[93m[!]\033[0m {T['config_secret_refused'].format(key=args.key)}", file=sys.stderr)
             return EXIT_ERROR
         value = config[args.key]
         print(json.dumps(value, ensure_ascii=False) if isinstance(value, (dict, list)) else value)
@@ -1255,7 +1259,7 @@ def cmd_config(args):
         return EXIT_USAGE if status in ("unknown", "invalid") else EXIT_ERROR
     for line in detail:
         print_info(line)
-    print_res(True, T["config_set_ok"].format(key=args.key, value="***" if args.key in ("mcrcon_pass", "curseforge_api_key") else config[args.key]))
+    print_res(True, T["config_set_ok"].format(key=args.key, value="***" if args.key in mc_config.SECRET_KEYS else config[args.key]))
     if mc_core.is_server_running(config) and args.key in mc_config.RESTART_KEYS:
         print_info(T["config_restart_needed"])
     return EXIT_OK
