@@ -3,8 +3,9 @@ import subprocess
 import sys
 
 
-class Unsupported(Exception):
-    code = "unsupported_on_windows"
+from mc_platform import Unsupported
+
+__all__ = ["Unsupported", "is_windows", "run", "run_powershell"]
 
 
 def is_windows():
