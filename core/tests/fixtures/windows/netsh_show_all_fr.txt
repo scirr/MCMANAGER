@@ -1,0 +1,30 @@
+## reconstitue: meme commande, Windows FR (libelles traduits; accents en cp850 a l'origine)
+ 
+Nom de la règle :                     MC Manager Créatif 25566/tcp
+----------------------------------------------------------------------
+Activée :                             Oui
+Direction :                           Entrant
+Profils :                             Domaine,Privé,Public
+Regroupement :                        
+AdresseLocale :                       Tout
+AdresseDistante :                     Tout
+Protocole :                           TCP
+PortLocal :                           25566
+PortDistant :                         Tout
+Traversée latérale :                  Non
+Action :                              Autoriser
+
+Nom de la règle :                     Règle désactivée
+----------------------------------------------------------------------
+Activée :                             Non
+Direction :                           Entrant
+Profils :                             Domaine
+Regroupement :                        
+AdresseLocale :                       Tout
+AdresseDistante :                     Tout
+Protocole :                           TCP
+PortLocal :                           26000
+PortDistant :                         Tout
+Traversée latérale :                  Non
+Action :                              Autoriser
+OK.

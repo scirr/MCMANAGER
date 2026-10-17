@@ -1,0 +1,3 @@
+## reconstitue: stderr PowerShell FR sans droits administrateur (code de sortie 5)
+New-NetFirewallRule : Accès refusé.
+Au caractère Ligne:1 : 7

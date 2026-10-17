@@ -1,0 +1,44 @@
+## reconstitue (non releve sur un vrai Windows): netsh advfirewall firewall show rule name=all dir=in, EN, cp437
+ 
+Rule Name:                            MC Manager Survie 25565/tcp
+----------------------------------------------------------------------
+Enabled:                              Yes
+Direction:                            In
+Profiles:                             Domain,Private,Public
+Grouping:                             
+LocalIP:                              Any
+RemoteIP:                             Any
+Protocol:                             TCP
+LocalPort:                            25565
+RemotePort:                           Any
+Edge traversal:                       No
+Action:                               Allow
+
+Rule Name:                            Core Networking - Echo
+----------------------------------------------------------------------
+Enabled:                              Yes
+Direction:                            In
+Profiles:                             Domain,Private,Public
+Grouping:                             Core Networking
+LocalIP:                              Any
+RemoteIP:                             Any
+Protocol:                             ICMPv4
+                                      Type    Code
+                                      8       Any
+Edge traversal:                       No
+Action:                               Allow
+
+Rule Name:                            Bloque TCP 25570
+----------------------------------------------------------------------
+Enabled:                              Yes
+Direction:                            In
+Profiles:                             Any
+Grouping:                             
+LocalIP:                              Any
+RemoteIP:                             Any
+Protocol:                             TCP
+LocalPort:                            25570
+RemotePort:                           Any
+Edge traversal:                       No
+Action:                               Block
+Ok.
