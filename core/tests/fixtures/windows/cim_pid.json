@@ -1,0 +1,3 @@
+### RECONSTITUE (non releve sur un vrai Windows) : a remplacer par une sortie reelle.
+### Source: Get-CimInstance Win32_Process -Filter ProcessId=4128, un objet (WorkingSetSize en octets, temps en 100 ns, Start en secondes Unix)
+{"ProcessId":4128,"ParentProcessId":5560,"Name":"java.exe","CommandLine":"java.exe -Dmcmanager.server=C:\\Servers\\A","WorkingSetSize":2147483648,"KernelModeTime":30000000,"UserModeTime":120000000,"Start":1700000000}
