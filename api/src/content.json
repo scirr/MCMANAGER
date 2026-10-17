@@ -1,0 +1,1348 @@
+{
+  "components": {
+    "schemas": {
+      "Datapack": {
+        "properties": {
+          "enabled": {
+            "description": "Null when the server is stopped.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "file": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "order": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "problem": {
+            "description": "Why the folder is not a usable pack.",
+            "oneOf": [
+              {
+                "enum": [
+                  "nested",
+                  "not_a_pack"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "worldgen": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "file",
+          "enabled",
+          "order",
+          "worldgen",
+          "problem"
+        ],
+        "type": "object"
+      },
+      "DatapackList": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "builtin": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "enabled_order": {
+                "items": {
+                  "type": "string"
+                },
+                "type": [
+                  "array",
+                  "null"
+                ]
+              },
+              "folder": {
+                "type": "string"
+              },
+              "packs": {
+                "items": {
+                  "$ref": "#/components/schemas/Datapack"
+                },
+                "type": "array"
+              },
+              "running": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "running",
+              "packs"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "DatapackSet": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "pack": {
+                "type": "string"
+              },
+              "quarantine": {
+                "description": "Offline disable: folder where the pack was moved.",
+                "type": "string"
+              },
+              "reply": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "restart_required": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "pack"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "DatapackSetRequest": {
+        "description": "Placement options are mutually exclusive and only meaningful when enabling.",
+        "properties": {
+          "after": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "before": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "before_vanilla": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "Mod": {
+        "properties": {
+          "adds_blocks": {
+            "type": "boolean"
+          },
+          "file": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "loader": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "modpack": {
+            "description": "Present in the AutoModpack host folder.",
+            "type": "boolean"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "project": {
+            "description": "Project slug, when installed by name.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "server": {
+            "description": "Present in the server mods folder.",
+            "type": "boolean"
+          },
+          "source": {
+            "description": "Origin, when installed by name.",
+            "enum": [
+              "modrinth",
+              "curseforge",
+              "hangar"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "description": "Version declared by the jar (the CLI overwrites it with the tracked version when the mod was installed by name).",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "file",
+          "server",
+          "modpack",
+          "id",
+          "name",
+          "version",
+          "loader",
+          "adds_blocks"
+        ],
+        "type": "object"
+      },
+      "ModAddRequest": {
+        "properties": {
+          "ref": {
+            "description": "Project slug or URL (Modrinth, CurseForge, Hangar) or the path of a .jar on the host.",
+            "type": "string"
+          },
+          "server_only": {
+            "description": "Jar path only: do not distribute through AutoModpack.",
+            "type": "boolean"
+          },
+          "source": {
+            "description": "Force the source: modrinth, curseforge or hangar.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "ref"
+        ],
+        "type": "object"
+      },
+      "ModAdded": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "already_present": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "copies": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "file": {
+                "type": "string"
+              },
+              "installed": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "name": {
+                "type": "string"
+              },
+              "restart_required": {
+                "type": "boolean"
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        ],
+        "description": "By name: name, version, installed, already_present. From a jar: file, copies."
+      },
+      "ModList": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "modpack_dir": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "mods": {
+                "items": {
+                  "$ref": "#/components/schemas/Mod"
+                },
+                "type": "array"
+              },
+              "mods_dir": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "mods"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ModRemoved": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "moved": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "quarantine": {
+                "type": "string"
+              },
+              "restart_required": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "file",
+              "moved"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "Files are moved to a dated quarantine folder, never deleted."
+      },
+      "ModUpdateRequest": {
+        "properties": {
+          "name": {
+            "description": "Slug, file or title; null updates every tracked mod.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "ModpackInfo": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "loader": {
+                "type": "string"
+              },
+              "loader_version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "mc_version": {
+                "type": "string"
+              },
+              "server_files": {
+                "type": "integer"
+              },
+              "source": {
+                "type": "string"
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "mc_version",
+              "loader"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ModpackInstallRequest": {
+        "properties": {
+          "accept_eula": {
+            "type": "boolean"
+          },
+          "curseforge_api_key": {
+            "description": "Write-only; defaults to a key already configured.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "writeOnly": true
+          },
+          "folder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "ram": {
+            "description": "Default 6G.",
+            "type": "string"
+          },
+          "rcon_port": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "source": {
+            "description": "Modrinth or CurseForge slug or URL, FTB pack, or the path of a .mrpack.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "accept_eula"
+        ],
+        "type": "object"
+      },
+      "ModpackInstalled": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "files": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "jar": {
+                "type": "string"
+              },
+              "loader": {
+                "type": "string"
+              },
+              "pack_version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "path": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer"
+              },
+              "rcon_port": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ModpackUpdateRequest": {
+        "properties": {
+          "curseforge_api_key": {
+            "description": "Write-only.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "writeOnly": true
+          }
+        },
+        "type": "object"
+      },
+      "ModpackUpdated": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "previous": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "quarantine": {
+                "type": "string"
+              },
+              "restart_required": {
+                "type": "boolean"
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
+      "ModsUpdated": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "current": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "failed": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "restart_required": {
+                "type": "boolean"
+              },
+              "updated": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "updated",
+              "current",
+              "failed"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/v1/modpacks": {
+      "post": {
+        "description": "Job result: ModpackInstalled (`pack_deployed`). `eula_required` (422), `folder_not_empty`, `port_taken`.",
+        "operationId": "installModpack",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "accept_eula": true,
+                "name": "cobble",
+                "ram": "6G",
+                "source": "cobblemon-fabric"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ModpackInstallRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": null,
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_installmodpa",
+                  "kind": "installModpack",
+                  "progress": 0,
+                  "result": null,
+                  "server": null,
+                  "state": "running",
+                  "updated_at": "2026-10-08T10:00:00Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Operation accepted; follow it on the job.",
+            "headers": {
+              "Location": {
+                "description": "URL of the job.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Create a server from a modpack",
+        "tags": [
+          "content"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.modpack_install"
+        ]
+      }
+    },
+    "/v1/modpacks/info": {
+      "get": {
+        "description": "`source_unreachable` (503), `pack_no_server_files`, `unknown_pack`.",
+        "operationId": "getModpackInfo",
+        "parameters": [
+          {
+            "description": "Modrinth or CurseForge slug or URL, or FTB pack.",
+            "example": "cobblemon-fabric",
+            "in": "query",
+            "name": "source",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "pack_info",
+                  "loader": "fabric",
+                  "loader_version": "0.16.9",
+                  "mc_version": "1.21.1",
+                  "ok": true,
+                  "schema": 1,
+                  "server_files": 48,
+                  "source": "modrinth",
+                  "title": "Cobblemon",
+                  "version": "1.6.1"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ModpackInfo"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Read a modpack without installing it",
+        "tags": [
+          "content"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_modpack.info"
+        ]
+      }
+    },
+    "/v1/servers/{server}/datapacks": {
+      "get": {
+        "operationId": "listDatapacks",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "builtin": [
+                    "vanilla"
+                  ],
+                  "code": "ok",
+                  "enabled_order": [
+                    "vanilla",
+                    "file/veinminer.zip"
+                  ],
+                  "folder": "/home/mc/Servers/survie/world/datapacks",
+                  "ok": true,
+                  "packs": [
+                    {
+                      "enabled": true,
+                      "file": "veinminer.zip",
+                      "id": "file/veinminer.zip",
+                      "order": 1,
+                      "problem": null,
+                      "worldgen": false
+                    }
+                  ],
+                  "running": true,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/DatapackList"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Datapacks and their order",
+        "tags": [
+          "content"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_content.datapack_list"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ]
+    },
+    "/v1/servers/{server}/datapacks/{pack}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "put": {
+        "description": "Offline, `enabled:false` moves the pack to a dated quarantine folder. `pack_not_found`, `pack_not_a_pack`, `pack_broken_worldgen`, `anchor_not_enabled`, `rcon_failed`, `server_offline` (enable).",
+        "operationId": "setDatapackEnabled",
+        "parameters": [
+          {
+            "description": "Pack file name or id (`file/<name>`).",
+            "example": "veinminer.zip",
+            "in": "path",
+            "name": "pack",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "enabled": true,
+                "first": true
+              },
+              "schema": {
+                "$ref": "#/components/schemas/DatapackSetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "enabled",
+                  "ok": true,
+                  "pack": "veinminer.zip",
+                  "reply": "Enabled data pack file/veinminer.zip",
+                  "restart_required": false,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/DatapackSet"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Enable or disable a datapack",
+        "tags": [
+          "content"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_content.datapack_set"
+        ]
+      }
+    },
+    "/v1/servers/{server}/modpack/update": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Job result: ModpackUpdated. `server_running`, `no_modpack`, `pack_not_updatable`, `pack_up_to_date` (success).",
+        "operationId": "updateModpack",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {},
+              "schema": {
+                "$ref": "#/components/schemas/ModpackUpdateRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": null,
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_updatemodpac",
+                  "kind": "updateModpack",
+                  "progress": 0,
+                  "result": null,
+                  "server": null,
+                  "state": "running",
+                  "updated_at": "2026-10-08T10:00:00Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Operation accepted; follow it on the job.",
+            "headers": {
+              "Location": {
+                "description": "URL of the job.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Update the installed modpack",
+        "tags": [
+          "content"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.modpack_update"
+        ]
+      }
+    },
+    "/v1/servers/{server}/mods": {
+      "get": {
+        "operationId": "listMods",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "ok",
+                  "modpack_dir": null,
+                  "mods": [
+                    {
+                      "adds_blocks": false,
+                      "file": "lithium-0.13.0.jar",
+                      "id": "lithium",
+                      "loader": "fabric",
+                      "modpack": false,
+                      "name": "Lithium",
+                      "project": "lithium",
+                      "server": true,
+                      "source": "modrinth",
+                      "version": "0.13.0"
+                    }
+                  ],
+                  "mods_dir": "/home/mc/Servers/survie/mods",
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ModList"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Installed mods and plugins",
+        "tags": [
+          "content"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_content.mod_list",
+          "mc_content.jar_metadata",
+          "mc_modsources.load_manifest"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Job result: ModAdded. Resolves required dependencies. `already_installed`, `mod_exists`, `not_a_jar`, `dependency_missing`, `source_unreachable`.",
+        "operationId": "addMod",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "ref": "lithium",
+                "source": "modrinth"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ModAddRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": null,
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_addmod",
+                  "kind": "addMod",
+                  "progress": 0,
+                  "result": null,
+                  "server": null,
+                  "state": "running",
+                  "updated_at": "2026-10-08T10:00:00Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Operation accepted; follow it on the job.",
+            "headers": {
+              "Location": {
+                "description": "URL of the job.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Install a mod or plugin by name or from a jar",
+        "tags": [
+          "content"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_modsources.add",
+          "mc_content.mod_add"
+        ]
+      }
+    },
+    "/v1/servers/{server}/mods/update": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Job result: ModsUpdated, `content_update_partial` when some fail.",
+        "operationId": "updateMods",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "name": null
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ModUpdateRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": null,
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_updatemods",
+                  "kind": "updateMods",
+                  "progress": 0,
+                  "result": null,
+                  "server": null,
+                  "state": "running",
+                  "updated_at": "2026-10-08T10:00:00Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Operation accepted; follow it on the job.",
+            "headers": {
+              "Location": {
+                "description": "URL of the job.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Update tracked mods",
+        "tags": [
+          "content"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_modsources.update"
+        ]
+      }
+    },
+    "/v1/servers/{server}/mods/{mod}": {
+      "delete": {
+        "description": "`mod_not_found` (404), `mod_ambiguous` (409, field `candidates`), `defines_blocks` (409).",
+        "operationId": "removeMod",
+        "parameters": [
+          {
+            "description": "File name, mod id or display name.",
+            "example": "lithium",
+            "in": "path",
+            "name": "mod",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Required to remove a mod that adds blocks (the server turns unknown blocks into air).",
+            "in": "query",
+            "name": "confirm_blocks",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "removed",
+                  "file": "lithium-0.13.0.jar",
+                  "moved": [
+                    "/home/mc/Servers/survie/mods/lithium-0.13.0.jar"
+                  ],
+                  "ok": true,
+                  "quarantine": "/home/mc/Servers/survie/.mcmanager/quarantine/2026-10-08_10-00-00",
+                  "restart_required": true,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ModRemoved"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Remove a mod (moved to quarantine)",
+        "tags": [
+          "content"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_content.mod_remove",
+          "mc_modsources.forget"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ]
+    }
+  }
+}

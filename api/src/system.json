@@ -1,0 +1,1495 @@
+{
+  "components": {
+    "schemas": {
+      "ConfigDocument": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "$ref": "#/components/schemas/ServerConfig"
+          }
+        ]
+      },
+      "ConfigKey": {
+        "description": "Keys settable through the API (SETTABLE_KEYS of mc_config).",
+        "enum": [
+          "port",
+          "rcon_port",
+          "mcrcon_pass",
+          "ram_allocation",
+          "cpu_affinity",
+          "jar_name",
+          "nom_serveur",
+          "domaine",
+          "webhook_url",
+          "dossier_backup",
+          "backup_retention_days",
+          "backup_keep",
+          "backup_encrypt_key_file",
+          "stop_timeout",
+          "curseforge_api_key"
+        ],
+        "type": "string"
+      },
+      "ConfigSet": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "key": {
+                "$ref": "#/components/schemas/ConfigKey"
+              },
+              "restart_required": {
+                "type": "boolean"
+              },
+              "updated": {
+                "description": "Files and firewall rules updated.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "key",
+              "restart_required"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ConfigSetRequest": {
+        "properties": {
+          "value": {
+            "description": "New value. For mcrcon_pass, webhook_url and curseforge_api_key it is write-only.",
+            "type": [
+              "string",
+              "integer"
+            ],
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "type": "object"
+      },
+      "ConfigValue": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "key": {
+                "$ref": "#/components/schemas/ConfigKey"
+              },
+              "value": {
+                "description": "Absent for write-only keys; null when unset.",
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ]
+              },
+              "write_only": {
+                "description": "True for write-only keys: the value is never returned.",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "key"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "DoctorCheck": {
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "fix": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "info",
+              "warn",
+              "err"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "label",
+          "detail",
+          "fix"
+        ],
+        "type": "object"
+      },
+      "DoctorReport": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "has_errors": {
+                "type": "boolean"
+              },
+              "has_issues": {
+                "type": "boolean"
+              },
+              "host": {
+                "items": {
+                  "$ref": "#/components/schemas/DoctorCheck"
+                },
+                "type": "array"
+              },
+              "servers": {
+                "items": {
+                  "properties": {
+                    "checks": {
+                      "items": {
+                        "$ref": "#/components/schemas/DoctorCheck"
+                      },
+                      "type": "array"
+                    },
+                    "server": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "server",
+                    "checks"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "host",
+              "servers",
+              "has_issues",
+              "has_errors"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "JavaInstalled": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "major": {
+                "type": [
+                  "integer",
+                  "string"
+                ]
+              },
+              "path": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "major"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "JavaRemoved": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "major": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "major"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "JavaRuntimes": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "runtimes": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "description": "Major version (as text) to path of the java executable.",
+                "type": "object"
+              },
+              "servers": {
+                "items": {
+                  "properties": {
+                    "java": {
+                      "description": "`system` or a major version.",
+                      "type": [
+                        "string",
+                        "integer"
+                      ]
+                    },
+                    "minecraft": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "server": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "server",
+                    "java"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "runtimes",
+              "servers"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "JavaUseRequest": {
+        "properties": {
+          "choice": {
+            "description": "A major version already installed, or `system`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "choice"
+        ],
+        "type": "object"
+      },
+      "JavaUsed": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "major": {
+                "type": "integer"
+              },
+              "restart_required": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
+      "Metrics": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "daemon": {
+                "properties": {
+                  "devices": {
+                    "type": "integer"
+                  },
+                  "jobs_running": {
+                    "type": "integer"
+                  },
+                  "load_1m": {
+                    "type": "number"
+                  },
+                  "uptime_s": {
+                    "type": "integer"
+                  },
+                  "version": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "version",
+                  "uptime_s"
+                ],
+                "type": "object"
+              },
+              "servers": {
+                "items": {
+                  "properties": {
+                    "backups_count": {
+                      "type": "integer"
+                    },
+                    "last_backup": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "players_max": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "players_online": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "rss_kb": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "state": {
+                      "$ref": "#/components/schemas/ServerState"
+                    },
+                    "swap_kb": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "tps": {
+                      "description": "Server ticks per second when measurable.",
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "uptime_s": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "state"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "daemon",
+              "servers"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ServerConfig": {
+        "description": "Server configuration without any secret. Secrets (mcrcon_pass, webhook_url, curseforge_api_key, alert channel and backup destination credentials) are write-only.",
+        "properties": {
+          "activer_automodpack": {
+            "enum": [
+              0,
+              1
+            ],
+            "type": "integer"
+          },
+          "always_on": {
+            "enum": [
+              0,
+              1
+            ],
+            "type": "integer"
+          },
+          "backup_encrypt_key_file": {
+            "type": "string"
+          },
+          "backup_keep": {
+            "type": "integer"
+          },
+          "backup_retention_days": {
+            "type": "integer"
+          },
+          "cle_automodpack": {
+            "type": "string"
+          },
+          "cpu_affinity": {
+            "type": "string"
+          },
+          "description_serveur": {
+            "type": "string"
+          },
+          "domaine": {
+            "type": "string"
+          },
+          "dossier_backup": {
+            "type": "string"
+          },
+          "heure_fermeture": {
+            "type": "integer"
+          },
+          "heure_ouverture": {
+            "type": "integer"
+          },
+          "jar_name": {
+            "type": "string"
+          },
+          "java": {
+            "type": "string"
+          },
+          "java_flags": {
+            "type": "string"
+          },
+          "java_major": {
+            "type": "integer"
+          },
+          "java_path": {
+            "type": "string"
+          },
+          "loader": {
+            "type": "string"
+          },
+          "loader_version": {
+            "type": "string"
+          },
+          "mc_version": {
+            "type": "string"
+          },
+          "minute_fermeture": {
+            "type": "integer"
+          },
+          "minute_ouverture": {
+            "type": "integer"
+          },
+          "mode_maintenance": {
+            "enum": [
+              0,
+              1
+            ],
+            "type": "integer"
+          },
+          "modpack": {
+            "additionalProperties": true,
+            "description": "Installed modpack record (title, version, source...).",
+            "type": "object"
+          },
+          "nom_serveur": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "ram_allocation": {
+            "type": "string"
+          },
+          "rcon_port": {
+            "type": "integer"
+          },
+          "secrets_set": {
+            "description": "Configured secrets; their values are never returned.",
+            "items": {
+              "enum": [
+                "mcrcon_pass",
+                "webhook_url",
+                "curseforge_api_key",
+                "alerts",
+                "backup_remotes"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sleep_after": {
+            "type": "integer"
+          },
+          "sleep_allow": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sleep_enabled": {
+            "enum": [
+              0,
+              1
+            ],
+            "type": "integer"
+          },
+          "stop_reason": {
+            "type": "string"
+          },
+          "stop_timeout": {
+            "type": "integer"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateCheck": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "current": {
+                "type": "string"
+              },
+              "latest": {
+                "type": "string"
+              },
+              "rollback_available": {
+                "type": "boolean"
+              },
+              "signed": {
+                "type": "boolean"
+              },
+              "update_available": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "current",
+              "latest",
+              "update_available"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "UpdateRequest": {
+        "properties": {
+          "version": {
+            "description": "Target release tag; latest when null.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "Updated": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "previous": {
+                "type": "string"
+              },
+              "restarted": {
+                "type": "boolean"
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "version"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/v1/doctor": {
+      "get": {
+        "operationId": "getDoctorReport",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "doctor",
+                  "has_errors": false,
+                  "has_issues": true,
+                  "host": [
+                    {
+                      "detail": "openjdk 21.0.4",
+                      "fix": null,
+                      "label": "Java",
+                      "status": "ok"
+                    }
+                  ],
+                  "ok": true,
+                  "schema": 1,
+                  "servers": [
+                    {
+                      "checks": [
+                        {
+                          "detail": "25565 held by nginx (pid 912)",
+                          "fix": "Free the port.",
+                          "label": "Port",
+                          "status": "warn"
+                        }
+                      ],
+                      "server": "survie"
+                    }
+                  ]
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/DoctorReport"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Diagnostics of the host and every server",
+        "tags": [
+          "system"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_doctor.check_host",
+          "mc_doctor.check_server"
+        ]
+      }
+    },
+    "/v1/java": {
+      "get": {
+        "operationId": "listJava",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "java_list",
+                  "ok": true,
+                  "runtimes": {
+                    "21": "/home/mc/.mcmanager/java/21/bin/java"
+                  },
+                  "schema": 1,
+                  "servers": [
+                    {
+                      "java": 21,
+                      "minecraft": "1.21.1",
+                      "server": "survie"
+                    }
+                  ]
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/JavaRuntimes"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Installed Java runtimes and per-server choice",
+        "tags": [
+          "system"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_java.installed"
+        ]
+      }
+    },
+    "/v1/java/{major}": {
+      "delete": {
+        "operationId": "removeJava",
+        "parameters": [
+          {
+            "description": "Java major version (8, 17, 21...).",
+            "example": 21,
+            "in": "path",
+            "name": "major",
+            "required": true,
+            "schema": {
+              "minimum": 8,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "java_removed",
+                  "major": 17,
+                  "ok": true,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/JavaRemoved"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Remove an installed runtime",
+        "tags": [
+          "system"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_java.remove"
+        ]
+      },
+      "put": {
+        "description": "Job result: JavaInstalled. `java_present` is a success. `java_unavailable` (422) for an unsupported architecture, `java_download_failed` (503).",
+        "operationId": "installJava",
+        "parameters": [
+          {
+            "description": "Java major version (8, 17, 21...).",
+            "example": 21,
+            "in": "path",
+            "name": "major",
+            "required": true,
+            "schema": {
+              "minimum": 8,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": null,
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_installjava",
+                  "kind": "installJava",
+                  "progress": 0,
+                  "result": null,
+                  "server": null,
+                  "state": "running",
+                  "updated_at": "2026-10-08T10:00:00Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Operation accepted; follow it on the job.",
+            "headers": {
+              "Location": {
+                "description": "URL of the job.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Install a Temurin runtime",
+        "tags": [
+          "system"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_java.install"
+        ]
+      }
+    },
+    "/v1/metrics": {
+      "get": {
+        "description": "JSON by default; `Accept: text/plain` returns the Prometheus text exposition format.",
+        "operationId": "getMetrics",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "metrics",
+                  "daemon": {
+                    "load_1m": 0.4,
+                    "uptime_s": 86400,
+                    "version": "3.0.0"
+                  },
+                  "ok": true,
+                  "schema": 1,
+                  "servers": [
+                    {
+                      "name": "survie",
+                      "players_max": 20,
+                      "players_online": 2,
+                      "rss_kb": 6291456,
+                      "state": "running",
+                      "swap_kb": 0,
+                      "uptime_s": 7312
+                    }
+                  ]
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Metrics"
+                }
+              },
+              "text/plain": {
+                "example": "mcm_server_up{server=\"survie\"} 1\nmcm_players_online{server=\"survie\"} 2\n",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Metrics of the daemon and of every server",
+        "tags": [
+          "system"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_api.server_snapshot",
+          "mc_api.query_players"
+        ]
+      }
+    },
+    "/v1/servers/{server}/config": {
+      "get": {
+        "operationId": "getServerConfig",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "always_on": 1,
+                  "code": "config",
+                  "nom_serveur": "Survie",
+                  "ok": true,
+                  "port": 25565,
+                  "ram_allocation": "6G",
+                  "rcon_port": 25575,
+                  "schema": 1,
+                  "secrets_set": [
+                    "mcrcon_pass",
+                    "webhook_url"
+                  ],
+                  "sleep_after": 7200,
+                  "sleep_enabled": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigDocument"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Server configuration (secrets excluded)",
+        "tags": [
+          "system"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_config.load_config"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ]
+    },
+    "/v1/servers/{server}/config/{key}": {
+      "get": {
+        "description": "Write-only keys answer `write_only:true` and no value (`config_key_unset` 404 when not configured).",
+        "operationId": "getConfigValue",
+        "parameters": [
+          {
+            "description": "A settable key.",
+            "example": "ram_allocation",
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ConfigKey"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "config_value",
+                  "key": "ram_allocation",
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie",
+                  "value": "6G",
+                  "write_only": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigValue"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Read one configuration key",
+        "tags": [
+          "system"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_config.load_config"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "put": {
+        "description": "Propagates to servers.json, server.properties and the firewall. Unknown key: 404; invalid value: 422; port conflict: 409.",
+        "operationId": "setConfigValue",
+        "parameters": [
+          {
+            "description": "A settable key.",
+            "example": "ram_allocation",
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ConfigKey"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "value": "8G"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/ConfigSetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "config_set",
+                  "key": "ram_allocation",
+                  "ok": true,
+                  "restart_required": true,
+                  "schema": 1,
+                  "server": "survie",
+                  "updated": [
+                    "config.json"
+                  ]
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigSet"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Change one configuration key",
+        "tags": [
+          "system"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_config.set_value"
+        ]
+      }
+    },
+    "/v1/servers/{server}/doctor": {
+      "get": {
+        "operationId": "getServerDoctorReport",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "doctor",
+                  "has_errors": false,
+                  "has_issues": false,
+                  "host": [],
+                  "ok": true,
+                  "schema": 1,
+                  "servers": [
+                    {
+                      "checks": [
+                        {
+                          "detail": "config.json readable",
+                          "fix": null,
+                          "label": "Config",
+                          "status": "ok"
+                        }
+                      ],
+                      "server": "survie"
+                    }
+                  ]
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/DoctorReport"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Diagnostics of one server",
+        "tags": [
+          "system"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_doctor.check_server"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ]
+    },
+    "/v1/servers/{server}/java": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "put": {
+        "description": "`java_bad_choice` (422) when the runtime is not installed.",
+        "operationId": "setServerJava",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "choice": "21"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/JavaUseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "java_use_major",
+                  "major": 21,
+                  "ok": true,
+                  "restart_required": true,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/JavaUsed"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Choose the Java a server runs on",
+        "tags": [
+          "system"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_java.use"
+        ]
+      }
+    },
+    "/v1/update": {
+      "get": {
+        "description": "`check_failed` (503) when GitHub is unreachable.",
+        "operationId": "checkUpdate",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "checked",
+                  "current": "3.0.0",
+                  "latest": "3.1.0",
+                  "ok": true,
+                  "rollback_available": false,
+                  "schema": 1,
+                  "signed": true,
+                  "update_available": true
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateCheck"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Check for a new MC Manager release",
+        "tags": [
+          "system"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_update.check"
+        ]
+      },
+      "post": {
+        "description": "Job result: Updated. Signature (Ed25519) and checksum are verified; `bad_signature`, `not_listed`, `bad_checksum`, `unsigned`, `no_asset` refuse the update. The daemon restarts afterwards.",
+        "operationId": "applyUpdate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "version": null
+              },
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": null,
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_applyupdate",
+                  "kind": "applyUpdate",
+                  "progress": 0,
+                  "result": null,
+                  "server": null,
+                  "state": "running",
+                  "updated_at": "2026-10-08T10:00:00Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Operation accepted; follow it on the job.",
+            "headers": {
+              "Location": {
+                "description": "URL of the job.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Install a release",
+        "tags": [
+          "system"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_update.perform_update"
+        ]
+      }
+    },
+    "/v1/update/rollback": {
+      "post": {
+        "description": "`no_previous` (409) when there is nothing to roll back to.",
+        "operationId": "rollbackUpdate",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "rolled_back",
+                  "ok": true,
+                  "previous": "3.1.0",
+                  "restarted": true,
+                  "schema": 1,
+                  "version": "3.0.0"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Updated"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Restore the previous release",
+        "tags": [
+          "system"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_update.rollback"
+        ]
+      }
+    }
+  }
+}

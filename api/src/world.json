@@ -1,0 +1,733 @@
+{
+  "components": {
+    "schemas": {
+      "Dimension": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "size_bytes": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "size_bytes"
+        ],
+        "type": "object"
+      },
+      "DimensionReset": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "dimension": {
+                "type": "string"
+              },
+              "removed": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "dimension",
+              "removed"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "Pregen": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "center": {
+                "description": "[x, z]",
+                "items": {
+                  "type": "integer"
+                },
+                "maxItems": 2,
+                "minItems": 2,
+                "type": [
+                  "array",
+                  "null"
+                ]
+              },
+              "progress": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "radius": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "radius"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PregenProgress": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "progress": {
+                "description": "Raw `chunky progress` reply.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "progress"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PregenRequest": {
+        "properties": {
+          "center": {
+            "description": "x,z (default spawn).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "radius": {
+            "description": "Radius in blocks.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "radius"
+        ],
+        "type": "object"
+      },
+      "WorldExportRequest": {
+        "properties": {
+          "output": {
+            "description": "Archive path on the host; default derived from the level name.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "WorldExported": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "files": {
+                "type": "integer"
+              },
+              "path": {
+                "type": "string"
+              },
+              "size_bytes": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "path",
+              "size_bytes"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "WorldImportRequest": {
+        "properties": {
+          "confirmed": {
+            "description": "Required when a world already exists.",
+            "type": "boolean"
+          },
+          "source": {
+            "description": "Archive path on the host (zip or tar).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "type": "object"
+      },
+      "WorldImported": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "level": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "level"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "WorldList": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "dimensions": {
+                "items": {
+                  "$ref": "#/components/schemas/Dimension"
+                },
+                "type": "array"
+              },
+              "level": {
+                "type": "string"
+              },
+              "size_bytes": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "level",
+              "dimensions",
+              "size_bytes"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "WorldResetRequest": {
+        "properties": {
+          "confirmed": {
+            "type": "boolean"
+          },
+          "include_overworld": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      }
+    }
+  },
+  "paths": {
+    "/v1/servers/{server}/worlds": {
+      "get": {
+        "operationId": "listWorlds",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "world_list",
+                  "dimensions": [
+                    {
+                      "id": "overworld",
+                      "paths": [
+                        "/home/mc/Servers/survie/world"
+                      ],
+                      "size_bytes": 1610612736
+                    },
+                    {
+                      "id": "nether",
+                      "paths": [
+                        "/home/mc/Servers/survie/world/DIM-1"
+                      ],
+                      "size_bytes": 536870912
+                    }
+                  ],
+                  "level": "world",
+                  "ok": true,
+                  "schema": 1,
+                  "server": "survie",
+                  "size_bytes": 2147483648
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/WorldList"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Dimensions and sizes",
+        "tags": [
+          "world"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_api.world_list"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ]
+    },
+    "/v1/servers/{server}/worlds/export": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Job result: WorldExported. `server_running_not_frozen` (409) unless stopped or frozen; `output_exists` (409).",
+        "operationId": "exportWorld",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "output": "/home/mc/exports/survie.zip"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/WorldExportRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": null,
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_exportworld",
+                  "kind": "exportWorld",
+                  "progress": 0,
+                  "result": null,
+                  "server": null,
+                  "state": "running",
+                  "updated_at": "2026-10-08T10:00:00Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Operation accepted; follow it on the job.",
+            "headers": {
+              "Location": {
+                "description": "URL of the job.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Export the world to an archive",
+        "tags": [
+          "world"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.world_export"
+        ]
+      }
+    },
+    "/v1/servers/{server}/worlds/import": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Job result: WorldImported. Backs the world up first. `server_running`, `confirmation_required`, `unsafe_archive`, `no_level_dat`.",
+        "operationId": "importWorld",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "confirmed": true,
+                "source": "/home/mc/imports/map.zip"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/WorldImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": null,
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_importworld",
+                  "kind": "importWorld",
+                  "progress": 0,
+                  "result": null,
+                  "server": null,
+                  "state": "running",
+                  "updated_at": "2026-10-08T10:00:00Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Operation accepted; follow it on the job.",
+            "headers": {
+              "Location": {
+                "description": "URL of the job.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Replace the world with an archive",
+        "tags": [
+          "world"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.world_import"
+        ]
+      }
+    },
+    "/v1/servers/{server}/worlds/pregen": {
+      "get": {
+        "operationId": "getPregenStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "pregen_progress",
+                  "ok": true,
+                  "progress": "[Chunky] Task running for minecraft:overworld. Processed: 4210 chunks (11.2%)",
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PregenProgress"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Pregeneration progress",
+        "tags": [
+          "world"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_api.world_pregen_status"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "`chunky_missing` and `pregen_offline` (409), `invalid_radius` (422).",
+        "operationId": "startPregen",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "center": "0,0",
+                "radius": 3000
+              },
+              "schema": {
+                "$ref": "#/components/schemas/PregenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "center": [
+                    0,
+                    0
+                  ],
+                  "code": "pregen_started",
+                  "ok": true,
+                  "progress": "Task running.",
+                  "radius": 3000,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Pregen"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        },
+        "summary": "Start Chunky pregeneration",
+        "tags": [
+          "world"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.world_pregen"
+        ]
+      }
+    },
+    "/v1/servers/{server}/worlds/{dimension}/reset": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "post": {
+        "description": "Job result: DimensionReset. `server_running`, `confirmation_required`, `overworld_protected`, `unknown_dimension` (422, field `available`).",
+        "operationId": "resetDimension",
+        "parameters": [
+          {
+            "description": "Dimension id: nether, end, or namespace:name (overworld only with include_overworld).",
+            "example": "nether",
+            "in": "path",
+            "name": "dimension",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "confirmed": true,
+                "include_overworld": false
+              },
+              "schema": {
+                "$ref": "#/components/schemas/WorldResetRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": null,
+                  "created_at": "2026-10-08T10:00:00Z",
+                  "id": "j_resetdimensi",
+                  "kind": "resetDimension",
+                  "progress": 0,
+                  "result": null,
+                  "server": null,
+                  "state": "running",
+                  "updated_at": "2026-10-08T10:00:00Z"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            },
+            "description": "Operation accepted; follow it on the job.",
+            "headers": {
+              "Location": {
+                "description": "URL of the job.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Delete a dimension so it regenerates",
+        "tags": [
+          "world"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.world_reset"
+        ]
+      }
+    }
+  }
+}
