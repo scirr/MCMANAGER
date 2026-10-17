@@ -119,6 +119,7 @@ def server_snapshot(name, info, active_name=None):
     dossier = info.get("dossier_serveur", "")
     snap = {
         "name": name,
+        "server": name,
         "id": info.get("id"),
         "active": name == active_name,
         "path": dossier,
@@ -147,6 +148,8 @@ def server_snapshot(name, info, active_name=None):
         "loader": loader,
         "version": version,
         "frozen": is_frozen(config),
+        "frozen_since_ts": (read_freeze(config) or {}).get("since"),
+        "frozen_expires_ts": (read_freeze(config) or {}).get("expires"),
         "suspended": mc_core.is_suspended(config) if state == "sleeping" else False,
         "pid": None,
         "uptime_s": None,
@@ -181,6 +184,7 @@ def server_snapshot(name, info, active_name=None):
         marker = mc_crash.read(config) or {}
         snap["crash"] = {
             "since": marker.get("since"),
+            "since_ts": marker.get("since"),
             "failures": len(marker.get("failures", [])),
             "startup": bool(marker.get("startup")),
             "errors": mc_crash.recent_errors(dossier),
@@ -197,6 +201,8 @@ def status_document(target_name=None):
     active = registry.get("active")
     return {
         "schema": SCHEMA_VERSION,
+        "ok": True,
+        "code": "status",
         "active": active,
         "servers": [server_snapshot(n, i, active) for n, i in servers.items()],
     }
@@ -401,6 +407,84 @@ def start(name, config):
     ok, msg = mc_core.start_server(config)
     return result(ok, "started" if ok else "start_failed", server=name, message=msg,
                   outside_service=not IN_DAEMON)
+
+
+def freeze_op(name, config, max_seconds=DEFAULT_FREEZE_MAX):
+    ok, code = freeze(config, max_seconds)
+    marker = read_freeze(config) or {}
+    return result(ok, code, server=name, max_s=int(max_seconds),
+                  since_ts=marker.get("since") if ok else None,
+                  expires_ts=marker.get("expires") if ok else None)
+
+
+def thaw_op(name, config):
+    ok, code = thaw(config)
+    return result(ok, code, server=name)
+
+
+def use(target):
+    if not mc_servers.set_active(target):
+        return result(False, "not_found", target=target)
+    name = mc_servers.get_active_name()
+    return result(True, "active_set", server=name, id=mc_servers.list_servers().get(name, {}).get("id"))
+
+
+def remove(target, confirmed=False):
+    registry = mc_servers.load_registry()
+    key = mc_servers._lookup_key(registry.get("servers", {}), target)
+    if not key:
+        return result(False, "not_found", target=target)
+    if not confirmed:
+        return result(False, "confirm_required", server=key)
+    ok, removed, folder = mc_servers.remove_server(target)
+    if not ok:
+        return result(False, "not_found", target=target)
+    return result(True, "deregistered", server=removed, path=folder, active=mc_servers.get_active_name())
+
+
+def set_mode(name, config, value):
+    setter = {"schedule": mc_config.set_mode_schedule, "always-on": mc_config.set_mode_always_on,
+              "maintenance": mc_config.set_mode_maintenance}[value]
+    config = setter(config)
+    mc_config.save_config(config)
+    return result(True, "mode_set", server=name, mode=value)
+
+
+def resume(name, config):
+    """Leave maintenance. A crashed server is restarted explicitly; any other
+    stopped server is handed back to the daemon."""
+    was_crashed = mc_crash.clear(config)
+    config = mc_config.resume_mode(config)
+    mc_config.save_config(config)
+    running = mc_core.is_server_running(config)
+    started = None
+    if not running and was_crashed:
+        started = start(name, config)
+    return result(True, "resumed", server=name, mode=mc_core.effective_mode(config),
+                  was_crashed=bool(was_crashed), running=running, start=started)
+
+
+def backup_now(name, config):
+    ok, message = mc_core.backup_server(config)
+    latest = None
+    if ok:
+        import mc_backup
+        found = mc_backup.list_backups(config.get("dossier_backup", ""))
+        latest = found[0] if found else None
+    return result(ok, "backup_created" if ok else "backup_error", server=name, message=message,
+                  backup=latest["id"] if latest else None, path=latest["path"] if latest else None,
+                  created_ts=latest["created_ts"] if latest else None)
+
+
+def log_lines(name=None, count=30):
+    log_file = os.path.join(BASE_DIR, "logs", "daemon.log")
+    if not os.path.exists(log_file):
+        return result(False, "no_log_file", server=name)
+    with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+        lines = f.read().splitlines()
+    if name is not None:
+        lines = [line for line in lines if f"[{name}]" in line]
+    return result(True, "logs", server=name, lines=lines[-count:])
 
 
 def stop(name, config, reason=None, quiet=False, force=False):

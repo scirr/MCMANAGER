@@ -222,8 +222,23 @@ def edit_list(config, kind, action, subject, reason=None, rcon=None):
     return result(True, f"{kind}_{PAST[action]}", subject=subject, changed=True, via="file")
 
 
+def _epoch(text):
+    try:
+        return int(datetime.datetime.strptime(str(text), "%Y-%m-%d %H:%M:%S %z").timestamp())
+    except ValueError:
+        return None
+
+
+def _with_timestamps(entry):
+    if not isinstance(entry, dict):
+        return entry
+    return dict(entry, created_ts=_epoch(entry.get("created")), expires_ts=_epoch(entry.get("expires")))
+
+
 def list_entries(config, kind):
     entries = read_list(config, kind)
+    if kind in ("ban", "banip"):
+        entries = [_with_timestamps(e) for e in entries]
     if kind == "whitelist":
         props = read_properties(config["dossier_serveur"])
         enabled = props.get("white-list", "false").lower() == "true"
@@ -372,5 +387,7 @@ def history(dossier, days=7, now=None):
             continue
         duration = int((s["leave"] - s["join"]).total_seconds()) if s["leave"] else None
         out.append({"player": s["player"], "ip": s["ip"], "join": _iso(s["join"]),
-                    "leave": _iso(s["leave"]), "duration_s": duration})
+                    "leave": _iso(s["leave"]), "duration_s": duration,
+                    "join_ts": int(s["join"].timestamp()),
+                    "leave_ts": int(s["leave"].timestamp()) if s["leave"] else None})
     return out

@@ -63,6 +63,7 @@ COVERED = {
     "logs": [["logs"]],
     "resume": [["resume"]],
     "use": [["use", "a"]],
+    "remove": [["remove", "zz", "--yes"]],
     "mode": [["mode", "always-on"]],
     "config": [],
     "deploy": None,

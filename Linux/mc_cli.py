@@ -58,7 +58,7 @@ def resolve_for_json(target):
     with contextlib.redirect_stdout(sys.stderr):
         resolved = mc_servers.resolve_target(target)
     if not resolved:
-        print_json({"schema": mc_api.SCHEMA_VERSION,
+        print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": "not_found",
                     "error": {"code": "not_found", "target": target}})
     return resolved
 
@@ -566,7 +566,9 @@ def build_parser():
 
     p_freeze = subparsers.add_parser("freeze", parents=[target_parser], help=T["help_freeze"])
     p_freeze.add_argument("--max", default=None, metavar="DURATION", help=T["help_freeze_max"])
-    subparsers.add_parser("thaw", parents=[target_parser], help=T["help_thaw"])
+    p_freeze.add_argument("--json", action="store_true", help=T["help_json"])
+    p_thaw = subparsers.add_parser("thaw", parents=[target_parser], help=T["help_thaw"])
+    p_thaw.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_switch = subparsers.add_parser("switch", help=T["help_switch"])
     p_switch.add_argument("target", help=T["cli_target_help"])
@@ -656,11 +658,15 @@ def build_parser():
 
     p_use = subparsers.add_parser("use", help=T["help_use"])
     p_use.add_argument("target", help=T["help_use_target"])
+    p_use.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_remove = subparsers.add_parser("remove", help=T["help_remove"])
     p_remove.add_argument("target", help=T["help_remove_target"])
+    p_remove.add_argument("--yes", "-y", action="store_true", help=T["help_remove_yes"])
+    p_remove.add_argument("--json", action="store_true", help=T["help_json"])
 
-    subparsers.add_parser("doctor", parents=[target_parser], help=T["help_doctor"])
+    p_doctor = subparsers.add_parser("doctor", parents=[target_parser], help=T["help_doctor"])
+    p_doctor.add_argument("--json", action="store_true", help=T["help_json"])
 
     subparsers.add_parser("configure", parents=[target_parser], help=T["help_configure"])
     subparsers.add_parser("start", parents=[target_parser], help=T["help_start"])
@@ -672,14 +678,17 @@ def build_parser():
     subparsers.add_parser("console", parents=[target_parser], help=T["help_console"])
     _add_exploitation_parsers(subparsers)
     subparsers.add_parser("open", parents=[target_parser], help=T["help_open"])
-    subparsers.add_parser("resume", parents=[target_parser], help=T["help_resume"])
+    p_resume = subparsers.add_parser("resume", parents=[target_parser], help=T["help_resume"])
+    p_resume.add_argument("--json", action="store_true", help=T["help_json"])
     subparsers.add_parser("announce", parents=[target_parser], help=T["help_announce"])
     subparsers.add_parser("fingerprint", parents=[target_parser], help=T["help_fingerprint"])
-    subparsers.add_parser("logs", parents=[target_parser], help=T["help_logs"])
+    p_logs = subparsers.add_parser("logs", parents=[target_parser], help=T["help_logs"])
+    p_logs.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_mode = subparsers.add_parser("mode", help=T["help_mode"])
     p_mode.add_argument("value", choices=["schedule", "always-on", "maintenance"])
     p_mode.add_argument("target", nargs="?", default=None)
+    p_mode.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_schedule = subparsers.add_parser("schedule", help=T["help_schedule"])
     p_schedule.add_argument("open_h", type=int)
@@ -824,12 +833,14 @@ def main():
         info = registry["servers"].get(name) if name else None
         if not info:
             if args.json:
-                print_json({"schema": mc_api.SCHEMA_VERSION, "error": {"code": "no_active_server"}})
+                print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": "no_active_server",
+                            "error": {"code": "no_active_server"}})
             else:
                 print(f"\033[93m[!]\033[0m {T['no_active_short']}", file=sys.stderr)
             return EXIT_NOT_FOUND
         if args.json:
-            print_json({"schema": mc_api.SCHEMA_VERSION, **mc_api.server_snapshot(name, info, name)})
+            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "active",
+                        **mc_api.server_snapshot(name, info, name)})
         elif args.path:
             print(info.get("dossier_serveur", ""))
         else:
@@ -890,6 +901,9 @@ def main():
     if args.action == "task":
         return cmd_task(args)
 
+    if getattr(args, "json", False) and args.action in JSON_SIMPLE_ACTIONS:
+        return cmd_simple_json(args)
+
     if args.action == "use":
         if mc_servers.set_active(args.target):
             info = mc_servers.list_servers().get(mc_servers.get_active_name(), {})
@@ -907,7 +921,7 @@ def main():
         info = mc_servers.list_servers().get(name, {})
         print(f"\033[93m[!]\033[0m {T['deregister_warning'].format(name=name, sid=info.get('id', '?'))}")
         print(f"\033[90m[i]\033[0m {T['folder_preserved_info'].format(path=dossier)}")
-        if not mc_deploy.ask_yn(T["confirm_deregister"], default=False):
+        if not args.yes and not mc_deploy.ask_yn(T["confirm_deregister"], default=False):
             print_res(False, T["deregister_cancelled"])
             return
         ok, removed_name_or_msg, removed_dossier = mc_servers.remove_server(args.target)
@@ -961,7 +975,7 @@ def main():
         return
 
     if args.action == "doctor":
-        return mc_doctor.run_doctor(args.target)
+        return mc_doctor.run_doctor(args.target, as_json=args.json)
 
     if args.action == "logs":
         return print_logs(args.target)
@@ -1145,7 +1159,8 @@ def cmd_players(args):
     name, config = loaded
     if not mc_core.is_server_running(config):
         if args.json:
-            print_json({"schema": mc_api.SCHEMA_VERSION, "server": name, "online": 0, "max": None,
+            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "server_offline",
+                        "server": name, "online": 0, "max": None,
                         "players": [], "state": mc_api.server_state(config)})
             return EXIT_OK
         print_info(T["players_offline"])
@@ -1153,13 +1168,13 @@ def cmd_players(args):
     ok, data = mc_api.query_players(config, wait=mc_api.RCON_RETRY)
     if not ok:
         if args.json:
-            print_json({"schema": mc_api.SCHEMA_VERSION, "server": name,
+            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": "rcon_failed", "server": name,
                         "error": {"code": "rcon_failed", "detail": data}})
         else:
             print_res(False, T["players_failed"].format(detail=data))
         return EXIT_ERROR
     if args.json:
-        print_json({"schema": mc_api.SCHEMA_VERSION, "server": name, **data})
+        print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "players", "server": name, **data})
     else:
         names = ", ".join(data["players"]) or "-"
         print(T["players_line"].format(online=data["online"], max=data["max"], names=names))
@@ -1182,6 +1197,8 @@ def cmd_rcon(args):
     return EXIT_OK
 
 def cmd_freeze_thaw(args, command=None):
+    if args.json:
+        return cmd_freeze_thaw_json(args, command)
     loaded = _load_target_config(args.target)
     if not loaded:
         return EXIT_NOT_FOUND
@@ -1221,6 +1238,64 @@ def cmd_freeze_thaw(args, command=None):
         ok, code = mc_api.thaw(config)
         print_res(ok, T[f"thaw_{code}"])
     return rc
+
+def cmd_freeze_thaw_json(args, command=None):
+    loaded, code = _load(args.target, True)
+    if not loaded:
+        return code
+    name, config = loaded
+    if args.action == "thaw":
+        return _finish(mc_api.thaw_op(name, config), True)
+    try:
+        max_s = mc_api.parse_duration(args.max) if args.max else mc_api.DEFAULT_FREEZE_MAX
+    except ValueError:
+        print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": "invalid_duration", "value": args.max})
+        return EXIT_USAGE
+    res = mc_api.freeze_op(name, config, max_s)
+    if not res["ok"] or not command:
+        return _finish(res, True)
+    import subprocess
+    rc = EXIT_ERROR
+    try:
+        rc = subprocess.call(command, stdout=sys.stderr)
+    except FileNotFoundError:
+        pass
+    except KeyboardInterrupt:
+        rc = EXIT_INTERRUPTED
+    finally:
+        released = mc_api.thaw_op(name, config)
+    print_json({"schema": mc_api.SCHEMA_VERSION, **res, "command_exit_code": rc, "thaw": released})
+    return rc
+
+JSON_SIMPLE_ACTIONS = ("use", "remove", "mode", "resume", "backup", "logs")
+
+def cmd_simple_json(args):
+    """--json for the small server-management commands; every outcome is an
+    API result."""
+    action = args.action
+    if action == "use":
+        return _finish(mc_api.use(args.target), True)
+    if action == "remove":
+        return _finish_checked(mc_api.remove(args.target, confirmed=args.yes), True)
+    if action == "logs":
+        name = None
+        if args.target is not None:
+            loaded, code = _load(args.target, True)
+            if not loaded:
+                return code
+            name = loaded[0]
+        return _finish(mc_api.log_lines(name), True)
+    loaded, code = _load(args.target, True)
+    if not loaded:
+        return code
+    name, config = loaded
+    if action == "mode":
+        return _finish(mc_api.set_mode(name, config, args.value), True)
+    if action == "resume":
+        return _finish(mc_api.resume(name, config), True)
+    with _quiet(True):
+        res = mc_api.backup_now(name, config)
+    return _finish(res, True)
 
 def cmd_config(args):
     rest = list(args.rest or [])
@@ -1374,7 +1449,8 @@ def cmd_sleep(args):
         info = mc_api.sleep_info(config)
         state = mc_api.server_state(config)
         if args.json:
-            print_json({"schema": mc_api.SCHEMA_VERSION, "server": name, "state": state, **info})
+            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "sleep_status", "server": name,
+                        "state": state, **info})
             return EXIT_OK
         if info["enabled"]:
             print_res(True, T["sleep_status_on"].format(after=_human_duration(info["after_s"])))
@@ -1523,7 +1599,8 @@ def cmd_mod(args):
             for mod in res["mods"]:
                 entry = tracked.get(mod["file"])
                 if entry:
-                    mod.update(source=entry["source"], project=entry.get("slug"), version=entry.get("version"))
+                    mod.update(source=entry["source"], project=entry.get("slug"),
+                               tracked_version=entry.get("version"))
             return _finish(res, True)
         for mod in res["mods"]:
             where = []
@@ -1597,7 +1674,7 @@ def cmd_java(args):
             servers.append({"server": srv, "java": cfg.get("java") or cfg.get("java_major") or "system",
                             "minecraft": cfg.get("mc_version")})
         if args.json:
-            print_json({"schema": mc_api.SCHEMA_VERSION, "runtimes": {str(k): v for k, v in runtimes.items()},
+            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "java_list", "runtimes": {str(k): v for k, v in runtimes.items()},
                         "servers": servers})
             return EXIT_OK
         if runtimes:

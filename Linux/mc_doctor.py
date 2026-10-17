@@ -259,9 +259,48 @@ def print_doctor_report(name, info, results):
             print(f"      \033[90m-> {fix}\033[0m")
 
 
-def run_doctor(target=None):
-    """Print the report. Returns the exit code: 0 unless a check is in error
-    (warnings alone keep 0), 3 if the target cannot be resolved."""
+def _check_entry(server, check):
+    status, label, detail, fix = check
+    return {"server": server, "name": label, "ok": status in ("ok", "info"), "level": status,
+            "detail": detail, "fix": fix}
+
+
+def _doctor_json(target):
+    import contextlib
+    import json
+    import sys
+
+    def emit(code, ok, exit_code, **data):
+        print(json.dumps({"schema": 1, "ok": ok, "code": code, **data}, indent=2, ensure_ascii=False))
+        return exit_code
+
+    try:
+        servers = mc_servers.list_servers()
+    except mc_servers.DataFileError as e:
+        return emit("data_file_unreadable", False, 1, path=e.path, detail=e.detail)
+    if not servers:
+        return emit("no_server", False, 3)
+    if target is not None:
+        with contextlib.redirect_stdout(sys.stderr):
+            resolved = mc_servers.resolve_target(target, require_folder=False)
+        if not resolved:
+            return emit("not_found", False, 3, target=target)
+        servers = {resolved[0]: servers[resolved[0]]}
+    with contextlib.redirect_stdout(sys.stderr):
+        checks = [_check_entry(None, c) for c in check_host()]
+        for name, info in servers.items():
+            checks += [_check_entry(name, c) for c in check_server(name, info)]
+    errors = sum(1 for c in checks if c["level"] == "err")
+    warnings = sum(1 for c in checks if c["level"] == "warn")
+    return emit("doctor", errors == 0, 1 if errors else 0, checks=checks, errors=errors, warnings=warnings,
+                has_issues=bool(errors or warnings))
+
+
+def run_doctor(target=None, as_json=False):
+    """Print the report (or its JSON). Returns the exit code: 0 unless a check
+    is in error (warnings alone keep 0), 3 if the target cannot be resolved."""
+    if as_json:
+        return _doctor_json(target)
     try:
         servers = mc_servers.list_servers()
     except mc_servers.DataFileError as e:

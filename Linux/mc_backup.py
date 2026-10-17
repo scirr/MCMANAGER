@@ -70,6 +70,7 @@ def list_backups(dossier_backup):
             m = NAME.match(ident)
             found.append({"id": ident, "file": fname, "path": path, "size": size,
                           "type": m.group(1) if m else "", "created": when.isoformat(timespec="seconds"),
+                          "created_ts": int(when.timestamp()),
                           "encrypted": fname.endswith(".enc")})
     found.sort(key=lambda b: (b["created"], b["file"]), reverse=True)
     return found
@@ -88,6 +89,7 @@ def find_backup(dossier_backup, ref):
         return {"id": _archive_id(os.path.basename(candidate)), "file": os.path.basename(candidate),
                 "path": candidate, "size": os.path.getsize(candidate), "type": "",
                 "created": archive_time(candidate).isoformat(timespec="seconds"),
+                "created_ts": int(archive_time(candidate).timestamp()),
                 "encrypted": candidate.endswith(".enc")}
     for b in backups:
         if ref in (b["id"], b["file"]):

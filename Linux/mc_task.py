@@ -152,7 +152,13 @@ def _describe(task, now=None):
         nxt = Cron(task["cron"]).next_after(now or datetime.datetime.now()) if task.get("enabled", True) else None
     except CronError:
         nxt = None
-    return dict(task, next_run=nxt.strftime("%Y-%m-%dT%H:%M:%S") if nxt else None)
+    last = task.get("last_run")
+    try:
+        last_ts = int(datetime.datetime.strptime(last, "%Y-%m-%dT%H:%M:%S").timestamp()) if last else None
+    except ValueError:
+        last_ts = None
+    return dict(task, next_run=nxt.strftime("%Y-%m-%dT%H:%M:%S") if nxt else None,
+                next_run_ts=int(nxt.timestamp()) if nxt else None, last_run_ts=last_ts)
 
 
 def list_tasks(config, now=None):
