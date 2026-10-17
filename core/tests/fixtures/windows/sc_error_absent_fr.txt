@@ -1,0 +1,4 @@
+## reconstitue: sc query sur un service inexistant, Windows FR (code retour 1060)
+[SC] EnumQueryServicesStatus :OpenService  Échec 1060 :
+
+Le service spécifié n'existe pas en tant que service installé.

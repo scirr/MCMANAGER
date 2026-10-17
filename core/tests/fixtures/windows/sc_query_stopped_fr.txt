@@ -1,0 +1,9 @@
+## reconstitue: sc query MCManagerDaemon, Windows FR (libelles traduits, mot d'etat conserve)
+NOM_SERVICE : MCManagerDaemon
+        TYPE               : 10  WIN32_OWN_PROCESS
+        ETAT               : 1  STOPPED
+                                (NOT_STOPPABLE, NOT_PAUSABLE, IGNORES_SHUTDOWN)
+        CODE_RETOUR_WIN32  : 0  (0x0)
+        CODE_RETOUR_SERVICE: 0  (0x0)
+        POINT_CONTROLE     : 0x0
+        INDICE_ATTENTE     : 0x0
