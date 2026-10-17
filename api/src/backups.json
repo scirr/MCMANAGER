@@ -7,6 +7,10 @@
             "description": "ISO 8601 local time, seconds.",
             "type": "string"
           },
+          "created_ts": {
+            "description": "Epoch seconds.",
+            "type": "integer"
+          },
           "encrypted": {
             "type": "boolean"
           },
@@ -36,7 +40,8 @@
           "size",
           "type",
           "created",
-          "encrypted"
+          "encrypted",
+          "created_ts"
         ],
         "type": "object"
       },
@@ -47,7 +52,28 @@
           },
           {
             "properties": {
+              "backup": {
+                "description": "Archive id.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "created_ts": {
+                "description": "Epoch seconds.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "message": {
+                "description": "Outcome text, remote upload failures included.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "path": {
                 "type": [
                   "string",
                   "null"
@@ -100,7 +126,7 @@
         ]
       },
       "BackupRemote": {
-        "description": "Secrets and the S3 access key id are never returned.",
+        "description": "Credentials, key and password file paths are never returned; `secrets_set` names the ones configured (`access_key`, `secret_key`, `password`, `key`, `password_file`).",
         "properties": {
           "bucket": {
             "type": "string"
@@ -109,10 +135,6 @@
             "type": "string"
           },
           "host": {
-            "type": "string"
-          },
-          "key": {
-            "description": "SFTP private key file path.",
             "type": "string"
           },
           "name": {
@@ -397,6 +419,7 @@
                   "backups": [
                     {
                       "created": "2026-10-08T12:00:03",
+                      "created_ts": 1791460803,
                       "encrypted": false,
                       "file": "survie_midi_2026-10-08_12-00.zip",
                       "id": "survie_midi_2026-10-08_12-00",
@@ -454,7 +477,7 @@
         }
       ],
       "post": {
-        "description": "Same as `mc backup`: freezes saving, archives the world, applies retention, pushes to remote destinations. Job result: BackupCreated (`backup_done`/`backup_failed`).",
+        "description": "Same as `mc backup`: freezes saving, archives the world, applies retention, pushes to remote destinations. Job result: BackupCreated (`backup_created` or `backup_error`, `ok:false` on error).",
         "operationId": "createBackup",
         "responses": {
           "202": {
@@ -511,7 +534,8 @@
         ],
         "x-mcm-role": "operator",
         "x-mcm-source": [
-          "mc_core.backup_server"
+          "mc_core.backup_server",
+          "mc_api.backup_now"
         ]
       }
     },

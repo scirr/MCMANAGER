@@ -189,6 +189,25 @@
       }
     },
     "schemas": {
+      "ActivateResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "id": {
+                "description": "Numeric registry id.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
       "AlertAdded": {
         "allOf": [
           {
@@ -251,7 +270,7 @@
             "type": "integer"
           },
           "secrets_set": {
-            "description": "Names of the secret fields that are configured (password, token, secret).",
+            "description": "Names of the secret fields that are configured (`password`, `token`, `secret`, `url`, `headers`); their values are never returned.",
             "items": {
               "type": "string"
             },
@@ -561,6 +580,10 @@
             "description": "ISO 8601 local time, seconds.",
             "type": "string"
           },
+          "created_ts": {
+            "description": "Epoch seconds.",
+            "type": "integer"
+          },
           "encrypted": {
             "type": "boolean"
           },
@@ -590,7 +613,8 @@
           "size",
           "type",
           "created",
-          "encrypted"
+          "encrypted",
+          "created_ts"
         ],
         "type": "object"
       },
@@ -601,7 +625,28 @@
           },
           {
             "properties": {
+              "backup": {
+                "description": "Archive id.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "created_ts": {
+                "description": "Epoch seconds.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
               "message": {
+                "description": "Outcome text, remote upload failures included.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "path": {
                 "type": [
                   "string",
                   "null"
@@ -654,7 +699,7 @@
         ]
       },
       "BackupRemote": {
-        "description": "Secrets and the S3 access key id are never returned.",
+        "description": "Credentials, key and password file paths are never returned; `secrets_set` names the ones configured (`access_key`, `secret_key`, `password`, `key`, `password_file`).",
         "properties": {
           "bucket": {
             "type": "string"
@@ -663,10 +708,6 @@
             "type": "string"
           },
           "host": {
-            "type": "string"
-          },
-          "key": {
-            "description": "SFTP private key file path.",
             "type": "string"
           },
           "name": {
@@ -952,7 +993,14 @@
           "backup_keep",
           "backup_encrypt_key_file",
           "stop_timeout",
-          "curseforge_api_key"
+          "curseforge_api_key",
+          "internal_port",
+          "metrics_allow_remote",
+          "metrics_bind",
+          "sleep_freeze",
+          "sleep_hold_timeout",
+          "sleep_join_mode",
+          "sleep_proxy_protocol"
         ],
         "type": "string"
       },
@@ -1485,10 +1533,7 @@
               "null"
             ]
           },
-          "label": {
-            "type": "string"
-          },
-          "status": {
+          "level": {
             "enum": [
               "ok",
               "info",
@@ -1496,11 +1541,27 @@
               "err"
             ],
             "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ok": {
+            "description": "False for `warn` and `err`.",
+            "type": "boolean"
+          },
+          "server": {
+            "description": "Null for a host check.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
-          "status",
-          "label",
+          "server",
+          "name",
+          "ok",
+          "level",
           "detail",
           "fix"
         ],
@@ -1513,45 +1574,29 @@
           },
           {
             "properties": {
-              "has_errors": {
-                "type": "boolean"
-              },
-              "has_issues": {
-                "type": "boolean"
-              },
-              "host": {
+              "checks": {
+                "description": "Host checks first (server null), then each server.",
                 "items": {
                   "$ref": "#/components/schemas/DoctorCheck"
                 },
                 "type": "array"
               },
-              "servers": {
-                "items": {
-                  "properties": {
-                    "checks": {
-                      "items": {
-                        "$ref": "#/components/schemas/DoctorCheck"
-                      },
-                      "type": "array"
-                    },
-                    "server": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "server",
-                    "checks"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
+              "errors": {
+                "description": "Number of `err` checks. The result is `ok:false` when it is above zero.",
+                "type": "integer"
+              },
+              "has_issues": {
+                "type": "boolean"
+              },
+              "warnings": {
+                "type": "integer"
               }
             },
             "required": [
-              "host",
-              "servers",
-              "has_issues",
-              "has_errors"
+              "checks",
+              "errors",
+              "warnings",
+              "has_issues"
             ],
             "type": "object"
           }
@@ -1560,6 +1605,13 @@
       "Error": {
         "description": "Failure body. Contextual fields of the failed operation (available, online, players, path...) may be present.",
         "properties": {
+          "available": {
+            "description": "`id:name` of the registered servers (`not_found`).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "code": {
             "description": "Stable failure identifier.",
             "type": "string"
@@ -1573,6 +1625,17 @@
               "null"
             ]
           },
+          "error": {
+            "additionalProperties": true,
+            "description": "Legacy nested copy of `code` and `detail` kept in some failures so existing scripts keep working.",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "detail": {}
+            },
+            "type": "object"
+          },
           "message": {
             "description": "Human text in the language of the daemon.",
             "type": "string"
@@ -1582,6 +1645,21 @@
               false
             ],
             "type": "boolean"
+          },
+          "schema": {
+            "description": "Version of the JSON shapes.",
+            "enum": [
+              1
+            ],
+            "type": "integer"
+          },
+          "server": {
+            "description": "Server concerned, when the failure is tied to one.",
+            "type": "string"
+          },
+          "target": {
+            "description": "Name or id that matched no server (`not_found`).",
+            "type": "string"
           }
         },
         "required": [
@@ -1767,6 +1845,47 @@
           }
         },
         "type": "object"
+      },
+      "FreezeResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "command_exit_code": {
+                "description": "CLI only (`mc freeze -- <command>`): exit code of the wrapped command.",
+                "type": "integer"
+              },
+              "expires_ts": {
+                "description": "Epoch seconds of the automatic thaw; null on failure.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "max_s": {
+                "description": "Automatic thaw delay, seconds.",
+                "type": "integer"
+              },
+              "since_ts": {
+                "description": "Epoch seconds at which the freeze began; null on failure.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "thaw": {
+                "$ref": "#/components/schemas/ServerResult",
+                "description": "CLI only: result of the thaw that follows the wrapped command."
+              }
+            },
+            "required": [
+              "max_s"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "JavaInstalled": {
         "allOf": [
@@ -2042,7 +2161,7 @@
       "LogLines": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/ServerResult"
+            "$ref": "#/components/schemas/Result"
           },
           {
             "properties": {
@@ -2052,16 +2171,17 @@
                 },
                 "type": "array"
               },
-              "source": {
-                "enum": [
-                  "daemon",
-                  "server"
-                ],
-                "type": "string"
+              "server": {
+                "description": "Null when the lines are not filtered by server.",
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "required": [
-              "lines"
+              "lines",
+              "server"
             ],
             "type": "object"
           }
@@ -2221,8 +2341,15 @@
             ],
             "type": "string"
           },
+          "tracked_version": {
+            "description": "Version recorded when the mod was installed by name; present for those mods only.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "version": {
-            "description": "Version declared by the jar (the CLI overwrites it with the tracked version when the mod was installed by name).",
+            "description": "Version declared by the jar.",
             "type": [
               "string",
               "null"
@@ -2788,9 +2915,23 @@
             "description": "Ban lists: `YYYY-MM-DD HH:MM:SS +ZZZZ`.",
             "type": "string"
           },
+          "created_ts": {
+            "description": "Ban lists: epoch seconds of `created`; null when unreadable.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "expires": {
             "description": "`forever` or a date.",
             "type": "string"
+          },
+          "expires_ts": {
+            "description": "Ban lists: epoch seconds of `expires`; null for `forever`.",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "ip": {
             "description": "banip only.",
@@ -2860,10 +3001,21 @@
             "description": "ISO 8601 local time.",
             "type": "string"
           },
+          "join_ts": {
+            "description": "Epoch seconds.",
+            "type": "integer"
+          },
           "leave": {
             "description": "Null for a session still open or cut by a crash.",
             "type": [
               "string",
+              "null"
+            ]
+          },
+          "leave_ts": {
+            "description": "Epoch seconds; null while the session is open.",
+            "type": [
+              "integer",
               "null"
             ]
           },
@@ -2876,7 +3028,9 @@
           "ip",
           "join",
           "leave",
-          "duration_s"
+          "duration_s",
+          "join_ts",
+          "leave_ts"
         ],
         "type": "object"
       },
@@ -3058,6 +3212,32 @@
         },
         "type": "object"
       },
+      "RemoveResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "active": {
+                "description": "Name of the active server after the removal.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "path": {
+                "description": "Folder left in place.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "Result": {
         "description": "Envelope shared by every response.",
         "properties": {
@@ -3079,6 +3259,236 @@
         "required": [
           "ok",
           "code"
+        ],
+        "type": "object"
+      },
+      "ResumeResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "mode": {
+                "$ref": "#/components/schemas/ServerMode"
+              },
+              "running": {
+                "description": "The server was already running.",
+                "type": "boolean"
+              },
+              "start": {
+                "description": "Result of the explicit restart of a crashed server; null otherwise.",
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/StartResult"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "was_crashed": {
+                "description": "A crash marker was cleared.",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "mode",
+              "was_crashed",
+              "running",
+              "start"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RouterAccessRequest": {
+        "properties": {
+          "action": {
+            "enum": [
+              "add",
+              "remove"
+            ],
+            "type": "string"
+          },
+          "cidr": {
+            "description": "Address or CIDR range.",
+            "type": "string"
+          },
+          "list": {
+            "enum": [
+              "allow",
+              "deny"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "list",
+          "action",
+          "cidr"
+        ],
+        "type": "object"
+      },
+      "RouterConfig": {
+        "properties": {
+          "allow": {
+            "description": "CIDR ranges allowed; empty allows everyone.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "bind_host": {
+            "type": "string"
+          },
+          "default": {
+            "description": "Server answering unknown hosts.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "deny": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "max_connections": {
+            "type": "integer"
+          },
+          "per_ip": {
+            "type": "integer"
+          },
+          "per_second": {
+            "type": "integer"
+          },
+          "port": {
+            "description": "Public port the router listens on.",
+            "type": "integer"
+          },
+          "proxy_in": {
+            "description": "Accept the PROXY protocol from trusted proxies.",
+            "type": "boolean"
+          },
+          "proxy_out": {
+            "description": "Forward connections to the servers with the PROXY protocol.",
+            "type": "boolean"
+          },
+          "routes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Host name to server name.",
+            "type": "object"
+          },
+          "trusted_proxies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "enabled",
+          "port",
+          "bind_host",
+          "routes",
+          "default",
+          "allow",
+          "deny",
+          "max_connections",
+          "per_ip",
+          "per_second",
+          "proxy_in",
+          "trusted_proxies",
+          "proxy_out"
+        ],
+        "type": "object"
+      },
+      "RouterEnableRequest": {
+        "properties": {
+          "per_ip": {
+            "type": "integer"
+          },
+          "per_second": {
+            "type": "integer"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "proxy_in": {
+            "type": "boolean"
+          },
+          "proxy_out": {
+            "type": "boolean"
+          },
+          "trusted_proxies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "RouterStatus": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "properties": {
+              "config": {
+                "$ref": "#/components/schemas/RouterConfig"
+              },
+              "notes": {
+                "description": "Messages about servers moved behind the router or put back on their public port.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "pending_restart": {
+                "description": "Servers started before their port settings last changed: they have to be restarted.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "released": {
+                "description": "Servers put back on their public port by this change.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "restart_required": {
+                "description": "This change needs a restart of at least one server.",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "config",
+              "pending_restart"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RouterTargetRequest": {
+        "properties": {
+          "server": {
+            "description": "Server name or id.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "server"
         ],
         "type": "object"
       },
@@ -3114,7 +3524,7 @@
         "type": "object"
       },
       "ServerConfig": {
-        "description": "Server configuration without any secret. Secrets (mcrcon_pass, webhook_url, curseforge_api_key, alert channel and backup destination credentials) are write-only.",
+        "description": "Server configuration with every secret masked: secret keys are listed in `secrets_set` and never carry their value in a response (the CLI prints `***`).",
         "properties": {
           "activer_automodpack": {
             "enum": [
@@ -3129,9 +3539,6 @@
               1
             ],
             "type": "integer"
-          },
-          "backup_encrypt_key_file": {
-            "type": "string"
           },
           "backup_keep": {
             "type": "integer"
@@ -3221,6 +3628,7 @@
                 "mcrcon_pass",
                 "webhook_url",
                 "curseforge_api_key",
+                "backup_encrypt_key_file",
                 "alerts",
                 "backup_remotes"
               ],
@@ -3348,8 +3756,16 @@
                 "type": "integer"
               },
               "since": {
+                "description": "Epoch seconds (kept for existing scripts).",
                 "type": [
                   "number",
+                  "null"
+                ]
+              },
+              "since_ts": {
+                "description": "Epoch seconds of the first failure.",
+                "type": [
+                  "integer",
                   "null"
                 ]
               },
@@ -3392,12 +3808,30 @@
             "description": "World saving suspended by freeze.",
             "type": "boolean"
           },
+          "frozen_expires_ts": {
+            "description": "Epoch seconds of the automatic thaw; null when not frozen.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "frozen_since_ts": {
+            "description": "Epoch seconds at which the freeze began; null when not frozen.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "id": {
             "description": "Numeric registry id.",
             "type": [
               "integer",
               "null"
             ]
+          },
+          "internal_port": {
+            "description": "Hold mode only: port the JVM listens on behind the daemon.",
+            "type": "integer"
           },
           "loader": {
             "type": [
@@ -3443,7 +3877,10 @@
                     ]
                   },
                   "program": {
-                    "type": "string"
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   }
                 },
                 "type": "object"
@@ -3483,6 +3920,10 @@
             ],
             "type": "object"
           },
+          "server": {
+            "description": "Registry name, same value as `name`.",
+            "type": "string"
+          },
           "sleep": {
             "$ref": "#/components/schemas/SleepInfo"
           },
@@ -3512,6 +3953,10 @@
               }
             ]
           },
+          "suspended": {
+            "description": "Sleeping server stopped with SIGSTOP (sleep freeze).",
+            "type": "boolean"
+          },
           "swap_kb": {
             "type": [
               "integer",
@@ -3533,6 +3978,7 @@
         },
         "required": [
           "name",
+          "server",
           "id",
           "active",
           "path",
@@ -3570,12 +4016,47 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "freeze": {
+            "description": "Sleep by freezing the process (SIGSTOP) instead of stopping it; needs hold mode.",
+            "type": "boolean"
+          },
+          "hold_timeout_s": {
+            "description": "Hold mode: seconds a held player waits (10 to 600).",
+            "type": "integer"
+          },
+          "internal_port": {
+            "description": "Hold mode only: port of the JVM behind the daemon.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "join_mode": {
+            "description": "kick: a joining player is refused while the server wakes; hold: the daemon keeps the connection until the server is up.",
+            "enum": [
+              "kick",
+              "hold"
+            ],
+            "type": "string"
+          },
+          "proxy_protocol": {
+            "description": "Hold mode only: the daemon forwards connections with the PROXY protocol.",
+            "type": [
+              "boolean",
+              "null"
+            ]
           }
         },
         "required": [
           "enabled",
           "after_s",
-          "allow"
+          "allow",
+          "join_mode",
+          "hold_timeout_s",
+          "freeze",
+          "internal_port",
+          "proxy_protocol"
         ],
         "type": "object"
       },
@@ -3599,6 +4080,22 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "freeze": {
+            "description": "Needs hold mode.",
+            "type": "boolean"
+          },
+          "hold_timeout_s": {
+            "description": "Hold mode wait, 10 to 600.",
+            "type": "integer"
+          },
+          "join_mode": {
+            "description": "hold needs sleep enabled and a restart of the server.",
+            "enum": [
+              "kick",
+              "hold"
+            ],
+            "type": "string"
           }
         },
         "type": "object"
@@ -3609,28 +4106,16 @@
             "$ref": "#/components/schemas/ServerResult"
           },
           {
+            "$ref": "#/components/schemas/SleepInfo"
+          },
+          {
             "properties": {
-              "after_s": {
-                "type": "integer"
-              },
-              "allow": {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              "enabled": {
-                "type": "boolean"
-              },
               "state": {
                 "$ref": "#/components/schemas/ServerState"
               }
             },
             "required": [
-              "state",
-              "enabled",
-              "after_s",
-              "allow"
+              "state"
             ],
             "type": "object"
           }
@@ -3642,25 +4127,18 @@
             "$ref": "#/components/schemas/ServerResult"
           },
           {
+            "$ref": "#/components/schemas/SleepInfo"
+          },
+          {
             "properties": {
-              "after_s": {
-                "type": "integer"
-              },
-              "allow": {
+              "notes": {
+                "description": "Messages about what changed on disk or needs a restart.",
                 "items": {
                   "type": "string"
                 },
                 "type": "array"
-              },
-              "enabled": {
-                "type": "boolean"
               }
             },
-            "required": [
-              "enabled",
-              "after_s",
-              "allow"
-            ],
             "type": "object"
           }
         ]
@@ -3687,6 +4165,65 @@
             "type": "object"
           }
         ]
+      },
+      "StatusPageDisabled": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "path": {
+                "description": "Folder whose page was removed; absent when the page was already off (`status_page_already_off`).",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
+      "StatusPageEnabled": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "interval": {
+                "description": "Seconds.",
+                "type": "integer"
+              },
+              "path": {
+                "type": "string"
+              },
+              "players": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "path",
+              "interval",
+              "players"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "StatusPageRequest": {
+        "properties": {
+          "dir": {
+            "description": "Output folder (default: status_page in the server folder).",
+            "type": "string"
+          },
+          "interval_s": {
+            "description": "Refresh period, at least 10 (default 60).",
+            "type": "integer"
+          },
+          "show_players": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
       },
       "StopReason": {
         "description": "Why a server was stopped.",
@@ -3839,6 +4376,13 @@
               "null"
             ]
           },
+          "last_run_ts": {
+            "description": "Epoch seconds.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "name": {
             "type": "string"
           },
@@ -3846,6 +4390,13 @@
             "description": "ISO 8601 local time.",
             "type": [
               "string",
+              "null"
+            ]
+          },
+          "next_run_ts": {
+            "description": "Epoch seconds.",
+            "type": [
+              "integer",
               "null"
             ]
           },
@@ -3864,7 +4415,9 @@
           "action",
           "enabled",
           "last_run",
-          "last_result"
+          "last_result",
+          "next_run_ts",
+          "last_run_ts"
         ],
         "type": "object"
       },
@@ -3917,6 +4470,21 @@
           },
           {
             "properties": {
+              "id": {
+                "description": "Same as `task.id`.",
+                "type": "integer"
+              },
+              "name": {
+                "description": "Same as `task.name`.",
+                "type": "string"
+              },
+              "next_run": {
+                "description": "Same as `task.next_run`.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
               "task": {
                 "$ref": "#/components/schemas/Task"
               }
@@ -4584,38 +5152,37 @@
     },
     "/v1/doctor": {
       "get": {
+        "description": "`ok` is false when a check is in error (the answer is still 200).",
         "operationId": "getDoctorReport",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "example": {
-                  "code": "doctor",
-                  "has_errors": false,
-                  "has_issues": true,
-                  "host": [
+                  "checks": [
                     {
                       "detail": "openjdk 21.0.4",
                       "fix": null,
-                      "label": "Java",
-                      "status": "ok"
-                    }
-                  ],
-                  "ok": true,
-                  "schema": 1,
-                  "servers": [
+                      "level": "ok",
+                      "name": "Java",
+                      "ok": true,
+                      "server": null
+                    },
                     {
-                      "checks": [
-                        {
-                          "detail": "25565 held by nginx (pid 912)",
-                          "fix": "Free the port.",
-                          "label": "Port",
-                          "status": "warn"
-                        }
-                      ],
+                      "detail": "25565 held by nginx (pid 912)",
+                      "fix": "Free the port.",
+                      "level": "warn",
+                      "name": "Port",
+                      "ok": false,
                       "server": "survie"
                     }
-                  ]
+                  ],
+                  "code": "doctor",
+                  "errors": 0,
+                  "has_issues": true,
+                  "ok": true,
+                  "schema": 1,
+                  "warnings": 1
                 },
                 "schema": {
                   "$ref": "#/components/schemas/DoctorReport"
@@ -4644,7 +5211,8 @@
         "x-mcm-role": "viewer",
         "x-mcm-source": [
           "mc_doctor.check_host",
-          "mc_doctor.check_server"
+          "mc_doctor.check_server",
+          "mc_doctor.run_doctor"
         ]
       }
     },
@@ -5536,6 +6104,585 @@
         "x-mcm-source": []
       }
     },
+    "/v1/router": {
+      "get": {
+        "description": "Hostname router in front of several servers. `pending_restart` lists the servers that have to be restarted for a port change to apply.",
+        "operationId": "getRouter",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "router_status",
+                  "config": {
+                    "allow": [],
+                    "bind_host": "0.0.0.0",
+                    "default": "survie",
+                    "deny": [],
+                    "enabled": true,
+                    "max_connections": 128,
+                    "per_ip": 16,
+                    "per_second": 8,
+                    "port": 25565,
+                    "proxy_in": false,
+                    "proxy_out": false,
+                    "routes": {
+                      "survie.example.org": "survie"
+                    },
+                    "trusted_proxies": []
+                  },
+                  "notes": [],
+                  "ok": true,
+                  "pending_restart": [],
+                  "released": [],
+                  "restart_required": false,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RouterStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Router configuration and pending restarts",
+        "tags": [
+          "router"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_api.router_command"
+        ]
+      }
+    },
+    "/v1/router/access": {
+      "post": {
+        "operationId": "editRouterAccess",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "action": "add",
+                "cidr": "203.0.113.0/24",
+                "list": "deny"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/RouterAccessRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "router_updated",
+                  "config": {
+                    "allow": [],
+                    "bind_host": "0.0.0.0",
+                    "default": "survie",
+                    "deny": [
+                      "203.0.113.0/24"
+                    ],
+                    "enabled": true,
+                    "max_connections": 128,
+                    "per_ip": 16,
+                    "per_second": 8,
+                    "port": 25565,
+                    "proxy_in": false,
+                    "proxy_out": false,
+                    "routes": {
+                      "survie.example.org": "survie"
+                    },
+                    "trusted_proxies": []
+                  },
+                  "notes": [],
+                  "ok": true,
+                  "pending_restart": [],
+                  "released": [],
+                  "restart_required": false,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RouterStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Add or remove an allow/deny range",
+        "tags": [
+          "router"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.router_command"
+        ]
+      }
+    },
+    "/v1/router/default": {
+      "put": {
+        "operationId": "setRouterDefault",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "server": "survie"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/RouterTargetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "router_updated",
+                  "config": {
+                    "allow": [],
+                    "bind_host": "0.0.0.0",
+                    "default": "survie",
+                    "deny": [],
+                    "enabled": true,
+                    "max_connections": 128,
+                    "per_ip": 16,
+                    "per_second": 8,
+                    "port": 25565,
+                    "proxy_in": false,
+                    "proxy_out": false,
+                    "routes": {
+                      "survie.example.org": "survie"
+                    },
+                    "trusted_proxies": []
+                  },
+                  "notes": [],
+                  "ok": true,
+                  "pending_restart": [],
+                  "released": [],
+                  "restart_required": false,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RouterStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Set the default server",
+        "tags": [
+          "router"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.router_command"
+        ]
+      }
+    },
+    "/v1/router/disable": {
+      "post": {
+        "description": "Servers that are no longer behind the router nor in hold mode are put back on their public port (`released`); they need a restart.",
+        "operationId": "disableRouter",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "router_updated",
+                  "config": {
+                    "allow": [],
+                    "bind_host": "0.0.0.0",
+                    "default": "survie",
+                    "deny": [],
+                    "enabled": false,
+                    "max_connections": 128,
+                    "per_ip": 16,
+                    "per_second": 8,
+                    "port": 25565,
+                    "proxy_in": false,
+                    "proxy_out": false,
+                    "routes": {
+                      "survie.example.org": "survie"
+                    },
+                    "trusted_proxies": []
+                  },
+                  "notes": [
+                    "survie: back on its public port 25565."
+                  ],
+                  "ok": true,
+                  "pending_restart": [
+                    "survie"
+                  ],
+                  "released": [
+                    "survie"
+                  ],
+                  "restart_required": true,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RouterStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Disable the router",
+        "tags": [
+          "router"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.router_command"
+        ]
+      }
+    },
+    "/v1/router/enable": {
+      "post": {
+        "description": "`router_port_conflict` (409) when the port is a game or RCON port of a server; `router_usage` (422) for an invalid option. Servers behind the router need a restart.",
+        "operationId": "enableRouter",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "port": 25565,
+                "proxy_in": false
+              },
+              "schema": {
+                "$ref": "#/components/schemas/RouterEnableRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "router_updated",
+                  "config": {
+                    "allow": [],
+                    "bind_host": "0.0.0.0",
+                    "default": "survie",
+                    "deny": [],
+                    "enabled": true,
+                    "max_connections": 128,
+                    "per_ip": 16,
+                    "per_second": 8,
+                    "port": 25565,
+                    "proxy_in": false,
+                    "proxy_out": false,
+                    "routes": {
+                      "survie.example.org": "survie"
+                    },
+                    "trusted_proxies": []
+                  },
+                  "notes": [
+                    "survie: moved to internal port 25570."
+                  ],
+                  "ok": true,
+                  "pending_restart": [
+                    "survie"
+                  ],
+                  "released": [],
+                  "restart_required": true,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RouterStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Enable the router",
+        "tags": [
+          "router"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.router_command"
+        ]
+      }
+    },
+    "/v1/router/routes/{host}": {
+      "delete": {
+        "description": "A server left without route or default is put back on its public port (`released`) and needs a restart.",
+        "operationId": "removeRouterRoute",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "router_updated",
+                  "config": {
+                    "allow": [],
+                    "bind_host": "0.0.0.0",
+                    "default": null,
+                    "deny": [],
+                    "enabled": true,
+                    "max_connections": 128,
+                    "per_ip": 16,
+                    "per_second": 8,
+                    "port": 25565,
+                    "proxy_in": false,
+                    "proxy_out": false,
+                    "routes": {},
+                    "trusted_proxies": []
+                  },
+                  "notes": [],
+                  "ok": true,
+                  "pending_restart": [],
+                  "released": [
+                    "survie"
+                  ],
+                  "restart_required": true,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RouterStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Remove a route",
+        "tags": [
+          "router"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.router_command"
+        ]
+      },
+      "parameters": [
+        {
+          "description": "Host name clients connect to (case-insensitive, no port).",
+          "example": "survie.example.org",
+          "in": "path",
+          "name": "host",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "put": {
+        "description": "The server is moved behind the router: a restart is required (`restart_required`).",
+        "operationId": "setRouterRoute",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "server": "survie"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/RouterTargetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "router_updated",
+                  "config": {
+                    "allow": [],
+                    "bind_host": "0.0.0.0",
+                    "default": "survie",
+                    "deny": [],
+                    "enabled": true,
+                    "max_connections": 128,
+                    "per_ip": 16,
+                    "per_second": 8,
+                    "port": 25565,
+                    "proxy_in": false,
+                    "proxy_out": false,
+                    "routes": {
+                      "survie.example.org": "survie"
+                    },
+                    "trusted_proxies": []
+                  },
+                  "notes": [],
+                  "ok": true,
+                  "pending_restart": [
+                    "survie"
+                  ],
+                  "released": [],
+                  "restart_required": true,
+                  "schema": 1
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/RouterStatus"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Route a host name to a server",
+        "tags": [
+          "router"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.router_command"
+        ]
+      }
+    },
     "/v1/servers": {
       "get": {
         "description": "Same content as `mc status --json`, with `ok` and `code` added.",
@@ -5555,6 +6702,8 @@
                       "cgroup": "/system.slice/mc_manager.service",
                       "error": null,
                       "frozen": false,
+                      "frozen_expires_ts": null,
+                      "frozen_since_ts": null,
                       "id": 1,
                       "loader": "Fabric",
                       "maintenance": false,
@@ -5566,15 +6715,22 @@
                       "port_holder": null,
                       "rcon_port": 25575,
                       "rss_kb": 6291456,
+                      "server": "survie",
                       "sleep": {
                         "after_s": 7200,
                         "allow": [
                           "Steve"
                         ],
-                        "enabled": true
+                        "enabled": true,
+                        "freeze": false,
+                        "hold_timeout_s": 120,
+                        "internal_port": null,
+                        "join_mode": "kick",
+                        "proxy_protocol": null
                       },
                       "state": "running",
                       "stop_reason": null,
+                      "suspended": false,
                       "swap_kb": 0,
                       "uptime_s": 7312,
                       "version": "1.21.1"
@@ -5701,11 +6857,24 @@
       "delete": {
         "description": "Removes the server from the registry; the folder, worlds and backups are never deleted.",
         "operationId": "unregisterServer",
+        "parameters": [
+          {
+            "description": "Must be true: without it the answer is 422 `confirm_required` and nothing is removed.",
+            "in": "query",
+            "name": "confirm",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "example": {
+                  "active": null,
                   "code": "deregistered",
                   "ok": true,
                   "path": "/home/mc/Servers/essai",
@@ -5713,20 +6882,7 @@
                   "server": "essai"
                 },
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/ServerResult"
-                    },
-                    {
-                      "properties": {
-                        "path": {
-                          "description": "Folder left in place.",
-                          "type": "string"
-                        }
-                      },
-                      "type": "object"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/RemoveResult"
                 }
               }
             },
@@ -5744,6 +6900,9 @@
           "409": {
             "$ref": "#/components/responses/Conflict"
           },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -5757,7 +6916,8 @@
         ],
         "x-mcm-role": "admin",
         "x-mcm-source": [
-          "mc_servers.remove_server"
+          "mc_servers.remove_server",
+          "mc_api.remove"
         ]
       },
       "get": {
@@ -5772,6 +6932,8 @@
                   "code": "status",
                   "error": null,
                   "frozen": false,
+                  "frozen_expires_ts": null,
+                  "frozen_since_ts": null,
                   "id": 1,
                   "loader": "Fabric",
                   "maintenance": false,
@@ -5785,15 +6947,22 @@
                   "rcon_port": 25575,
                   "rss_kb": 6291456,
                   "schema": 1,
+                  "server": "survie",
                   "sleep": {
                     "after_s": 7200,
                     "allow": [
                       "Steve"
                     ],
-                    "enabled": true
+                    "enabled": true,
+                    "freeze": false,
+                    "hold_timeout_s": 120,
+                    "internal_port": null,
+                    "join_mode": "kick",
+                    "proxy_protocol": null
                   },
                   "state": "running",
                   "stop_reason": null,
+                  "suspended": false,
                   "swap_kb": 0,
                   "uptime_s": 7312,
                   "version": "1.21.1"
@@ -5851,17 +7020,14 @@
             "content": {
               "application/json": {
                 "example": {
-                  "code": "activated",
+                  "code": "active_set",
+                  "id": 1,
                   "ok": true,
                   "schema": 1,
-                  "server": "creatif"
+                  "server": "survie"
                 },
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/ServerResult"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/ActivateResult"
                 }
               }
             },
@@ -5889,7 +7055,8 @@
         ],
         "x-mcm-role": "admin",
         "x-mcm-source": [
-          "mc_servers.set_active"
+          "mc_servers.set_active",
+          "mc_api.use"
         ]
       }
     },
@@ -6258,6 +7425,7 @@
                   "backups": [
                     {
                       "created": "2026-10-08T12:00:03",
+                      "created_ts": 1791460803,
                       "encrypted": false,
                       "file": "survie_midi_2026-10-08_12-00.zip",
                       "id": "survie_midi_2026-10-08_12-00",
@@ -6315,7 +7483,7 @@
         }
       ],
       "post": {
-        "description": "Same as `mc backup`: freezes saving, archives the world, applies retention, pushes to remote destinations. Job result: BackupCreated (`backup_done`/`backup_failed`).",
+        "description": "Same as `mc backup`: freezes saving, archives the world, applies retention, pushes to remote destinations. Job result: BackupCreated (`backup_created` or `backup_error`, `ok:false` on error).",
         "operationId": "createBackup",
         "responses": {
           "202": {
@@ -6372,7 +7540,8 @@
         ],
         "x-mcm-role": "operator",
         "x-mcm-source": [
-          "mc_core.backup_server"
+          "mc_core.backup_server",
+          "mc_api.backup_now"
         ]
       }
     },
@@ -7300,25 +8469,22 @@
             "content": {
               "application/json": {
                 "example": {
-                  "code": "doctor",
-                  "has_errors": false,
-                  "has_issues": false,
-                  "host": [],
-                  "ok": true,
-                  "schema": 1,
-                  "servers": [
+                  "checks": [
                     {
-                      "checks": [
-                        {
-                          "detail": "config.json readable",
-                          "fix": null,
-                          "label": "Config",
-                          "status": "ok"
-                        }
-                      ],
+                      "detail": "readable",
+                      "fix": null,
+                      "level": "ok",
+                      "name": "config.json",
+                      "ok": true,
                       "server": "survie"
                     }
-                  ]
+                  ],
+                  "code": "doctor",
+                  "errors": 0,
+                  "has_issues": false,
+                  "ok": true,
+                  "schema": 1,
+                  "warnings": 0
                 },
                 "schema": {
                   "$ref": "#/components/schemas/DoctorReport"
@@ -7365,7 +8531,7 @@
         }
       ],
       "post": {
-        "description": "Codes: `frozen`, `offline`, `already_frozen` (409), `rcon_error` (503).",
+        "description": "A stopped server answers `offline` (nothing to freeze, the marker is still written). `already_frozen` is a 409, `rcon_failed` a 503.",
         "operationId": "freezeServer",
         "requestBody": {
           "content": {
@@ -7386,29 +8552,15 @@
               "application/json": {
                 "example": {
                   "code": "frozen",
-                  "expires": 1791460800,
+                  "expires_ts": 1792283629,
+                  "max_s": 3600,
                   "ok": true,
                   "schema": 1,
-                  "server": "survie"
+                  "server": "survie",
+                  "since_ts": 1792280029
                 },
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/ServerResult"
-                    },
-                    {
-                      "properties": {
-                        "expires": {
-                          "description": "Epoch seconds of the automatic thaw.",
-                          "type": [
-                            "integer",
-                            "null"
-                          ]
-                        }
-                      },
-                      "type": "object"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/FreezeResult"
                 }
               }
             },
@@ -7448,7 +8600,9 @@
         ],
         "x-mcm-role": "operator",
         "x-mcm-source": [
-          "mc_api.freeze"
+          "mc_api.freeze",
+          "mc_api.freeze_op",
+          "mc_api.read_freeze"
         ]
       }
     },
@@ -7874,6 +9028,7 @@
     },
     "/v1/servers/{server}/logs": {
       "get": {
+        "description": "Daemon log lines tagged with the server. A missing log file answers 404 `no_log_file`.",
         "operationId": "getServerLogs",
         "parameters": [
           {
@@ -7896,12 +9051,11 @@
                 "example": {
                   "code": "logs",
                   "lines": [
-                    "2026-10-08 10:00:00 [survie] started"
+                    "2026-10-08 10:00:00,000 - INFO - [survie] Server started"
                   ],
                   "ok": true,
                   "schema": 1,
-                  "server": "survie",
-                  "source": "daemon"
+                  "server": "survie"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/LogLines"
@@ -7935,7 +9089,8 @@
         ],
         "x-mcm-role": "viewer",
         "x-mcm-source": [
-          "mc_cli.print_logs"
+          "mc_cli.print_logs",
+          "mc_api.log_lines"
         ]
       },
       "parameters": [
@@ -8025,7 +9180,8 @@
         "x-mcm-source": [
           "mc_config.set_mode_schedule",
           "mc_config.set_mode_always_on",
-          "mc_config.set_mode_maintenance"
+          "mc_config.set_mode_maintenance",
+          "mc_api.set_mode"
         ]
       }
     },
@@ -8544,7 +9700,9 @@
                       "duration_s": 4409,
                       "ip": null,
                       "join": "2026-10-07T19:02:11",
+                      "join_ts": 1791450000,
                       "leave": "2026-10-07T20:15:40",
+                      "leave_ts": 1791453600,
                       "player": "Steve"
                     }
                   ]
@@ -8673,29 +9831,16 @@
               "application/json": {
                 "example": {
                   "code": "resumed",
-                  "crash_cleared": false,
                   "mode": "always-on",
                   "ok": true,
+                  "running": false,
                   "schema": 1,
-                  "server": "survie"
+                  "server": "survie",
+                  "start": null,
+                  "was_crashed": false
                 },
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/ServerResult"
-                    },
-                    {
-                      "properties": {
-                        "crash_cleared": {
-                          "type": "boolean"
-                        },
-                        "mode": {
-                          "$ref": "#/components/schemas/ServerMode"
-                        }
-                      },
-                      "type": "object"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/ResumeResult"
                 }
               }
             },
@@ -8724,7 +9869,8 @@
         "x-mcm-role": "operator",
         "x-mcm-source": [
           "mc_config.resume_mode",
-          "mc_crash.clear"
+          "mc_crash.clear",
+          "mc_api.resume"
         ]
       }
     },
@@ -8836,7 +9982,12 @@
                   ],
                   "code": "sleep_status",
                   "enabled": true,
+                  "freeze": false,
+                  "hold_timeout_s": 120,
+                  "internal_port": null,
+                  "join_mode": "kick",
                   "ok": true,
+                  "proxy_protocol": null,
                   "schema": 1,
                   "server": "survie",
                   "state": "running"
@@ -8890,7 +10041,10 @@
                 "allow_add": [
                   "Alex"
                 ],
-                "enabled": true
+                "enabled": true,
+                "freeze": true,
+                "hold_timeout_s": 120,
+                "join_mode": "hold"
               },
               "schema": {
                 "$ref": "#/components/schemas/SleepSettingsRequest"
@@ -8911,7 +10065,15 @@
                   ],
                   "code": "sleep_updated",
                   "enabled": true,
+                  "freeze": true,
+                  "hold_timeout_s": 120,
+                  "internal_port": 25570,
+                  "join_mode": "hold",
+                  "notes": [
+                    "Restart the server to apply the hold mode."
+                  ],
                   "ok": true,
+                  "proxy_protocol": false,
                   "schema": 1,
                   "server": "survie"
                 },
@@ -9014,6 +10176,129 @@
         "x-mcm-role": "operator",
         "x-mcm-source": [
           "mc_api.start"
+        ]
+      }
+    },
+    "/v1/servers/{server}/status-page": {
+      "delete": {
+        "operationId": "disableStatusPage",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "status_page_disabled",
+                  "ok": true,
+                  "path": "/home/mc/survie/status_page",
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/StatusPageDisabled"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Disable the static status page",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.statuspage_disable"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Server"
+        }
+      ],
+      "put": {
+        "description": "`status_page_interval_too_short` (422) below 10 seconds; `status_page_unwritable` (500).",
+        "operationId": "enableStatusPage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "interval_s": 60,
+                "show_players": false
+              },
+              "schema": {
+                "$ref": "#/components/schemas/StatusPageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "status_page_enabled",
+                  "interval": 60,
+                  "ok": true,
+                  "path": "/home/mc/survie/status_page",
+                  "players": false,
+                  "schema": 1,
+                  "server": "survie"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/StatusPageEnabled"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Enable the static status page",
+        "tags": [
+          "servers"
+        ],
+        "x-mcm-role": "admin",
+        "x-mcm-source": [
+          "mc_api.statuspage_enable"
         ]
       }
     },
@@ -9205,8 +10490,10 @@
                         "ok": true
                       },
                       "last_run": "2026-10-08T04:00:00",
+                      "last_run_ts": 1791374400,
                       "name": "restart-1",
                       "next_run": "2026-10-09T04:00:00",
+                      "next_run_ts": 1791460800,
                       "warn": [
                         300,
                         60
@@ -9286,8 +10573,10 @@
                     "id": 2,
                     "last_result": null,
                     "last_run": null,
+                    "last_run_ts": null,
                     "name": "restart-nightly",
                     "next_run": "2026-10-09T04:00:00",
+                    "next_run_ts": 1791460800,
                     "warn": [
                       300,
                       60
@@ -9371,7 +10660,9 @@
                     "id": 2,
                     "last_result": null,
                     "last_run": null,
-                    "name": "restart-nightly"
+                    "last_run_ts": null,
+                    "name": "restart-nightly",
+                    "next_run_ts": null
                   }
                 },
                 "schema": {
@@ -9454,7 +10745,9 @@
                     "id": 2,
                     "last_result": null,
                     "last_run": null,
-                    "name": "restart-nightly"
+                    "last_run_ts": null,
+                    "name": "restart-nightly",
+                    "next_run_ts": null
                   }
                 },
                 "schema": {
@@ -9651,7 +10944,8 @@
         ],
         "x-mcm-role": "operator",
         "x-mcm-source": [
-          "mc_api.thaw"
+          "mc_api.thaw",
+          "mc_api.thaw_op"
         ]
       }
     },
@@ -10617,6 +11911,10 @@
     {
       "description": "Remote access: pairing and devices.",
       "name": "remote"
+    },
+    {
+      "description": "Hostname router in front of several servers.",
+      "name": "router"
     }
   ]
 }

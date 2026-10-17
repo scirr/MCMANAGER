@@ -63,7 +63,7 @@
             "type": "integer"
           },
           "secrets_set": {
-            "description": "Names of the secret fields that are configured (password, token, secret).",
+            "description": "Names of the secret fields that are configured (`password`, `token`, `secret`, `url`, `headers`); their values are never returned.",
             "items": {
               "type": "string"
             },

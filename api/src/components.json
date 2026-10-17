@@ -192,6 +192,13 @@
       "Error": {
         "description": "Failure body. Contextual fields of the failed operation (available, online, players, path...) may be present.",
         "properties": {
+          "available": {
+            "description": "`id:name` of the registered servers (`not_found`).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "code": {
             "description": "Stable failure identifier.",
             "type": "string"
@@ -205,6 +212,17 @@
               "null"
             ]
           },
+          "error": {
+            "additionalProperties": true,
+            "description": "Legacy nested copy of `code` and `detail` kept in some failures so existing scripts keep working.",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "detail": {}
+            },
+            "type": "object"
+          },
           "message": {
             "description": "Human text in the language of the daemon.",
             "type": "string"
@@ -214,6 +232,21 @@
               false
             ],
             "type": "boolean"
+          },
+          "schema": {
+            "description": "Version of the JSON shapes.",
+            "enum": [
+              1
+            ],
+            "type": "integer"
+          },
+          "server": {
+            "description": "Server concerned, when the failure is tied to one.",
+            "type": "string"
+          },
+          "target": {
+            "description": "Name or id that matched no server (`not_found`).",
+            "type": "string"
           }
         },
         "required": [
@@ -460,6 +493,10 @@
     {
       "description": "Remote access: pairing and devices.",
       "name": "remote"
+    },
+    {
+      "description": "Hostname router in front of several servers.",
+      "name": "router"
     }
   ]
 }

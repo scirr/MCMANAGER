@@ -120,9 +120,23 @@
             "description": "Ban lists: `YYYY-MM-DD HH:MM:SS +ZZZZ`.",
             "type": "string"
           },
+          "created_ts": {
+            "description": "Ban lists: epoch seconds of `created`; null when unreadable.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "expires": {
             "description": "`forever` or a date.",
             "type": "string"
+          },
+          "expires_ts": {
+            "description": "Ban lists: epoch seconds of `expires`; null for `forever`.",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "ip": {
             "description": "banip only.",
@@ -192,10 +206,21 @@
             "description": "ISO 8601 local time.",
             "type": "string"
           },
+          "join_ts": {
+            "description": "Epoch seconds.",
+            "type": "integer"
+          },
           "leave": {
             "description": "Null for a session still open or cut by a crash.",
             "type": [
               "string",
+              "null"
+            ]
+          },
+          "leave_ts": {
+            "description": "Epoch seconds; null while the session is open.",
+            "type": [
+              "integer",
               "null"
             ]
           },
@@ -208,7 +233,9 @@
           "ip",
           "join",
           "leave",
-          "duration_s"
+          "duration_s",
+          "join_ts",
+          "leave_ts"
         ],
         "type": "object"
       },
@@ -709,7 +736,9 @@
                       "duration_s": 4409,
                       "ip": null,
                       "join": "2026-10-07T19:02:11",
+                      "join_ts": 1791450000,
                       "leave": "2026-10-07T20:15:40",
+                      "leave_ts": 1791453600,
                       "player": "Steve"
                     }
                   ]

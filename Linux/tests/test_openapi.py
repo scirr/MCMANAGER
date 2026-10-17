@@ -7,9 +7,11 @@ import ast
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 API_DIR = os.path.join(ROOT, "api")
@@ -32,6 +34,7 @@ def load_text():
 
 
 SPEC = json.loads(load_text())
+OPERATIONS = {}
 
 
 def operations():
@@ -39,6 +42,9 @@ def operations():
         for method, op in item.items():
             if method in METHODS:
                 yield path, method, op
+
+
+OPERATIONS.update({op["operationId"]: op for _p, _m, op in operations()})
 
 
 def resolve(ref):
@@ -154,6 +160,63 @@ def validate(value, schema, where="$"):
     if isinstance(value, list) and isinstance(schema.get("items"), dict):
         for index, item in enumerate(value):
             problems += validate(item, schema["items"], f"{where}[{index}]")
+    return problems
+
+
+def declared_names(schema):
+    if "$ref" in schema:
+        return declared_names(resolve(schema["$ref"]))
+    names = set(schema.get("properties") or {})
+    for key in ("allOf", "oneOf", "anyOf"):
+        for sub in schema.get(key, []):
+            names |= declared_names(sub)
+    return names
+
+
+def open_ended(schema):
+    if "$ref" in schema:
+        return open_ended(resolve(schema["$ref"]))
+    if schema.get("additionalProperties") not in (None, False):
+        return True
+    return any(open_ended(sub) for key in ("allOf", "oneOf", "anyOf") for sub in schema.get(key, []))
+
+
+def validate_strict(value, schema, where="$", check=True):
+    """validate() plus: an object may not carry a property the schema does not declare
+    (secret-looking names are exempt: the CLI shows masked placeholders for them)."""
+    if "$ref" in schema:
+        return validate_strict(value, resolve(schema["$ref"]), where, check)
+    problems = []
+    for sub in schema.get("allOf", []):
+        problems += validate_strict(value, sub, where, False)
+    for key in ("oneOf", "anyOf"):
+        if key in schema:
+            attempts = [validate_strict(value, sub, where, False) for sub in schema[key]]
+            problems += min(attempts, key=len) if attempts else []
+    if "enum" in schema and value not in schema["enum"]:
+        problems.append(f"{where}: {value!r} not in enum")
+    kinds = schema.get("type")
+    if kinds is not None:
+        kinds = [kinds] if isinstance(kinds, str) else kinds
+        if not any(TYPE_CHECKS[k](value) for k in kinds):
+            return problems + [f"{where}: {value!r:.60} is not {kinds}"]
+    if isinstance(value, dict):
+        props = schema.get("properties") or {}
+        problems += [f"{where}: missing {name}" for name in schema.get("required", []) if name not in value]
+        for name, sub in props.items():
+            if name in value:
+                problems += validate_strict(value[name], sub, f"{where}.{name}")
+        extra = schema.get("additionalProperties")
+        for name, item in value.items():
+            if name not in props and isinstance(extra, dict):
+                problems += validate_strict(item, extra, f"{where}.{name}")
+        if check and (props or schema.get("allOf")) and not open_ended(schema):
+            known = declared_names(schema)
+            problems += [f"{where}: undeclared {name}" for name in value
+                         if name not in known and not secret_like(name)]
+    if isinstance(value, list) and isinstance(schema.get("items"), dict):
+        for index, item in enumerate(value):
+            problems += validate_strict(item, schema["items"], f"{where}[{index}]")
     return problems
 
 
@@ -306,6 +369,41 @@ class TestSecrets(unittest.TestCase):
                     self.assertNotIn("writeOnly", sub, f"{op['operationId']}: {name}")
 
 
+NAMED_SECRETS = ("mcrcon_pass", "webhook_url", "access_key", "secret_key", "password", "key", "password_file",
+                 "headers", "curseforge_api_key")
+
+
+class TestNamedSecrets(unittest.TestCase):
+
+    def test_no_response_schema_has_a_property_named_like_a_secret(self):
+        checked = 0
+        for path, method, op in operations():
+            for code, schema in response_schemas(op):
+                for name, sub in reachable_properties(schema):
+                    checked += 1
+                    if name == "key" and sub.get("$ref", "").endswith("/ConfigKey"):
+                        continue
+                    self.assertNotIn(name, NAMED_SECRETS, f"{op['operationId']} {code}")
+        self.assertGreater(checked, 500)
+
+    def test_no_component_outside_requests_has_a_property_named_like_a_secret(self):
+        for name, schema in SPEC["components"]["schemas"].items():
+            if name.endswith("Request"):
+                continue
+            for prop, sub in reachable_properties(schema):
+                if prop == "key" and sub.get("$ref", "").endswith("/ConfigKey"):
+                    continue
+                self.assertNotIn(prop, NAMED_SECRETS, name)
+
+    def test_the_masked_listings_declare_the_names_of_what_is_set(self):
+        schemas = SPEC["components"]["schemas"]
+        self.assertIn("secrets_set", schemas["BackupRemote"]["properties"])
+        self.assertIn("secrets_set", schemas["AlertChannel"]["properties"])
+        self.assertIn("header_names", schemas["AlertChannel"]["properties"])
+        self.assertIn("secrets_set", schemas["ServerConfig"]["properties"])
+
+
+
 class TestExamples(unittest.TestCase):
 
     def test_success_examples_follow_their_schema(self):
@@ -386,6 +484,192 @@ class TestCoverageOfMcApi(unittest.TestCase):
         sys.path.insert(0, os.path.join(ROOT, "Linux"))
         import mc_alert
         self.assertEqual(SPEC["components"]["schemas"]["AlertEvent"]["enum"], list(mc_alert.EVENTS) + ["*"])
+
+
+CLI_SECRETS = ("LEAK-rcon-91", "LEAK-hook-92", "LEAK-s3-access-93", "LEAK-s3-secret-94", "LEAK-header-95")
+
+
+class TestCliOutputsFollowTheContract(unittest.TestCase):
+    """Real `mc ... --json` runs against a throw-away data folder; every document
+    has to fit the response schema of the operation it stands for."""
+
+    FAILURES = {"not_found", "no_active_server", "confirm_required", "rcon_failed", "server_offline"}
+
+    @classmethod
+    def setUpClass(cls):
+        cls.data = tempfile.mkdtemp()
+        cls.folder = tempfile.mkdtemp()
+        cls.cfg = {"port": 1, "rcon_port": 2, "mcrcon_pass": CLI_SECRETS[0], "always_on": 1, "nom_serveur": "a",
+                   "dossier_backup": os.path.join(cls.data, "bk")}
+        cls.save()
+        with open(os.path.join(cls.folder, "server.properties"), "w") as f:
+            f.write("online-mode=false\nlevel-name=world\n")
+        os.makedirs(os.path.join(cls.folder, "world", "region"))
+        with open(os.path.join(cls.folder, "world", "level.dat"), "w") as f:
+            f.write("x")
+        os.makedirs(os.path.join(cls.folder, "logs"))
+        with open(os.path.join(cls.folder, "logs", "latest.log"), "w") as f:
+            f.write("[10:00:00] [Server thread/INFO]: Steve[/203.0.113.5:1] logged in with entity id 1 at (0, 0, 0)\n"
+                    "[10:10:00] [Server thread/INFO]: Steve left the game\n")
+        with open(os.path.join(cls.folder, "banned-players.json"), "w") as f:
+            json.dump([{"uuid": "u", "name": "Steve", "created": "2026-01-02 03:04:05 +0000", "source": "x",
+                        "expires": "forever", "reason": "r"}], f)
+        os.makedirs(os.path.join(cls.folder, "mods"))
+        with zipfile.ZipFile(os.path.join(cls.folder, "mods", "m.jar"), "w") as zf:
+            zf.writestr("fabric.mod.json", json.dumps({"id": "m", "name": "M", "version": "1.2.3"}))
+        with open(os.path.join(cls.data, "servers.json"), "w") as f:
+            json.dump({"active": "a", "servers": {"a": {"id": 1, "dossier_serveur": cls.folder}}}, f)
+        cls.env = dict(os.environ, MCMANAGER_DATA_DIR=cls.data, NO_COLOR="1")
+        cls.env.pop("MCMANAGER_DEBUG", None)
+
+    @classmethod
+    def save(cls):
+        with open(os.path.join(cls.folder, "config.json"), "w") as f:
+            json.dump(cls.cfg, f)
+
+    def cli(self, *argv):
+        res = subprocess.run([sys.executable, os.path.join(ROOT, "Linux", "mc_cli.py"), *argv, "--json"],
+                             capture_output=True, text=True, env=self.env, stdin=subprocess.DEVNULL, timeout=60)
+        self.assertNotIn("Traceback", res.stderr)
+        return res.returncode, json.loads(res.stdout)
+
+    def response(self, operation_id, status):
+        response = OPERATIONS[operation_id]["responses"][status]
+        if "$ref" in response:
+            response = resolve(response["$ref"])
+        return response["content"]["application/json"]["schema"]
+
+    def check(self, argv, target, status="200"):
+        """target: an operationId, or '#Schema' for a result that travels inside a job."""
+        _rc, doc = self.cli(*argv)
+        schema = {"$ref": "#/components/schemas/" + target[1:]} if target.startswith("#") \
+            else self.response(target, status)
+        self.assertEqual(validate_strict(doc, schema), [], " ".join(argv))
+        return doc
+
+    def check_failure(self, argv, code):
+        rc, doc = self.cli(*argv)
+        self.assertEqual((doc["ok"], doc["code"]), (False, code), " ".join(argv))
+        error = dict(resolve("#/components/schemas/Error"), required=["ok", "code"])
+        self.assertEqual(validate_strict(doc, error), [], " ".join(argv))
+        return rc, doc
+
+    def test_the_read_only_documents(self):
+        for argv, target in ((("status",), "listServers"), (("status", "a"), "listServers"),
+                             (("active",), "getServer"), (("players",), "listOnlinePlayers"),
+                             (("java", "list"), "listJava"), (("sleep", "status"), "getSleepSettings"),
+                             (("logs",), "getServerLogs"), (("world", "list"), "listWorlds"),
+                             (("datapack", "list"), "listDatapacks"), (("mod", "list"), "listMods"),
+                             (("ban", "list"), "listPlayerList"), (("op", "list"), "listPlayerList"),
+                             (("whitelist", "list"), "listPlayerList"), (("router", "status"), "getRouter"),
+                             (("router", "route", "list"), "getRouter"), (("task", "list"), "listTasks")):
+            with self.subTest(command=" ".join(argv)):
+                self.check(argv, target)
+
+    def test_history_freeze_resume_use_mode(self):
+        doc = self.check(("players", "history", "--days", "3650"), "getPlayerHistory")
+        self.assertEqual(len(doc["sessions"]), 1)
+        doc = self.check(("freeze", "--max", "5m"), "freezeServer")
+        self.assertEqual(doc["expires_ts"] - doc["since_ts"], 300)
+        snapshot = self.check(("status",), "listServers")["servers"][0]
+        self.assertEqual(snapshot["frozen_expires_ts"] - snapshot["frozen_since_ts"], 300)
+        self.check(("thaw",), "thawServer")
+        self.check(("mode", "maintenance"), "setServerMode")
+        self.check(("resume",), "resumeServer")
+        self.check(("use", "a"), "activateServer")
+
+    def test_sleep_settings(self):
+        doc = self.check(("sleep", "enable", "--after", "10m"), "setSleepSettings")
+        self.assertEqual((doc["enabled"], doc["after_s"], doc["join_mode"]), (True, 600, "kick"))
+        self.check(("sleep", "allow", "Alex"), "setSleepSettings")
+        self.assertEqual(self.check(("sleep", "status"), "getSleepSettings")["allow"], ["Alex"])
+
+    def test_tasks_backups_alerts_and_remotes(self):
+        doc = self.check(("task", "add", "--cron", "*/5 * * * *", "--action", "backup"), "createTask", "201")
+        self.assertIsInstance(doc["task"]["next_run_ts"], int)
+        self.check(("task", "list"), "listTasks")
+        doc = self.check(("backup",), "#BackupCreated")
+        self.assertEqual((doc["code"], doc["ok"]), ("backup_created", True))
+        self.check(("backup", "list"), "listBackups")
+        type(self).cfg = dict(self.cfg, webhook_url="https://discord.example/api/" + CLI_SECRETS[1], alerts=[
+            {"name": "wh", "type": "webhook", "events": ["*"], "url": "https://hook.example/x",
+             "headers": {"Authorization": CLI_SECRETS[4]}}],
+            backup_remotes=[{"name": "s3", "type": "s3", "bucket": "b", "access_key": CLI_SECRETS[2],
+                             "secret_key": CLI_SECRETS[3]}])
+        self.save()
+        for argv, target in ((("alert", "list"), "listAlertChannels"),
+                             (("backup", "remote", "list"), "listBackupRemotes")):
+            _rc, doc = self.cli(*argv)
+            self.assertEqual(validate_strict(doc, self.response(target, "200")), [], " ".join(argv))
+            for secret in CLI_SECRETS:
+                self.assertNotIn(secret, json.dumps(doc))
+
+    def test_router_and_status_page(self):
+        doc = self.check(("router", "enable"), "enableRouter")
+        self.assertIs(doc["config"]["enabled"], True)
+        self.check(("router", "deny", "add", "203.0.113.0/24"), "editRouterAccess")
+        self.check(("router", "disable"), "disableRouter")
+        doc = self.check(("status-page", "enable"), "enableStatusPage")
+        self.assertEqual(doc["interval"], 60)
+        self.check(("status-page", "disable"), "disableStatusPage")
+        self.check(("status-page", "disable"), "disableStatusPage")
+
+    def test_failures_fit_the_error_object(self):
+        self.assertEqual(self.check_failure(("status", "zz"), "not_found")[0], 3)
+        self.assertEqual(self.check_failure(("freeze", "zz"), "not_found")[0], 3)
+        self.assertEqual(self.check_failure(("use", "zz"), "not_found")[0], 3)
+        self.assertEqual(self.check_failure(("remove", "zz"), "not_found")[0], 3)
+        self.assertEqual(self.check_failure(("remove", "a"), "confirm_required")[0], 2)
+
+    def test_remove_then_nothing_is_active(self):
+        other = tempfile.mkdtemp()
+        data = tempfile.mkdtemp()
+        with open(os.path.join(other, "config.json"), "w") as f:
+            json.dump({"port": 1, "rcon_port": 2, "nom_serveur": "b"}, f)
+        with open(os.path.join(data, "servers.json"), "w") as f:
+            json.dump({"active": "b", "servers": {"b": {"id": 1, "dossier_serveur": other}}}, f)
+        env = dict(self.env, MCMANAGER_DATA_DIR=data)
+
+        def run(*argv):
+            res = subprocess.run([sys.executable, os.path.join(ROOT, "Linux", "mc_cli.py"), *argv, "--json"],
+                                 capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL, timeout=60)
+            return json.loads(res.stdout)
+
+        doc = run("remove", "b", "--yes")
+        self.assertEqual(validate_strict(doc, self.response("unregisterServer", "200")), [])
+        doc = run("active")
+        self.assertEqual((doc["ok"], doc["code"]), (False, "no_active_server"))
+
+    def test_rcon_failure_and_offline_players_fit_the_schemas(self):
+        offline = self.check(("players",), "listOnlinePlayers")
+        self.assertEqual((offline["ok"], offline["code"], offline["online"]), (True, "server_offline", 0))
+        failure = {"schema": 1, "ok": False, "code": "rcon_failed", "server": "a",
+                   "error": {"code": "rcon_failed", "detail": "refused"}}
+        error = dict(resolve("#/components/schemas/Error"), required=["ok", "code"])
+        self.assertEqual(validate_strict(failure, error), [])
+
+    def test_doctor_report(self):
+        sys.path.insert(0, os.path.join(ROOT, "Linux"))
+        import contextlib
+        import io
+        from unittest import mock
+        import mc_doctor
+        import mc_servers
+        checks = [("ok", "Java", "21", None), ("warn", "Port", "taken", "Free the port.")]
+        buffer = io.StringIO()
+        with mock.patch.object(mc_servers, "list_servers", return_value={"a": {"id": 1}}), \
+                mock.patch.object(mc_doctor, "check_host", return_value=checks[:1]), \
+                mock.patch.object(mc_doctor, "check_server", return_value=checks[1:]), \
+                contextlib.redirect_stdout(buffer):
+            mc_doctor.run_doctor(None, as_json=True)
+        doc = json.loads(buffer.getvalue())
+        self.assertEqual(validate_strict(doc, self.response("getDoctorReport", "200")), [])
+        self.assertEqual((doc["errors"], doc["warnings"], doc["has_issues"]), (0, 1, True))
+
+    def test_validator_notices_an_undeclared_field(self):
+        schema = {"$ref": "#/components/schemas/SleepStatus"}
+        doc = dict(self.cli("sleep", "status")[1], surprise=1)
+        self.assertEqual(validate_strict(doc, schema), ["$: undeclared surprise"])
 
 
 class TestFormatAndDrift(unittest.TestCase):

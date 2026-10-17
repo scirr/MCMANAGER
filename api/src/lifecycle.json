@@ -1,6 +1,25 @@
 {
   "components": {
     "schemas": {
+      "ActivateResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "id": {
+                "description": "Numeric registry id.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
       "CreateServerRequest": {
         "properties": {
           "accept_eula": {
@@ -99,10 +118,51 @@
         },
         "type": "object"
       },
-      "LogLines": {
+      "FreezeResult": {
         "allOf": [
           {
             "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "command_exit_code": {
+                "description": "CLI only (`mc freeze -- <command>`): exit code of the wrapped command.",
+                "type": "integer"
+              },
+              "expires_ts": {
+                "description": "Epoch seconds of the automatic thaw; null on failure.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "max_s": {
+                "description": "Automatic thaw delay, seconds.",
+                "type": "integer"
+              },
+              "since_ts": {
+                "description": "Epoch seconds at which the freeze began; null on failure.",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "thaw": {
+                "$ref": "#/components/schemas/ServerResult",
+                "description": "CLI only: result of the thaw that follows the wrapped command."
+              }
+            },
+            "required": [
+              "max_s"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "LogLines": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
           },
           {
             "properties": {
@@ -112,16 +172,17 @@
                 },
                 "type": "array"
               },
-              "source": {
-                "enum": [
-                  "daemon",
-                  "server"
-                ],
-                "type": "string"
+              "server": {
+                "description": "Null when the lines are not filtered by server.",
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "required": [
-              "lines"
+              "lines",
+              "server"
             ],
             "type": "object"
           }
@@ -137,6 +198,72 @@
           "mode"
         ],
         "type": "object"
+      },
+      "RemoveResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "active": {
+                "description": "Name of the active server after the removal.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "path": {
+                "description": "Folder left in place.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ResumeResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "properties": {
+              "mode": {
+                "$ref": "#/components/schemas/ServerMode"
+              },
+              "running": {
+                "description": "The server was already running.",
+                "type": "boolean"
+              },
+              "start": {
+                "description": "Result of the explicit restart of a crashed server; null otherwise.",
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/StartResult"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "was_crashed": {
+                "description": "A crash marker was cleared.",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "mode",
+              "was_crashed",
+              "running",
+              "start"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "ScheduleRequest": {
         "properties": {
@@ -233,8 +360,16 @@
                 "type": "integer"
               },
               "since": {
+                "description": "Epoch seconds (kept for existing scripts).",
                 "type": [
                   "number",
+                  "null"
+                ]
+              },
+              "since_ts": {
+                "description": "Epoch seconds of the first failure.",
+                "type": [
+                  "integer",
                   "null"
                 ]
               },
@@ -277,12 +412,30 @@
             "description": "World saving suspended by freeze.",
             "type": "boolean"
           },
+          "frozen_expires_ts": {
+            "description": "Epoch seconds of the automatic thaw; null when not frozen.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "frozen_since_ts": {
+            "description": "Epoch seconds at which the freeze began; null when not frozen.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "id": {
             "description": "Numeric registry id.",
             "type": [
               "integer",
               "null"
             ]
+          },
+          "internal_port": {
+            "description": "Hold mode only: port the JVM listens on behind the daemon.",
+            "type": "integer"
           },
           "loader": {
             "type": [
@@ -328,7 +481,10 @@
                     ]
                   },
                   "program": {
-                    "type": "string"
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   }
                 },
                 "type": "object"
@@ -368,6 +524,10 @@
             ],
             "type": "object"
           },
+          "server": {
+            "description": "Registry name, same value as `name`.",
+            "type": "string"
+          },
           "sleep": {
             "$ref": "#/components/schemas/SleepInfo"
           },
@@ -397,6 +557,10 @@
               }
             ]
           },
+          "suspended": {
+            "description": "Sleeping server stopped with SIGSTOP (sleep freeze).",
+            "type": "boolean"
+          },
           "swap_kb": {
             "type": [
               "integer",
@@ -418,6 +582,7 @@
         },
         "required": [
           "name",
+          "server",
           "id",
           "active",
           "path",
@@ -441,12 +606,47 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "freeze": {
+            "description": "Sleep by freezing the process (SIGSTOP) instead of stopping it; needs hold mode.",
+            "type": "boolean"
+          },
+          "hold_timeout_s": {
+            "description": "Hold mode: seconds a held player waits (10 to 600).",
+            "type": "integer"
+          },
+          "internal_port": {
+            "description": "Hold mode only: port of the JVM behind the daemon.",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "join_mode": {
+            "description": "kick: a joining player is refused while the server wakes; hold: the daemon keeps the connection until the server is up.",
+            "enum": [
+              "kick",
+              "hold"
+            ],
+            "type": "string"
+          },
+          "proxy_protocol": {
+            "description": "Hold mode only: the daemon forwards connections with the PROXY protocol.",
+            "type": [
+              "boolean",
+              "null"
+            ]
           }
         },
         "required": [
           "enabled",
           "after_s",
-          "allow"
+          "allow",
+          "join_mode",
+          "hold_timeout_s",
+          "freeze",
+          "internal_port",
+          "proxy_protocol"
         ],
         "type": "object"
       },
@@ -470,6 +670,22 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "freeze": {
+            "description": "Needs hold mode.",
+            "type": "boolean"
+          },
+          "hold_timeout_s": {
+            "description": "Hold mode wait, 10 to 600.",
+            "type": "integer"
+          },
+          "join_mode": {
+            "description": "hold needs sleep enabled and a restart of the server.",
+            "enum": [
+              "kick",
+              "hold"
+            ],
+            "type": "string"
           }
         },
         "type": "object"
@@ -480,28 +696,16 @@
             "$ref": "#/components/schemas/ServerResult"
           },
           {
+            "$ref": "#/components/schemas/SleepInfo"
+          },
+          {
             "properties": {
-              "after_s": {
-                "type": "integer"
-              },
-              "allow": {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              "enabled": {
-                "type": "boolean"
-              },
               "state": {
                 "$ref": "#/components/schemas/ServerState"
               }
             },
             "required": [
-              "state",
-              "enabled",
-              "after_s",
-              "allow"
+              "state"
             ],
             "type": "object"
           }
@@ -513,25 +717,18 @@
             "$ref": "#/components/schemas/ServerResult"
           },
           {
+            "$ref": "#/components/schemas/SleepInfo"
+          },
+          {
             "properties": {
-              "after_s": {
-                "type": "integer"
-              },
-              "allow": {
+              "notes": {
+                "description": "Messages about what changed on disk or needs a restart.",
                 "items": {
                   "type": "string"
                 },
                 "type": "array"
-              },
-              "enabled": {
-                "type": "boolean"
               }
             },
-            "required": [
-              "enabled",
-              "after_s",
-              "allow"
-            ],
             "type": "object"
           }
         ]
@@ -775,6 +972,8 @@
                       "cgroup": "/system.slice/mc_manager.service",
                       "error": null,
                       "frozen": false,
+                      "frozen_expires_ts": null,
+                      "frozen_since_ts": null,
                       "id": 1,
                       "loader": "Fabric",
                       "maintenance": false,
@@ -786,15 +985,22 @@
                       "port_holder": null,
                       "rcon_port": 25575,
                       "rss_kb": 6291456,
+                      "server": "survie",
                       "sleep": {
                         "after_s": 7200,
                         "allow": [
                           "Steve"
                         ],
-                        "enabled": true
+                        "enabled": true,
+                        "freeze": false,
+                        "hold_timeout_s": 120,
+                        "internal_port": null,
+                        "join_mode": "kick",
+                        "proxy_protocol": null
                       },
                       "state": "running",
                       "stop_reason": null,
+                      "suspended": false,
                       "swap_kb": 0,
                       "uptime_s": 7312,
                       "version": "1.21.1"
@@ -921,11 +1127,24 @@
       "delete": {
         "description": "Removes the server from the registry; the folder, worlds and backups are never deleted.",
         "operationId": "unregisterServer",
+        "parameters": [
+          {
+            "description": "Must be true: without it the answer is 422 `confirm_required` and nothing is removed.",
+            "in": "query",
+            "name": "confirm",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "example": {
+                  "active": null,
                   "code": "deregistered",
                   "ok": true,
                   "path": "/home/mc/Servers/essai",
@@ -933,20 +1152,7 @@
                   "server": "essai"
                 },
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/ServerResult"
-                    },
-                    {
-                      "properties": {
-                        "path": {
-                          "description": "Folder left in place.",
-                          "type": "string"
-                        }
-                      },
-                      "type": "object"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/RemoveResult"
                 }
               }
             },
@@ -964,6 +1170,9 @@
           "409": {
             "$ref": "#/components/responses/Conflict"
           },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
@@ -977,7 +1186,8 @@
         ],
         "x-mcm-role": "admin",
         "x-mcm-source": [
-          "mc_servers.remove_server"
+          "mc_servers.remove_server",
+          "mc_api.remove"
         ]
       },
       "get": {
@@ -992,6 +1202,8 @@
                   "code": "status",
                   "error": null,
                   "frozen": false,
+                  "frozen_expires_ts": null,
+                  "frozen_since_ts": null,
                   "id": 1,
                   "loader": "Fabric",
                   "maintenance": false,
@@ -1005,15 +1217,22 @@
                   "rcon_port": 25575,
                   "rss_kb": 6291456,
                   "schema": 1,
+                  "server": "survie",
                   "sleep": {
                     "after_s": 7200,
                     "allow": [
                       "Steve"
                     ],
-                    "enabled": true
+                    "enabled": true,
+                    "freeze": false,
+                    "hold_timeout_s": 120,
+                    "internal_port": null,
+                    "join_mode": "kick",
+                    "proxy_protocol": null
                   },
                   "state": "running",
                   "stop_reason": null,
+                  "suspended": false,
                   "swap_kb": 0,
                   "uptime_s": 7312,
                   "version": "1.21.1"
@@ -1071,17 +1290,14 @@
             "content": {
               "application/json": {
                 "example": {
-                  "code": "activated",
+                  "code": "active_set",
+                  "id": 1,
                   "ok": true,
                   "schema": 1,
-                  "server": "creatif"
+                  "server": "survie"
                 },
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/ServerResult"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/ActivateResult"
                 }
               }
             },
@@ -1109,7 +1325,8 @@
         ],
         "x-mcm-role": "admin",
         "x-mcm-source": [
-          "mc_servers.set_active"
+          "mc_servers.set_active",
+          "mc_api.use"
         ]
       }
     },
@@ -1178,7 +1395,7 @@
         }
       ],
       "post": {
-        "description": "Codes: `frozen`, `offline`, `already_frozen` (409), `rcon_error` (503).",
+        "description": "A stopped server answers `offline` (nothing to freeze, the marker is still written). `already_frozen` is a 409, `rcon_failed` a 503.",
         "operationId": "freezeServer",
         "requestBody": {
           "content": {
@@ -1199,29 +1416,15 @@
               "application/json": {
                 "example": {
                   "code": "frozen",
-                  "expires": 1791460800,
+                  "expires_ts": 1792283629,
+                  "max_s": 3600,
                   "ok": true,
                   "schema": 1,
-                  "server": "survie"
+                  "server": "survie",
+                  "since_ts": 1792280029
                 },
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/ServerResult"
-                    },
-                    {
-                      "properties": {
-                        "expires": {
-                          "description": "Epoch seconds of the automatic thaw.",
-                          "type": [
-                            "integer",
-                            "null"
-                          ]
-                        }
-                      },
-                      "type": "object"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/FreezeResult"
                 }
               }
             },
@@ -1261,12 +1464,15 @@
         ],
         "x-mcm-role": "operator",
         "x-mcm-source": [
-          "mc_api.freeze"
+          "mc_api.freeze",
+          "mc_api.freeze_op",
+          "mc_api.read_freeze"
         ]
       }
     },
     "/v1/servers/{server}/logs": {
       "get": {
+        "description": "Daemon log lines tagged with the server. A missing log file answers 404 `no_log_file`.",
         "operationId": "getServerLogs",
         "parameters": [
           {
@@ -1289,12 +1495,11 @@
                 "example": {
                   "code": "logs",
                   "lines": [
-                    "2026-10-08 10:00:00 [survie] started"
+                    "2026-10-08 10:00:00,000 - INFO - [survie] Server started"
                   ],
                   "ok": true,
                   "schema": 1,
-                  "server": "survie",
-                  "source": "daemon"
+                  "server": "survie"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/LogLines"
@@ -1328,7 +1533,8 @@
         ],
         "x-mcm-role": "viewer",
         "x-mcm-source": [
-          "mc_cli.print_logs"
+          "mc_cli.print_logs",
+          "mc_api.log_lines"
         ]
       },
       "parameters": [
@@ -1418,7 +1624,8 @@
         "x-mcm-source": [
           "mc_config.set_mode_schedule",
           "mc_config.set_mode_always_on",
-          "mc_config.set_mode_maintenance"
+          "mc_config.set_mode_maintenance",
+          "mc_api.set_mode"
         ]
       }
     },
@@ -1505,29 +1712,16 @@
               "application/json": {
                 "example": {
                   "code": "resumed",
-                  "crash_cleared": false,
                   "mode": "always-on",
                   "ok": true,
+                  "running": false,
                   "schema": 1,
-                  "server": "survie"
+                  "server": "survie",
+                  "start": null,
+                  "was_crashed": false
                 },
                 "schema": {
-                  "allOf": [
-                    {
-                      "$ref": "#/components/schemas/ServerResult"
-                    },
-                    {
-                      "properties": {
-                        "crash_cleared": {
-                          "type": "boolean"
-                        },
-                        "mode": {
-                          "$ref": "#/components/schemas/ServerMode"
-                        }
-                      },
-                      "type": "object"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/ResumeResult"
                 }
               }
             },
@@ -1556,7 +1750,8 @@
         "x-mcm-role": "operator",
         "x-mcm-source": [
           "mc_config.resume_mode",
-          "mc_crash.clear"
+          "mc_crash.clear",
+          "mc_api.resume"
         ]
       }
     },
@@ -1668,7 +1863,12 @@
                   ],
                   "code": "sleep_status",
                   "enabled": true,
+                  "freeze": false,
+                  "hold_timeout_s": 120,
+                  "internal_port": null,
+                  "join_mode": "kick",
                   "ok": true,
+                  "proxy_protocol": null,
                   "schema": 1,
                   "server": "survie",
                   "state": "running"
@@ -1722,7 +1922,10 @@
                 "allow_add": [
                   "Alex"
                 ],
-                "enabled": true
+                "enabled": true,
+                "freeze": true,
+                "hold_timeout_s": 120,
+                "join_mode": "hold"
               },
               "schema": {
                 "$ref": "#/components/schemas/SleepSettingsRequest"
@@ -1743,7 +1946,15 @@
                   ],
                   "code": "sleep_updated",
                   "enabled": true,
+                  "freeze": true,
+                  "hold_timeout_s": 120,
+                  "internal_port": 25570,
+                  "join_mode": "hold",
+                  "notes": [
+                    "Restart the server to apply the hold mode."
+                  ],
                   "ok": true,
+                  "proxy_protocol": false,
                   "schema": 1,
                   "server": "survie"
                 },
@@ -2069,7 +2280,8 @@
         ],
         "x-mcm-role": "operator",
         "x-mcm-source": [
-          "mc_api.thaw"
+          "mc_api.thaw",
+          "mc_api.thaw_op"
         ]
       }
     },

@@ -28,7 +28,14 @@
           "backup_keep",
           "backup_encrypt_key_file",
           "stop_timeout",
-          "curseforge_api_key"
+          "curseforge_api_key",
+          "internal_port",
+          "metrics_allow_remote",
+          "metrics_bind",
+          "sleep_freeze",
+          "sleep_hold_timeout",
+          "sleep_join_mode",
+          "sleep_proxy_protocol"
         ],
         "type": "string"
       },
@@ -118,10 +125,7 @@
               "null"
             ]
           },
-          "label": {
-            "type": "string"
-          },
-          "status": {
+          "level": {
             "enum": [
               "ok",
               "info",
@@ -129,11 +133,27 @@
               "err"
             ],
             "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ok": {
+            "description": "False for `warn` and `err`.",
+            "type": "boolean"
+          },
+          "server": {
+            "description": "Null for a host check.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
-          "status",
-          "label",
+          "server",
+          "name",
+          "ok",
+          "level",
           "detail",
           "fix"
         ],
@@ -146,45 +166,29 @@
           },
           {
             "properties": {
-              "has_errors": {
-                "type": "boolean"
-              },
-              "has_issues": {
-                "type": "boolean"
-              },
-              "host": {
+              "checks": {
+                "description": "Host checks first (server null), then each server.",
                 "items": {
                   "$ref": "#/components/schemas/DoctorCheck"
                 },
                 "type": "array"
               },
-              "servers": {
-                "items": {
-                  "properties": {
-                    "checks": {
-                      "items": {
-                        "$ref": "#/components/schemas/DoctorCheck"
-                      },
-                      "type": "array"
-                    },
-                    "server": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "server",
-                    "checks"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
+              "errors": {
+                "description": "Number of `err` checks. The result is `ok:false` when it is above zero.",
+                "type": "integer"
+              },
+              "has_issues": {
+                "type": "boolean"
+              },
+              "warnings": {
+                "type": "integer"
               }
             },
             "required": [
-              "host",
-              "servers",
-              "has_issues",
-              "has_errors"
+              "checks",
+              "errors",
+              "warnings",
+              "has_issues"
             ],
             "type": "object"
           }
@@ -421,7 +425,7 @@
         ]
       },
       "ServerConfig": {
-        "description": "Server configuration without any secret. Secrets (mcrcon_pass, webhook_url, curseforge_api_key, alert channel and backup destination credentials) are write-only.",
+        "description": "Server configuration with every secret masked: secret keys are listed in `secrets_set` and never carry their value in a response (the CLI prints `***`).",
         "properties": {
           "activer_automodpack": {
             "enum": [
@@ -436,9 +440,6 @@
               1
             ],
             "type": "integer"
-          },
-          "backup_encrypt_key_file": {
-            "type": "string"
           },
           "backup_keep": {
             "type": "integer"
@@ -528,6 +529,7 @@
                 "mcrcon_pass",
                 "webhook_url",
                 "curseforge_api_key",
+                "backup_encrypt_key_file",
                 "alerts",
                 "backup_remotes"
               ],
@@ -639,38 +641,37 @@
   "paths": {
     "/v1/doctor": {
       "get": {
+        "description": "`ok` is false when a check is in error (the answer is still 200).",
         "operationId": "getDoctorReport",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "example": {
-                  "code": "doctor",
-                  "has_errors": false,
-                  "has_issues": true,
-                  "host": [
+                  "checks": [
                     {
                       "detail": "openjdk 21.0.4",
                       "fix": null,
-                      "label": "Java",
-                      "status": "ok"
-                    }
-                  ],
-                  "ok": true,
-                  "schema": 1,
-                  "servers": [
+                      "level": "ok",
+                      "name": "Java",
+                      "ok": true,
+                      "server": null
+                    },
                     {
-                      "checks": [
-                        {
-                          "detail": "25565 held by nginx (pid 912)",
-                          "fix": "Free the port.",
-                          "label": "Port",
-                          "status": "warn"
-                        }
-                      ],
+                      "detail": "25565 held by nginx (pid 912)",
+                      "fix": "Free the port.",
+                      "level": "warn",
+                      "name": "Port",
+                      "ok": false,
                       "server": "survie"
                     }
-                  ]
+                  ],
+                  "code": "doctor",
+                  "errors": 0,
+                  "has_issues": true,
+                  "ok": true,
+                  "schema": 1,
+                  "warnings": 1
                 },
                 "schema": {
                   "$ref": "#/components/schemas/DoctorReport"
@@ -699,7 +700,8 @@
         "x-mcm-role": "viewer",
         "x-mcm-source": [
           "mc_doctor.check_host",
-          "mc_doctor.check_server"
+          "mc_doctor.check_server",
+          "mc_doctor.run_doctor"
         ]
       }
     },
@@ -1174,25 +1176,22 @@
             "content": {
               "application/json": {
                 "example": {
-                  "code": "doctor",
-                  "has_errors": false,
-                  "has_issues": false,
-                  "host": [],
-                  "ok": true,
-                  "schema": 1,
-                  "servers": [
+                  "checks": [
                     {
-                      "checks": [
-                        {
-                          "detail": "config.json readable",
-                          "fix": null,
-                          "label": "Config",
-                          "status": "ok"
-                        }
-                      ],
+                      "detail": "readable",
+                      "fix": null,
+                      "level": "ok",
+                      "name": "config.json",
+                      "ok": true,
                       "server": "survie"
                     }
-                  ]
+                  ],
+                  "code": "doctor",
+                  "errors": 0,
+                  "has_issues": false,
+                  "ok": true,
+                  "schema": 1,
+                  "warnings": 0
                 },
                 "schema": {
                   "$ref": "#/components/schemas/DoctorReport"

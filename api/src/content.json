@@ -208,8 +208,15 @@
             ],
             "type": "string"
           },
+          "tracked_version": {
+            "description": "Version recorded when the mod was installed by name; present for those mods only.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "version": {
-            "description": "Version declared by the jar (the CLI overwrites it with the tracked version when the mod was installed by name).",
+            "description": "Version declared by the jar.",
             "type": [
               "string",
               "null"
