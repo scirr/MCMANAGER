@@ -189,3 +189,81 @@ class TestService(FakePlatformCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestLinuxBehaviourKept(unittest.TestCase):
+    def test_daemon_error_shows_return_code_and_output(self):
+        import contextlib
+        import io
+        import mc_cli
+        saved = mc_platform._Lazy._impl
+        self.addCleanup(setattr, mc_platform._Lazy, "_impl", saved)
+        import platform_linux
+        mc_platform.use(platform_linux)
+        done = subprocess.CompletedProcess([], 3, stdout="out ", stderr="Job failed\n")
+        out = io.StringIO()
+        with mock.patch.object(platform_linux, "_run_systemctl", return_value=done), \
+             contextlib.redirect_stdout(out):
+            mc_cli.dispatch_daemon("restart")
+        text = out.getvalue()
+        self.assertIn("3", text)
+        self.assertIn("out Job failed", text)
+        self.assertNotIn("error", text.lower().replace("erreur", ""))
+
+    def test_ipc_files_are_0644_with_a_pid_temporary(self):
+        import platform_linux
+        folder = tempfile.mkdtemp()
+        path = os.path.join(folder, "r.json")
+        seen = []
+        real = os.replace
+        with mock.patch("os.replace", side_effect=lambda a, b: (seen.append(a), real(a, b))):
+            platform_linux.write_private_file(path, "{}", 0o644)
+            platform_linux.write_private_file(os.path.join(folder, "p.json"), "{}")
+        self.assertEqual(os.stat(path).st_mode & 0o777, 0o644)
+        self.assertEqual(os.stat(os.path.join(folder, "p.json")).st_mode & 0o777, 0o600)
+        self.assertEqual(seen[0], f"{path}.{os.getpid()}.tmp")
+
+    def test_run_dir_owner_given_only_to_a_folder_just_created(self):
+        base = tempfile.mkdtemp()
+        run = os.path.join(base, "run")
+        with mock.patch.object(mc_ipc, "BASE_DIR", base), mock.patch.object(mc_ipc, "RUN_DIR", run), \
+             mock.patch.object(mc_ipc.plat, "secure_dir") as secure:
+            mc_ipc._private_dir(os.path.join(run, "requests"))
+            mc_ipc._private_dir(os.path.join(run, "requests"))
+        self.assertEqual([c.kwargs for c in secure.call_args_list],
+                         [{"owner_of": base}, {"owner_of": base}, {}, {}])
+
+    def test_secure_dir_chowns_only_when_asked_and_root(self):
+        import platform_linux
+        folder = tempfile.mkdtemp()
+        with mock.patch("os.geteuid", return_value=0), mock.patch("os.chown") as chown:
+            platform_linux.secure_dir(folder)
+            chown.assert_not_called()
+            platform_linux.secure_dir(folder, owner_of=folder)
+            self.assertEqual(chown.call_count, 1)
+        with mock.patch("os.chown") as chown:
+            platform_linux.secure_dir(folder, owner_of=folder)
+            chown.assert_not_called()
+
+    def test_restic_password_file_error_is_not_swallowed(self):
+        import platform_linux
+        fake = FakePlatform(secure_file=False)
+        saved = mc_platform._Lazy._impl
+        self.addCleanup(setattr, mc_platform._Lazy, "_impl", saved)
+        mc_platform.use(fake)
+        pw = os.path.join(tempfile.mkdtemp(), "pw")
+        with open(pw, "w") as f:
+            f.write("x")
+        config = {"dossier_serveur": tempfile.mkdtemp()}
+        with self.assertRaises(PermissionError):
+            mc_api.backup_remote_add("a", config, "r", "restic:/srv/repo", password_file=pw)
+
+    def test_doctor_says_systemctl_is_unavailable(self):
+        fake = FakePlatform(service_installed=None)
+        saved = mc_platform._Lazy._impl
+        self.addCleanup(setattr, mc_platform._Lazy, "_impl", saved)
+        mc_platform.use(fake)
+        self.assertEqual(mc_doctor._check_daemon_service(), (False, mc_core.T["doctor_svc_no_sc"]))
+        import platform_linux
+        with mock.patch("shutil.which", return_value=None):
+            self.assertIsNone(platform_linux.service_installed())

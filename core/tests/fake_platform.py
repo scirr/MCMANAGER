@@ -36,8 +36,8 @@ class FakePlatform:
         self.calls.append(("resume", (pid,)))
         raise Unsupported("resume")
 
-    def write_private_file(self, path, text):
-        self.calls.append(("write_private_file", (path, text)))
+    def write_private_file(self, path, text, mode=0o600):
+        self.calls.append(("write_private_file", (path, text, mode)))
         self.files[path] = text
 
     def spawn_server(self, cmd, cwd, env=None, log=None):

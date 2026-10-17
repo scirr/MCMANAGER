@@ -2054,7 +2054,10 @@ def dispatch_daemon(daemon_action):
     elif code == "no_permission":
         print_res(False, T["daemon_no_perms"].format(action=daemon_action))
     else:
-        print_res(False, T["daemon_error_msg"].format(action=daemon_action, code=code, detail=detail))
+        rc, sep, text = detail.partition("|")
+        if not (sep and rc.isdigit()):
+            rc, text = code, detail
+        print_res(False, T["daemon_error_msg"].format(action=daemon_action, code=rc, detail=text.strip()))
 
 # ==========================================
 # PLAYERS / WORLDS / SCHEDULED TASKS (2.10)

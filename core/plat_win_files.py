@@ -44,7 +44,7 @@ def secure_file(path, also=()):
     return _grant(path, "F", also)
 
 
-def secure_dir(path, also=()):
+def secure_dir(path, also=(), owner_of=None):
     return _grant(path, "(OI)(CI)F", also)
 
 
@@ -103,11 +103,12 @@ def atomic_replace(src, dst, attempts=REPLACE_ATTEMPTS, delay=REPLACE_DELAY):
     raise last
 
 
-def write_private_file(path, text):
-    tmp = f"{path}.tmp"
+def write_private_file(path, text, mode=0o600):
+    tmp = f"{path}.{os.getpid()}.tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
         f.write(text)
-    secure_file(tmp)
+    if mode == 0o600:
+        secure_file(tmp)
     atomic_replace(tmp, path)
 
 

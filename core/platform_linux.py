@@ -367,14 +367,13 @@ def secure_file(path):
         return False
 
 
-def secure_dir(path):
-    # A folder made by root inside a user-owned one is handed to that user, or
-    # the service (running as the user) could no longer reach it.
+def secure_dir(path, owner_of=None):
+    # owner_of: a folder just made by root is handed to the owner of that
+    # path, or the service (running as the user) could no longer reach it.
     try:
-        if os.geteuid() == 0:
-            parent = os.stat(os.path.dirname(os.path.abspath(path)))
-            if os.stat(path).st_uid == 0 and parent.st_uid != 0:
-                os.chown(path, parent.st_uid, parent.st_gid)
+        if owner_of and os.geteuid() == 0:
+            st = os.stat(owner_of)
+            os.chown(path, st.st_uid, st.st_gid)
         if os.stat(path).st_uid == os.geteuid():
             os.chmod(path, 0o700)
         return True
@@ -404,14 +403,14 @@ def _owner_to_keep(path):
     return None
 
 
-def write_private_file(path, text):
+def write_private_file(path, text, mode=0o600):
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    owner = _owner_to_keep(path)
-    tmp_path = path + ".tmp"
-    fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    owner = _owner_to_keep(path) if mode == 0o600 else None
+    tmp_path = f"{path}.{os.getpid()}.tmp"
+    fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
     with os.fdopen(fd, 'w', encoding='utf-8') as f:
         f.write(text)
-    os.chmod(tmp_path, 0o600)
+    os.chmod(tmp_path, mode)
     if owner:
         os.chown(tmp_path, *owner)
     os.replace(tmp_path, path)
@@ -501,6 +500,9 @@ def _service_states():
 
 
 def service_installed():
+    """None when systemctl is not available at all."""
+    if not shutil.which("systemctl"):
+        return None
     return _service_states().get("LoadState") == "loaded"
 
 
@@ -539,7 +541,7 @@ def service_control(action):
         return "not_installed", detail
     if "access denied" in low or "permission denied" in low or "authentication" in low or "interactive" in low:
         return "no_permission", detail
-    return "error", detail
+    return "error", f"{result.returncode}|{detail}"
 
 
 def _service_unit_content(user):

@@ -1095,7 +1095,8 @@ def backup_remote_add(name, config, rname, url, key=None, endpoint=None, region=
             password_file = os.path.abspath(os.path.expanduser(password_file))
             if not os.path.isfile(password_file):
                 return result(False, "key_not_found", path=password_file)
-            plat.secure_file(password_file)
+            if not plat.secure_file(password_file):
+                raise PermissionError(1, "Operation not permitted", password_file)
         elif password:
             password_file = os.path.join(config["dossier_serveur"], ".mcmanager", f"restic-{rname}.pass")
             mc_servers.write_private_file(password_file, password)

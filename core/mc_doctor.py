@@ -20,7 +20,10 @@ def _check_port_in_use(port):
 
 
 def _check_daemon_service():
-    if not plat.service_installed():
+    installed = plat.service_installed()
+    if installed is None:
+        return False, T["doctor_svc_no_sc"]
+    if not installed:
         return False, T["doctor_svc_not_inst"]
     running = plat.service_running()
     return running, (T["doctor_svc_running"] if running else T["doctor_svc_stopped"])

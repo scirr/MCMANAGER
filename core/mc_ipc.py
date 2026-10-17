@@ -34,12 +34,14 @@ def _private_dir(path):
     for folder in (RUN_DIR, path):
         if not os.path.isdir(folder):
             os.makedirs(folder, mode=0o700, exist_ok=True)
-        plat.secure_dir(folder)
+            plat.secure_dir(folder, owner_of=BASE_DIR)
+        else:
+            plat.secure_dir(folder)
 
 
 def _write_atomic(path, data):
     _private_dir(os.path.dirname(path))
-    plat.write_private_file(path, json.dumps(data))
+    plat.write_private_file(path, json.dumps(data), 0o644)
 
 
 def _read(path):

@@ -124,7 +124,7 @@ class TestFilesAndPrivileges(unittest.TestCase):
         with open(path) as f:
             self.assertEqual(f.read(), "two")
         self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
-        self.assertFalse(os.path.exists(path + ".tmp"))
+        self.assertEqual(os.listdir(os.path.dirname(path)), ["c.json"])
 
     def test_secure_dir_is_0700(self):
         folder = tempfile.mkdtemp()
@@ -184,7 +184,7 @@ class TestService(unittest.TestCase):
         self.assertEqual(self._control(0), ("ok", ""))
         self.assertEqual(self._control(5, err="Unit mc_manager.service not found.")[0], "not_installed")
         self.assertEqual(self._control(1, err="Interactive authentication required.")[0], "no_permission")
-        self.assertEqual(self._control(1, err="boom"), ("error", "boom"))
+        self.assertEqual(self._control(1, err="boom"), ("error", "1|boom"))
 
     def test_systemctl_arguments(self):
         calls = []
