@@ -299,7 +299,7 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc world list\|export\|import\|reset\|pregen [target]` | Worlds: dimensions, zip export/import, dimension reset, Chunky pregeneration |
 | `mc task add\|list\|remove\|run\|enable\|disable [target]` | Scheduled tasks (cron) run by the daemon |
 | `mc rcon "<command>" [target]` | Send one command to the server and print its reply (RCON password read from the config) |
-| `mc config get [<key>] [target]` | Print one setting (or the whole `config.json` as JSON) |
+| `mc config get [<key>] [target]` | Print one setting, or the whole `config.json` as JSON with secrets shown as `***` and listed in `secrets_set`; a secret key needs `--reveal` |
 | `mc config set <key> <value> [target]` | Change a setting and propagate it everywhere it lives: `config.json`, `servers.json`, `server.properties`, firewall |
 | `mc freeze [target] [--max 1h] [-- <command>]` | Freeze the world for an external backup (`save-off` + `save-all flush`); with `-- <command>`, runs it and always thaws afterwards |
 | `mc thaw [target]` | Re-enable world saving |
