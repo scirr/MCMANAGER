@@ -297,6 +297,9 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc thaw [target]` | Re-enable world saving |
 | `mc switch <target> [--force]` | Hand the active server's place to another server: stop, swap game and RCON ports, start (refused while players are online unless `--force`) |
 | `mc sleep enable\|disable\|status\|wake [target] [--after 2h]` | Automatic sleep when nobody plays; wakes when a known player joins |
+| `mc sleep enable [target] --join-mode kick\|hold [--freeze on\|off] [--hold-timeout 2m]` | Sleep join behaviour: `hold` keeps the waking player connected and relays them once the server is ready; `--freeze on` suspends the JVM (SIGSTOP) instead of stopping it |
+| `mc router enable [--port N] [--proxy-in on\|off] [--proxy-out on\|off] [--trusted-proxy CIDR] [--per-ip N] [--per-second N]` / `disable` / `status` | Several servers behind one public port, chosen by the hostname in the handshake |
+| `mc router route add\|remove <host> [<server>]` / `route list` / `default <server>` / `allow\|deny add\|remove <CIDR>` | Hostname table, default server, CIDR access lists |
 | `mc sleep allow\|deny <player> [target]` | Let a player who never joined before wake the server (or stop letting them) |
 | `mc datapack list\|enable\|disable [<pack>] [target]` | Manage datapacks live (`--before P`, `--after P`, `--first`, `--last` to order) |
 | `mc mod list\|add\|remove\|update [<mod>] [target]` | Manage mods and plugins: add a `.jar` or a name from Modrinth/CurseForge/Hangar (dependencies included), update, remove to quarantine; AutoModpack copy included |
@@ -401,6 +404,35 @@ When nobody has played for the chosen time, the server is saved and stopped (Dis
 - it never wakes during a world freeze (`mc freeze`: it waits for the thaw), outside opening hours in schedule mode, or after a manual `mc stop`.
 
 Sleep requires RCON (to count players) and the service to be running. It frees all the server's memory while nobody plays.
+
+### Hold mode, frozen sleep and banned addresses
+
+```
+mc sleep enable --join-mode hold --hold-timeout 2m
+mc sleep enable --freeze on         # needs hold mode
+```
+
+In `hold` mode the listener is the permanent entry point on the public port and the server runs on an internal port (`internal_port`, by default port + 10000, on `127.0.0.1`; `server-port` and `server-ip` in `server.properties` are changed accordingly and restored with `--join-mode kick`). A known player who wakes the server stays connected: the login is kept alive while the server starts, then handshake and Login Start are replayed to the real server and bytes are relayed both ways. After `sleep_hold_timeout` (default 120 s) the player gets a polite disconnect. A restart of the server is needed after switching mode.
+
+The server sees the listener's address unless it understands the PROXY protocol v2. For Paper-family servers MC Manager turns `proxy-protocol` on in `config/paper-global.yml` and sends the header (setting `sleep_proxy_protocol`: `auto`, `on`, `off`). Other loaders (Fabric, Forge, NeoForge, Vanilla) have no such option: they see `127.0.0.1` for every player, and IP bans and logs are affected. Do not expose such a server on its internal port.
+
+`--freeze on` suspends the server with SIGSTOP after `save-all flush` instead of stopping it: memory stays allocated, CPU drops to zero, and waking is a SIGCONT (seconds). The watchdog (`max-tick-time`, Spigot `timeout-time`) is relaxed while the option is on and restored when it is turned off. Settings cannot be changed while the server is suspended.
+
+In both modes the listener refuses the addresses of the server's `banned-ips.json` (expired temporary bans are ignored).
+
+## Router (`mc router`)
+
+```
+mc router route add play.example.fr survie
+mc router route add crea.example.fr creatif
+mc router default survie
+mc router deny add 192.0.2.0/24
+mc router enable --port 25565
+```
+
+One listener reads the server address of each handshake and relays the connection to the matching server. Names are lower-cased and cleaned of the DNS dot and of Forge markers (`host\0FML2\0`). A route marks its server as a router backend: it moves to an internal port on `127.0.0.1` (restart needed) and is woken on demand like a sleeping server. Status pings of a stopped server get its "sleeping" description. The table lives in `router.json`, next to `servers.json` (mode 0600, atomic writes), and the daemon applies changes within 5 seconds.
+
+Limits (`--per-ip`, `--per-second`), `allow`/`deny` CIDR lists (a deny always wins; with an allow list, only listed addresses connect), and PROXY v2 on input (`--proxy-in on --trusted-proxy CIDR`, accepted only from trusted peers) and on output (`--proxy-out on`, or automatic for servers that expect it) are available. `mc router enable` refuses a port that a server still listens on: add the routes first (a routed server moves to its internal port), or use another port.
 
 ---
 
@@ -639,6 +671,11 @@ Each server has its own `config.json` in its server folder. `mc edit config [tar
 | `cle_automodpack` | AutoModpack certificate fingerprint — **detected automatically, never enter manually** | `"403e6792a7..."` |
 | `mode_maintenance` | Maintenance active (1) or not (0) — set via `mc mode maintenance` / `mc resume` | `0` |
 | `stop_timeout` | Seconds `mc stop` waits for a clean shutdown before `SIGTERM` (optional) | `120` |
+| `sleep_join_mode` | `kick` (default) or `hold`: see [Sleep mode](#sleep-mode) | `"hold"` |
+| `sleep_hold_timeout` | Seconds a held player waits for the server (10-600) | `120` |
+| `sleep_freeze` | Suspend the JVM instead of stopping it (hold mode only) | `1` |
+| `sleep_proxy_protocol` | PROXY v2 towards the server: `auto`, `on`, `off` | `"auto"` |
+| `internal_port` | Port the server really listens on in hold or router mode | `35565` |
 | `stop_reason` | Why the server was stopped (`user`, `sleep`, `update`, `maintenance`, `switch`) — set by `mc stop --reason`, cleared by `mc resume` | `"sleep"` |
 
 `config.json` is the **single source of truth** for the ports and RCON: on every start, `server-port`, `enable-rcon`, `rcon.port` and `rcon.password` in `server.properties` (and the ports cached in `servers.json`) are brought in line with it, and each correction is printed. JSON files saved with a UTF-8 BOM (Windows editors, PowerShell) are read normally. An unreadable `config.json` only affects its own server: `mc status` and `mc doctor` show the error and how to fix it, and the daemon keeps supervising the other servers.
