@@ -1,0 +1,2 @@
+## reconstitue (non releve sur un vrai Windows): Get-Service en JSON, PowerShell 5.1, objet nu (un seul service)
+{"Name":"MCManagerDaemon","Status":"Running"}

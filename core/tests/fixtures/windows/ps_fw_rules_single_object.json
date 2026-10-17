@@ -1,0 +1,2 @@
+## reconstitue: PowerShell 5.1 sans -InputObject renvoie un objet nu quand il n'y a qu'une regle; port en chaine simple
+{"Name":"{3F1A0C52-77B1-4E0B-9B64-0C5E5A1D2A01}","DisplayName":"MC Manager Survie 25565/tcp","Enabled":"True","Direction":"Inbound","Action":"Allow","Protocol":"TCP","LocalPort":"25565"}

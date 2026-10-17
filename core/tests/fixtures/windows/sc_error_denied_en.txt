@@ -1,0 +1,4 @@
+## reconstitue: sc stop sans droits administrateur (code retour 5)
+[SC] OpenService FAILED 5:
+
+Access is denied.

@@ -1,0 +1,2 @@
+## reconstitue: aucune regle (code retour 1)
+Aucune règle ne correspond aux critères spécifiés.

@@ -1,0 +1,2 @@
+## reconstitue (non releve sur un vrai Windows): Get-NetFirewallRule + Get-NetFirewallPortFilter, regles MC Manager, tableau
+[{"Name":"{3F1A0C52-77B1-4E0B-9B64-0C5E5A1D2A01}","DisplayName":"MC Manager Survie 25565/tcp","Enabled":"True","Direction":"Inbound","Action":"Allow","Protocol":"TCP","LocalPort":["25565"]},{"Name":"{3F1A0C52-77B1-4E0B-9B64-0C5E5A1D2A02}","DisplayName":"MC Manager Créatif été 24454/udp","Enabled":"True","Direction":"Inbound","Action":"Allow","Protocol":"UDP","LocalPort":["24454"]}]
