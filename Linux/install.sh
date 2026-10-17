@@ -1,5 +1,11 @@
 #!/bin/bash
 cd "$(dirname "$0")" || exit 1
+if [ ! -f mc_config.py ] && [ -f build_release.py ]; then
+    echo "[ERROR] This is the source folder. Build the package first:"
+    echo "        python3 build_release.py && unzip ../dist/MCManager-Linux.zip -d ~"
+    echo "        then run: cd ~/MCManager && sudo ./install.sh"
+    exit 1
+fi
 echo "========================================"
 echo "  MC Manager (Linux) — Setup"
 echo "========================================"

@@ -16,8 +16,10 @@ jobs:
         include:
           - platform: Linux
             os: ubuntu-latest
+            dir: core
           - platform: Windows
             os: windows-latest
+            dir: Windows
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -27,7 +29,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Unit tests
-        working-directory: ${{ matrix.platform }}
+        working-directory: ${{ matrix.dir }}
         run: python -m unittest discover tests
 
   checks:
@@ -43,8 +45,8 @@ jobs:
       - name: Install tools
         run: python -m pip install --disable-pip-version-check "ruff==0.16.9" "bandit==1.9.4" "pip-audit==2.10.1"
       - name: ruff
-        run: ruff check Linux Windows tools
+        run: ruff check core Linux Windows tools
       - name: bandit (medium and above)
-        run: bandit -r Linux Windows tools -ll -x Linux/tests,Windows/tests
+        run: bandit -r core Linux Windows tools -ll -x core/tests,Windows/tests
       - name: pip-audit
         run: pip-audit -r Linux/requirements.txt

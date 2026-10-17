@@ -41,7 +41,7 @@ Both platforms share the same module set and command surface. They are fully ind
 
 ```
 MC_Manager/
-├── Linux/              # Fedora / Linux version (systemd service, multi-server)
+├── core/               # modules shared by every platform (Linux today, Windows in 3.0)
 │   ├── mc_cli.py       # entry point, dashboard, command dispatch
 │   ├── mc_core.py      # lifecycle, native RCON, backups, webhooks
 │   ├── mc_config.py    # config.json/webhooks.json, systemd install
@@ -76,8 +76,12 @@ MC_Manager/
 │   ├── mc_sleep.py     # sleep listener (status/login answered while the server sleeps)
 │   ├── mc_ipc.py       # request channel CLI -> daemon
 │   ├── mc_setup.py     # Java check
-│   ├── install.sh / uninstall.sh
 │   ├── webhook_templates.json
+│   └── tests/
+│
+├── Linux/              # Linux packaging (systemd service)
+│   ├── build_release.py
+│   ├── install.sh / uninstall.sh
 │   └── README_Linux.md
 │
 └── Windows/            # Windows version (NSSM service, multi-server)
@@ -107,10 +111,13 @@ MC_Manager/
 
 ```bash
 cd Linux/
-chmod +x install.sh
-sudo ./install.sh
+python3 build_release.py
+unzip ../dist/MCManager-Linux.zip -d ~
+cd ~/MCManager && sudo ./install.sh
 mc deploy
 ```
+
+Or download `MCManager-Linux.zip` from the latest release and run `sudo ./install.sh` inside it.
 
 ### Windows
 

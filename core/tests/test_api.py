@@ -206,13 +206,14 @@ class TestPackaging(unittest.TestCase):
 
     def test_all_imported_modules_are_packaged(self):
         import re
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "Linux"))
         import build_release
-        here = os.path.join(os.path.dirname(__file__), "..")
         shipped = set(build_release.PACKAGE_FILES)
         for fname in shipped:
+            self.assertTrue(os.path.exists(build_release.source_path(fname)), fname)
             if not fname.endswith(".py"):
                 continue
-            with open(os.path.join(here, fname), encoding="utf-8") as f:
+            with open(build_release.source_path(fname), encoding="utf-8") as f:
                 for mod in re.findall(r"^\s*import (mc_\w+)|^\s*from (mc_\w+) import", f.read(), re.M):
                     name = (mod[0] or mod[1]) + ".py"
                     self.assertIn(name, shipped, f"{fname} imports {name}, which is not packaged")

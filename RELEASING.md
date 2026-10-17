@@ -23,7 +23,7 @@ exists; a failed run creates nothing and can simply be run again.
 
 The release signing key is an Ed25519 key pair:
 
-- the **public key** is embedded in `Linux/mc_update.py` and
+- the **public key** is embedded in `core/mc_update.py` and
   `Windows/mc_update.py` (`RELEASE_PUBLIC_KEY`, identical in both);
 - the **private key** exists only as the repository secret
   `RELEASE_SIGNING_KEY` (Settings → Secrets and variables → Actions →
@@ -51,7 +51,7 @@ updates signed with the new one: they must be updated once by hand
 | File | Field | Example |
 |---|---|---|
 | `Windows/mc_lang.py` | `VERSION` | `"2.7.0"` |
-| `Linux/mc_lang.py` | `VERSION` | `"2.7.0"` |
+| `core/mc_lang.py` | `VERSION` | `"2.7.0"` |
 
 Bug fix → bump the last digit. New feature → bump the middle one.
 
@@ -65,7 +65,7 @@ installer changed). The file becomes the release description as is.
 ### 3. Test locally
 
 ```bash
-cd Linux && python3 -m unittest discover tests
+cd core && python3 -m unittest discover tests
 cd ../Windows && python -m unittest discover tests
 ```
 

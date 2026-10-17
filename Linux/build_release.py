@@ -5,6 +5,8 @@ build_release.py — Generates MCManager-Linux.zip
 Run from the Linux/ directory:
     python3 build_release.py
 
+Shared modules come from ../core, the installer scripts from this folder.
+
 The package is bilingual (FR/EN): the language is chosen at first launch and can
 be changed anytime with `mc language fr|en`. A single ZIP is produced.
 The ZIP is written to the repo root dist/ folder (one level up).
@@ -16,6 +18,7 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DIST_DIR = os.path.join(HERE, "..", "dist")
+CORE_DIR = os.path.join(HERE, "..", "core")
 
 # Files shipped in the package. language.txt is intentionally NOT shipped so the
 # first launch prompts for the language.
@@ -61,6 +64,11 @@ PACKAGE_FILES = [
     "requirements.txt",
 ]
 
+def source_path(fname):
+    local = os.path.join(HERE, fname)
+    return local if os.path.exists(local) else os.path.join(CORE_DIR, fname)
+
+
 def build_zip(zip_name="MCManager-Linux.zip"):
     print(f"Building {zip_name} (bilingual FR/EN)...")
     os.makedirs(DIST_DIR, exist_ok=True)
@@ -71,7 +79,7 @@ def build_zip(zip_name="MCManager-Linux.zip"):
         os.makedirs(pkg)
 
         for fname in PACKAGE_FILES:
-            shutil.copy2(os.path.join(HERE, fname), os.path.join(pkg, fname))
+            shutil.copy2(source_path(fname), os.path.join(pkg, fname))
 
         if os.path.exists(zip_path):
             os.remove(zip_path)
