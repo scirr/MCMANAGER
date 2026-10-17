@@ -1,0 +1,13 @@
+### RECONSTITUE (non releve sur un vrai Windows) : a remplacer par une sortie reelle.
+### Source: netstat -ano, Windows EN
+Active Connections
+
+  Proto  Local Address          Foreign Address        State           PID
+  TCP    0.0.0.0:25565          0.0.0.0:0              LISTENING       4128
+  TCP    0.0.0.0:25575          0.0.0.0:0              LISTENING       4128
+  TCP    127.0.0.1:50122        127.0.0.1:25575        ESTABLISHED     9912
+  TCP    [::]:25566             [::]:0                 LISTENING       5000
+  TCP    [::1]:49700            [::1]:25565            ESTABLISHED     7760
+  TCP    127.0.0.1:8080         0.0.0.0:0              LISTENING       3300
+  UDP    0.0.0.0:24454          *:*                                    4128
+  UDP    [::]:5353              *:*                                    1844
