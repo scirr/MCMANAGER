@@ -8,7 +8,7 @@ compares the two once the routes exist.
 
 | File | Role |
 |---|---|
-| `src/*.json` | Sources, one per resource group (`servers`, `players`, `world`, `content`, `backups`, `tasks`, `alerts`, `system`, `events`, `remote`, `components`). Edit these. |
+| `src/*.json` | Sources, one per resource group (`lifecycle`, `players`, `world`, `content`, `backups`, `tasks`, `alerts`, `system`, `events`, `remote`, `components`). Edit these. |
 | `build_openapi.py` | Merges the sources into `openapi.json` (2-space indent, sorted keys). Fails on a duplicate path, component or top-level field. `--check` only compares. |
 | `openapi.json` | Built contract. Never edit by hand. |
 | `../Linux/tests/test_openapi.py` | Validates the contract and checks that `openapi.json` is exactly the output of the script. |
