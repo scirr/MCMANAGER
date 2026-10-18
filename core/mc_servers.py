@@ -104,6 +104,8 @@ def resolve_path(stored):
     # Windows; hand them back untouched so they simply read as missing here.
     if (len(stored) >= 2 and stored[1] == ":") or stored.startswith("\\\\"):
         return stored
+    if stored.startswith("/") and os.sep == "\\":
+        return stored
     s = os.path.expanduser(stored)
     if os.path.isabs(s):
         return os.path.abspath(s)
