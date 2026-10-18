@@ -4,10 +4,34 @@
       "ConfigDocument": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/Result"
+            "$ref": "#/components/schemas/ServerResult"
           },
           {
-            "$ref": "#/components/schemas/ServerConfig"
+            "properties": {
+              "config": {
+                "$ref": "#/components/schemas/ServerConfig"
+              },
+              "secrets_set": {
+                "description": "Configured secrets; their values are never returned.",
+                "items": {
+                  "enum": [
+                    "mcrcon_pass",
+                    "webhook_url",
+                    "curseforge_api_key",
+                    "backup_encrypt_key_file",
+                    "alerts",
+                    "backup_remotes"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "config",
+              "secrets_set"
+            ],
+            "type": "object"
           }
         ]
       },
@@ -103,7 +127,7 @@
                 ]
               },
               "write_only": {
-                "description": "True for write-only keys: the value is never returned.",
+                "description": "True for a secret key read without `--reveal` or on the API: the value is never returned.",
                 "type": "boolean"
               }
             },
@@ -425,7 +449,7 @@
         ]
       },
       "ServerConfig": {
-        "description": "Server configuration with every secret masked: secret keys are listed in `secrets_set` and never carry their value in a response (the CLI prints `***`).",
+        "description": "Server configuration without its secret keys (`mcrcon_pass`, `webhook_url`, `curseforge_api_key`, `backup_encrypt_key_file`, `alerts`, `backup_remotes`): they never appear in a response, `secrets_set` of the enclosing document names the configured ones.",
         "properties": {
           "activer_automodpack": {
             "enum": [
@@ -521,21 +545,6 @@
           },
           "rcon_port": {
             "type": "integer"
-          },
-          "secrets_set": {
-            "description": "Configured secrets; their values are never returned.",
-            "items": {
-              "enum": [
-                "mcrcon_pass",
-                "webhook_url",
-                "curseforge_api_key",
-                "backup_encrypt_key_file",
-                "alerts",
-                "backup_remotes"
-              ],
-              "type": "string"
-            },
-            "type": "array"
           },
           "sleep_after": {
             "type": "integer"
@@ -961,20 +970,23 @@
             "content": {
               "application/json": {
                 "example": {
-                  "always_on": 1,
                   "code": "config",
-                  "nom_serveur": "Survie",
+                  "config": {
+                    "always_on": 1,
+                    "nom_serveur": "Survie",
+                    "port": 25565,
+                    "ram_allocation": "6G",
+                    "rcon_port": 25575,
+                    "sleep_after": 7200,
+                    "sleep_enabled": 1
+                  },
                   "ok": true,
-                  "port": 25565,
-                  "ram_allocation": "6G",
-                  "rcon_port": 25575,
                   "schema": 1,
                   "secrets_set": [
                     "mcrcon_pass",
                     "webhook_url"
                   ],
-                  "sleep_after": 7200,
-                  "sleep_enabled": 1
+                  "server": "survie"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/ConfigDocument"
@@ -1232,6 +1244,61 @@
       ]
     },
     "/v1/servers/{server}/java": {
+      "get": {
+        "description": "Same document as `GET /v1/java`, with `servers` reduced to the server of the path (`mc java list <server>`).",
+        "operationId": "listServerJava",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "java_list",
+                  "ok": true,
+                  "runtimes": {
+                    "21": "/home/mc/.mcmanager/java/21/bin/java"
+                  },
+                  "schema": 1,
+                  "servers": [
+                    {
+                      "java": 21,
+                      "minecraft": "1.21.1",
+                      "server": "survie"
+                    }
+                  ]
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/JavaRuntimes"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Installed Java runtimes and the Java choice of one server",
+        "tags": [
+          "system"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_java.installed",
+          "mc_api.load_server"
+        ]
+      },
       "parameters": [
         {
           "$ref": "#/components/parameters/Server"

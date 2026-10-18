@@ -773,7 +773,7 @@ _FR = {
     "upgrade_mods_hint": "Pensez à mettre les mods/plugins à jour pour cette version : mc mod update --all {server}",
     "upgrade_java_warning": "Le Java adapté n'a pas pu être téléchargé : le Java du système sera utilisé (mc java list).",
     "java_none_installed": "Aucun Java géré par MC Manager pour l'instant.",
-    "java_usage": "Usage : mc java list | install <majeure> | remove <majeure> | use auto|system|<majeure> [serveur]",
+    "java_usage": "Usage : mc java list [serveur] | install <majeure> | remove <majeure> | use auto|system|<majeure> [serveur]",
     "modpack_usage": "Usage : mc modpack install <source> --accept-eula [--name N] | update [serveur] | info <source>",
     "modpack_info_line": "{title} {version} — Minecraft {mc_version}, {loader} {loader_version}, {server_files} fichier(s) serveur ({source})",
     "modpack_installing": "Installation du modpack : téléchargement du loader et des mods (peut prendre plusieurs minutes)...",
@@ -1044,6 +1044,11 @@ _FR = {
     "res_no_channel": "Aucun canal d'alerte configuré.",
     "res_alert_tested": "Tous les canaux ont reçu le message de test.",
     "res_alert_test_failed": "Canal(aux) en échec : {failed}.",
+    # JSON failures (3.0)
+    "res_no_active_server": "Aucun serveur actif.",
+    "res_config_key_unset": "Réglage '{key}' absent de config.json.",
+    "res_config_unreadable": "Fichier de configuration illisible : {detail}",
+    "res_doctor": "{errors} problème(s) bloquant(s) détecté(s).",
 }
 
 _EN = {
@@ -1791,7 +1796,7 @@ _EN = {
     "upgrade_mods_hint": "Remember to update the mods/plugins for this version: mc mod update --all {server}",
     "upgrade_java_warning": "The right Java could not be downloaded: the system Java will be used (mc java list).",
     "java_none_installed": "No Java managed by MC Manager yet.",
-    "java_usage": "Usage: mc java list | install <major> | remove <major> | use auto|system|<major> [server]",
+    "java_usage": "Usage: mc java list [server] | install <major> | remove <major> | use auto|system|<major> [server]",
     "modpack_usage": "Usage: mc modpack install <source> --accept-eula [--name N] | update [server] | info <source>",
     "modpack_info_line": "{title} {version} — Minecraft {mc_version}, {loader} {loader_version}, {server_files} server file(s) ({source})",
     "modpack_installing": "Installing the modpack: downloading the loader and the mods (may take several minutes)...",
@@ -2062,6 +2067,11 @@ _EN = {
     "res_no_channel": "No alert channel configured.",
     "res_alert_tested": "Every channel received the test message.",
     "res_alert_test_failed": "Failing channel(s): {failed}.",
+    # JSON failures (3.0)
+    "res_no_active_server": "No active server.",
+    "res_config_key_unset": "Setting '{key}' is not in config.json.",
+    "res_config_unreadable": "Unreadable configuration file: {detail}",
+    "res_doctor": "{errors} blocking problem(s) found.",
 }
 
 # T is mutated in place (never reassigned) so that `from mc_lang import T` in

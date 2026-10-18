@@ -254,7 +254,11 @@ def _doctor_json(target):
     import sys
 
     def emit(code, ok, exit_code, **data):
-        print(json.dumps({"schema": 1, "ok": ok, "code": code, **data}, indent=2, ensure_ascii=False))
+        doc = {"schema": 1, "ok": ok, "code": code, **data}
+        if not ok:
+            doc["message"] = T.get(f"res_{code}", T.get(code, code)).format_map(
+                {"target": "", "available": "", "errors": data.get("errors"), "path": "", "detail": "", **data})
+        print(json.dumps(doc, indent=2, ensure_ascii=False))
         return exit_code
 
     try:
@@ -267,7 +271,8 @@ def _doctor_json(target):
         with contextlib.redirect_stdout(sys.stderr):
             resolved = mc_servers.resolve_target(target, require_folder=False)
         if not resolved:
-            return emit("not_found", False, 3, target=target)
+            return emit("not_found", False, 3, target=target,
+                        available=[f"{i.get('id')}:{n}" for n, i in servers.items()])
         servers = {resolved[0]: servers[resolved[0]]}
     with contextlib.redirect_stdout(sys.stderr):
         checks = [_check_entry(None, c) for c in check_host()]

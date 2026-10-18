@@ -31,7 +31,7 @@
         ]
       },
       "AlertChannel": {
-        "description": "Secrets are never returned.",
+        "description": "Secrets are never returned: no `secret`, `token` or `password` field, not even masked. `secrets_set` and `header_names` say what is configured.",
         "properties": {
           "chat_id": {
             "type": "string"

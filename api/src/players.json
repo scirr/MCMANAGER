@@ -239,6 +239,46 @@
         ],
         "type": "object"
       },
+      "PlayersOffline": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Error"
+          },
+          {
+            "properties": {
+              "max": {
+                "type": "null"
+              },
+              "online": {
+                "enum": [
+                  0
+                ],
+                "type": "integer"
+              },
+              "players": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 0,
+                "type": "array"
+              },
+              "server": {
+                "type": "string"
+              },
+              "state": {
+                "$ref": "#/components/schemas/ServerState"
+              }
+            },
+            "required": [
+              "online",
+              "max",
+              "players"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "`server_offline`: the server is not running, so there is no player list to read."
+      },
       "PlayersOnline": {
         "allOf": [
           {
@@ -273,7 +313,7 @@
             "type": "object"
           }
         ],
-        "description": "Offline servers answer online 0, max null and their state."
+        "description": "Players read over RCON. A stopped server is a failure (`server_offline`, `PlayersOffline`)."
       },
       "WhitelistToggle": {
         "properties": {
@@ -635,7 +675,7 @@
     },
     "/v1/servers/{server}/players": {
       "get": {
-        "description": "Retries RCON for 5 s while the server is starting; `rcon_failed` (503) afterwards.",
+        "description": "Retries RCON for 5 s while the server is starting; `rcon_failed` (503) afterwards. A stopped server answers `server_offline` (409).",
         "operationId": "listOnlinePlayers",
         "responses": {
           "200": {
@@ -669,6 +709,27 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "server_offline",
+                  "max": null,
+                  "message": "The server is offline: no players.",
+                  "ok": false,
+                  "online": 0,
+                  "players": [],
+                  "schema": 1,
+                  "server": "survie",
+                  "state": "stopped"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PlayersOffline"
+                }
+              }
+            },
+            "description": "`server_offline`: the server is stopped. `mc players --json` exits 1."
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"

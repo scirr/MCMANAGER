@@ -380,8 +380,7 @@ def load_server(target=None):
         return None, result(False, "no_server")
     name = registry.get("active") if target is None else mc_servers._lookup_key(servers, target)
     if not name or name not in servers:
-        return None, result(False, "not_found", target=target,
-                            available=[f"{i.get('id')}:{n}" for n, i in servers.items()])
+        return None, _not_found(target)
     dossier = servers[name].get("dossier_serveur", "")
     if not dossier or not os.path.isdir(dossier):
         return None, result(False, "folder_missing", server=name, path=dossier)
@@ -423,9 +422,15 @@ def thaw_op(name, config):
     return result(ok, code, server=name)
 
 
+def _not_found(target):
+    servers = mc_servers.load_registry().get("servers", {})
+    return result(False, "not_found", target=target,
+                  available=[f"{i.get('id')}:{n}" for n, i in servers.items()])
+
+
 def use(target):
     if not mc_servers.set_active(target):
-        return result(False, "not_found", target=target)
+        return _not_found(target)
     name = mc_servers.get_active_name()
     return result(True, "active_set", server=name, id=mc_servers.list_servers().get(name, {}).get("id"))
 
@@ -434,12 +439,12 @@ def remove(target, confirmed=False):
     registry = mc_servers.load_registry()
     key = mc_servers._lookup_key(registry.get("servers", {}), target)
     if not key:
-        return result(False, "not_found", target=target)
+        return _not_found(target)
     if not confirmed:
         return result(False, "confirm_required", server=key)
     ok, removed, folder = mc_servers.remove_server(target)
     if not ok:
-        return result(False, "not_found", target=target)
+        return _not_found(target)
     return result(True, "deregistered", server=removed, path=folder, active=mc_servers.get_active_name())
 
 

@@ -238,7 +238,7 @@
         ]
       },
       "AlertChannel": {
-        "description": "Secrets are never returned.",
+        "description": "Secrets are never returned: no `secret`, `token` or `password` field, not even masked. `secrets_set` and `header_names` say what is configured.",
         "properties": {
           "chat_id": {
             "type": "string"
@@ -969,10 +969,34 @@
       "ConfigDocument": {
         "allOf": [
           {
-            "$ref": "#/components/schemas/Result"
+            "$ref": "#/components/schemas/ServerResult"
           },
           {
-            "$ref": "#/components/schemas/ServerConfig"
+            "properties": {
+              "config": {
+                "$ref": "#/components/schemas/ServerConfig"
+              },
+              "secrets_set": {
+                "description": "Configured secrets; their values are never returned.",
+                "items": {
+                  "enum": [
+                    "mcrcon_pass",
+                    "webhook_url",
+                    "curseforge_api_key",
+                    "backup_encrypt_key_file",
+                    "alerts",
+                    "backup_remotes"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "config",
+              "secrets_set"
+            ],
+            "type": "object"
           }
         ]
       },
@@ -1068,7 +1092,7 @@
                 ]
               },
               "write_only": {
-                "description": "True for write-only keys: the value is never returned.",
+                "description": "True for a secret key read without `--reveal` or on the API: the value is never returned.",
                 "type": "boolean"
               }
             },
@@ -1627,7 +1651,8 @@
           },
           "error": {
             "additionalProperties": true,
-            "description": "Legacy nested copy of `code` and `detail` kept in some failures so existing scripts keep working.",
+            "deprecated": true,
+            "description": "Deprecated alias of `code` and `detail` kept in `status`, `players` and `active` failures so existing scripts keep working; read `code`, `message` and `detail` instead. It will be removed in a later major version.",
             "properties": {
               "code": {
                 "type": "string"
@@ -1636,8 +1661,11 @@
             },
             "type": "object"
           },
+          "key": {
+            "$ref": "#/components/schemas/ConfigKey"
+          },
           "message": {
-            "description": "Human text in the language of the daemon.",
+            "description": "Human text in the language of the daemon. Present on every failure.",
             "type": "string"
           },
           "ok": {
@@ -1658,7 +1686,7 @@
             "type": "string"
           },
           "target": {
-            "description": "Name or id that matched no server (`not_found`).",
+            "description": "Name or id that matched no server (`not_found`, always together with `available`).",
             "type": "string"
           }
         },
@@ -3034,6 +3062,46 @@
         ],
         "type": "object"
       },
+      "PlayersOffline": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Error"
+          },
+          {
+            "properties": {
+              "max": {
+                "type": "null"
+              },
+              "online": {
+                "enum": [
+                  0
+                ],
+                "type": "integer"
+              },
+              "players": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 0,
+                "type": "array"
+              },
+              "server": {
+                "type": "string"
+              },
+              "state": {
+                "$ref": "#/components/schemas/ServerState"
+              }
+            },
+            "required": [
+              "online",
+              "max",
+              "players"
+            ],
+            "type": "object"
+          }
+        ],
+        "description": "`server_offline`: the server is not running, so there is no player list to read."
+      },
       "PlayersOnline": {
         "allOf": [
           {
@@ -3068,7 +3136,7 @@
             "type": "object"
           }
         ],
-        "description": "Offline servers answer online 0, max null and their state."
+        "description": "Players read over RCON. A stopped server is a failure (`server_offline`, `PlayersOffline`)."
       },
       "Pregen": {
         "allOf": [
@@ -3524,7 +3592,7 @@
         "type": "object"
       },
       "ServerConfig": {
-        "description": "Server configuration with every secret masked: secret keys are listed in `secrets_set` and never carry their value in a response (the CLI prints `***`).",
+        "description": "Server configuration without its secret keys (`mcrcon_pass`, `webhook_url`, `curseforge_api_key`, `backup_encrypt_key_file`, `alerts`, `backup_remotes`): they never appear in a response, `secrets_set` of the enclosing document names the configured ones.",
         "properties": {
           "activer_automodpack": {
             "enum": [
@@ -3620,21 +3688,6 @@
           },
           "rcon_port": {
             "type": "integer"
-          },
-          "secrets_set": {
-            "description": "Configured secrets; their values are never returned.",
-            "items": {
-              "enum": [
-                "mcrcon_pass",
-                "webhook_url",
-                "curseforge_api_key",
-                "backup_encrypt_key_file",
-                "alerts",
-                "backup_remotes"
-              ],
-              "type": "string"
-            },
-            "type": "array"
           },
           "sleep_after": {
             "type": "integer"
@@ -7944,20 +7997,23 @@
             "content": {
               "application/json": {
                 "example": {
-                  "always_on": 1,
                   "code": "config",
-                  "nom_serveur": "Survie",
+                  "config": {
+                    "always_on": 1,
+                    "nom_serveur": "Survie",
+                    "port": 25565,
+                    "ram_allocation": "6G",
+                    "rcon_port": 25575,
+                    "sleep_after": 7200,
+                    "sleep_enabled": 1
+                  },
                   "ok": true,
-                  "port": 25565,
-                  "ram_allocation": "6G",
-                  "rcon_port": 25575,
                   "schema": 1,
                   "secrets_set": [
                     "mcrcon_pass",
                     "webhook_url"
                   ],
-                  "sleep_after": 7200,
-                  "sleep_enabled": 1
+                  "server": "survie"
                 },
                 "schema": {
                   "$ref": "#/components/schemas/ConfigDocument"
@@ -8607,6 +8663,61 @@
       }
     },
     "/v1/servers/{server}/java": {
+      "get": {
+        "description": "Same document as `GET /v1/java`, with `servers` reduced to the server of the path (`mc java list <server>`).",
+        "operationId": "listServerJava",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "java_list",
+                  "ok": true,
+                  "runtimes": {
+                    "21": "/home/mc/.mcmanager/java/21/bin/java"
+                  },
+                  "schema": 1,
+                  "servers": [
+                    {
+                      "java": 21,
+                      "minecraft": "1.21.1",
+                      "server": "survie"
+                    }
+                  ]
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/JavaRuntimes"
+                }
+              }
+            },
+            "description": "Success."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        },
+        "summary": "Installed Java runtimes and the Java choice of one server",
+        "tags": [
+          "system"
+        ],
+        "x-mcm-role": "viewer",
+        "x-mcm-source": [
+          "mc_java.installed",
+          "mc_api.load_server"
+        ]
+      },
       "parameters": [
         {
           "$ref": "#/components/parameters/Server"
@@ -9599,7 +9710,7 @@
     },
     "/v1/servers/{server}/players": {
       "get": {
-        "description": "Retries RCON for 5 s while the server is starting; `rcon_failed` (503) afterwards.",
+        "description": "Retries RCON for 5 s while the server is starting; `rcon_failed` (503) afterwards. A stopped server answers `server_offline` (409).",
         "operationId": "listOnlinePlayers",
         "responses": {
           "200": {
@@ -9633,6 +9744,27 @@
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "server_offline",
+                  "max": null,
+                  "message": "The server is offline: no players.",
+                  "ok": false,
+                  "online": 0,
+                  "players": [],
+                  "schema": 1,
+                  "server": "survie",
+                  "state": "stopped"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/PlayersOffline"
+                }
+              }
+            },
+            "description": "`server_offline`: the server is stopped. `mc players --json` exits 1."
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"

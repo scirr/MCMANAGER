@@ -400,7 +400,8 @@ class TestNamedSecrets(unittest.TestCase):
         self.assertIn("secrets_set", schemas["BackupRemote"]["properties"])
         self.assertIn("secrets_set", schemas["AlertChannel"]["properties"])
         self.assertIn("header_names", schemas["AlertChannel"]["properties"])
-        self.assertIn("secrets_set", schemas["ServerConfig"]["properties"])
+        self.assertIn("secrets_set", schemas["ConfigDocument"]["allOf"][1]["properties"])
+        self.assertNotIn("secrets_set", schemas["ServerConfig"]["properties"])
 
 
 
@@ -438,6 +439,23 @@ class TestExamples(unittest.TestCase):
         schema = {"$ref": "#/components/schemas/Error"}
         self.assertTrue(validate({"ok": True, "code": "x"}, schema))
         self.assertTrue(validate({"ok": False, "code": 3, "message": "m"}, schema))
+
+
+class TestStatusTable(unittest.TestCase):
+
+    def row(self, status):
+        with open(README_PATH, "r", encoding="utf-8") as f:
+            return next(line for line in f if line.startswith(f"| {status} |"))
+
+    def test_codes_added_in_3_0_are_classified(self):
+        self.assertIn("`no_log_file`", self.row(404))
+        self.assertIn("`config_key_unset`", self.row(404))
+        self.assertIn("`server_offline`", self.row(409))
+
+    def test_error_alias_is_declared_obsolete(self):
+        error = SPEC["components"]["schemas"]["Error"]["properties"]["error"]
+        self.assertTrue(error["deprecated"])
+        self.assertIn("message", SPEC["components"]["schemas"]["Error"]["required"])
 
 
 class TestCoverageOfMcApi(unittest.TestCase):
@@ -556,8 +574,7 @@ class TestCliOutputsFollowTheContract(unittest.TestCase):
 
     def test_the_read_only_documents(self):
         for argv, target in ((("status",), "listServers"), (("status", "a"), "listServers"),
-                             (("active",), "getServer"), (("players",), "listOnlinePlayers"),
-                             (("java", "list"), "listJava"), (("sleep", "status"), "getSleepSettings"),
+                             (("active",), "getServer"),                              (("java", "list"), "listJava"), (("sleep", "status"), "getSleepSettings"),
                              (("logs",), "getServerLogs"), (("world", "list"), "listWorlds"),
                              (("datapack", "list"), "listDatapacks"), (("mod", "list"), "listMods"),
                              (("ban", "list"), "listPlayerList"), (("op", "list"), "listPlayerList"),
@@ -603,6 +620,10 @@ class TestCliOutputsFollowTheContract(unittest.TestCase):
             self.assertEqual(validate_strict(doc, self.response(target, "200")), [], " ".join(argv))
             for secret in CLI_SECRETS:
                 self.assertNotIn(secret, json.dumps(doc))
+        _rc, doc = self.cli("alert", "list")
+        self.assertNotIn("***", json.dumps(doc))
+        for channel in doc["channels"]:
+            self.assertFalse({"secret", "token", "password"} & set(channel))
 
     def test_router_and_status_page(self):
         doc = self.check(("router", "enable"), "enableRouter")
@@ -614,12 +635,27 @@ class TestCliOutputsFollowTheContract(unittest.TestCase):
         self.check(("status-page", "disable"), "disableStatusPage")
         self.check(("status-page", "disable"), "disableStatusPage")
 
+    def test_config_documents_fit_the_contract(self):
+        doc = self.check(("config", "get"), "getServerConfig")
+        self.assertNotIn("mcrcon_pass", doc["config"])
+        self.assertEqual(self.check(("config", "get", "port"), "getConfigValue")["value"], 1)
+        secret = self.check(("config", "get", "mcrcon_pass"), "getConfigValue")
+        self.assertEqual((secret["write_only"], "value" in secret), (True, False))
+        self.assertNotIn(CLI_SECRETS[0], json.dumps(secret))
+
+    def test_java_list_of_a_server_fits_the_contract(self):
+        doc = self.check(("java", "list", "a"), "listServerJava")
+        self.assertEqual([s["server"] for s in doc["servers"]], ["a"])
+
     def test_failures_fit_the_error_object(self):
         self.assertEqual(self.check_failure(("status", "zz"), "not_found")[0], 3)
         self.assertEqual(self.check_failure(("freeze", "zz"), "not_found")[0], 3)
         self.assertEqual(self.check_failure(("use", "zz"), "not_found")[0], 3)
         self.assertEqual(self.check_failure(("remove", "zz"), "not_found")[0], 3)
         self.assertEqual(self.check_failure(("remove", "a"), "confirm_required")[0], 2)
+        rc, doc = self.check_failure(("status", "zz"), "not_found")
+        self.assertEqual((doc["target"], doc["available"]), ("zz", ["1:a"]))
+        self.assertTrue(doc["message"])
 
     def test_remove_then_nothing_is_active(self):
         other = tempfile.mkdtemp()
@@ -641,12 +677,13 @@ class TestCliOutputsFollowTheContract(unittest.TestCase):
         self.assertEqual((doc["ok"], doc["code"]), (False, "no_active_server"))
 
     def test_rcon_failure_and_offline_players_fit_the_schemas(self):
-        offline = self.check(("players",), "listOnlinePlayers")
-        self.assertEqual((offline["ok"], offline["code"], offline["online"]), (True, "server_offline", 0))
-        failure = {"schema": 1, "ok": False, "code": "rcon_failed", "server": "a",
-                   "error": {"code": "rcon_failed", "detail": "refused"}}
-        error = dict(resolve("#/components/schemas/Error"), required=["ok", "code"])
-        self.assertEqual(validate_strict(failure, error), [])
+        rc, offline = self.cli("players")
+        self.assertEqual((rc, offline["ok"], offline["code"]), (1, False, "server_offline"))
+        self.assertEqual((offline["online"], offline["max"], offline["state"]), (0, None, "stopped"))
+        self.assertEqual(validate_strict(offline, self.response("listOnlinePlayers", "409")), [])
+        failure = {"schema": 1, "ok": False, "code": "rcon_failed", "server": "a", "detail": "refused",
+                   "message": "m", "error": {"code": "rcon_failed", "detail": "refused"}}
+        self.assertEqual(validate_strict(failure, resolve("#/components/schemas/Error")), [])
 
     def test_doctor_report(self):
         sys.path.insert(0, os.path.join(ROOT, "core"))

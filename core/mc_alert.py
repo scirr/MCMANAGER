@@ -92,9 +92,10 @@ def channels(config):
 
 
 def public(ch):
-    """A channel as plain data that is safe to print: secrets masked, header
-    values replaced by their names, webhook URLs cut after the host."""
-    shown = {k: ("***" if k in SECRET_FIELDS and v else v) for k, v in ch.items() if k != "headers"}
+    """A channel as plain data that is safe to print: secret fields left out
+    (secrets_set names them), header values replaced by their names, webhook
+    URLs cut after the host."""
+    shown = {k: v for k, v in ch.items() if k != "headers" and k not in SECRET_FIELDS}
     secrets = [k for k in SECRET_FIELDS if ch.get(k)]
     if ch.get("headers"):
         shown["header_names"] = sorted(ch["headers"])

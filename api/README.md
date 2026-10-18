@@ -1,6 +1,6 @@
 # MC Manager API v1 - contract
 
-Describes MC Manager 2.11.0: 76 paths, 95 operations (`info.version` 1.0.0).
+Describes MC Manager 2.11.0: 76 paths, 96 operations (`info.version` 1.0.0).
 
 `openapi.json` is the OpenAPI 3.1 description of the HTTP API served by the MC Manager
 daemon. It is written before the server: the implementation has to match it, and a test
@@ -58,7 +58,7 @@ The operation layer returns `code`; the HTTP layer maps it as follows.
 | Status | Codes |
 |---|---|
 | 404 | `not_found`, `no_server`, `folder_missing`, `mod_not_found`, `pack_not_found`, `task_not_found`, `backup_not_found`, `remote_not_found`, `channel_not_found`, `no_remote`, `no_channel`, `java_not_installed`, `config_key_unset`, `no_active_server`, `no_server`, `no_log_file` |
-| 409 | `server_running`, `stop_first`, `players_online`, `already_active`, `not_sleeping`, `already_frozen`, `mod_exists`, `mod_ambiguous`, `defines_blocks`, `router_port_conflict`, `folder_not_empty`, `remote_exists`, `channel_exists`, `task_name_taken`, `blocked_by_maintenance`, `downgrade_refused`, `job_finished`, `console_offline` |
+| 409 | `server_running`, `stop_first`, `players_online`, `already_active`, `not_sleeping`, `already_frozen`, `mod_exists`, `mod_ambiguous`, `defines_blocks`, `router_port_conflict`, `folder_not_empty`, `remote_exists`, `channel_exists`, `task_name_taken`, `blocked_by_maintenance`, `downgrade_refused`, `job_finished`, `console_offline`, `server_offline` |
 | 422 | `bad_*`, `invalid_*`, `missing_*`, `confirm_required`, `confirmation_required`, `eula_required`, `name_required`, `sleep_after_too_short`, `sleep_needs_rcon`, `key_not_found`, `s3_credentials_missing`, `restic_password_missing`, `overworld_protected`, `unknown_dimension`, `unknown_loader`, `not_a_jar`, `unsafe_archive`, `no_level_dat`, `java_bad_choice`, `bad_signature`, `router_usage`, `status_page_interval_too_short` |
 | 503 | `rcon_failed`, `rcon_error`, `daemon_timeout`, `source_unreachable`, `check_failed`, `java_download_failed` |
 | 500 | `start_failed`, `stop_failed`, `still_running`, `backup_failed`, `safety_backup_failed`, `export_failed`, `import_failed`, `update_failed`, `router_error`, `status_page_unwritable` |
@@ -94,17 +94,14 @@ create a server, schedule, Java, configuration by key, update, metrics, pairing,
 
 ## Known gaps between the contract and the current JSON output
 
-The `--json` outputs of 2.11.0 match the contract; `test_openapi.py` runs them and compares. What
-still differs:
+The `--json` outputs match the contract; `test_openapi.py` runs them and compares. What still differs:
 
-- `mc config get` (no `--json` flag) prints the masked `config.json` and `secrets_set` without the
-  `schema`/`ok`/`code` envelope; `mc config get <key>` prints the bare value. The API wraps both.
-- `mc alert list --json` keeps the masked placeholders `"***"` for `secret`, `token` and `password`
-  of a channel; the contract does not declare them (secrets never appear in a schema), clients ignore them.
-- Failures of `mc status`, `mc players` and `mc active` carry a nested `error: {code, detail}` next to the
-  top-level `ok:false, code`; the other commands do not. `not_found` also carries `target` and `available`.
-- Existing failures have no `message`; the HTTP layer builds it from the language files.
-- `mc players --json` on a stopped server is a success with `code: server_offline`.
-- `mc java list <server>` ignores its target and lists every server.
+- Failures of `mc status`, `mc players` and `mc active` still carry a nested `error: {code, detail}` next
+  to the top-level `code` and `message`. It is deprecated (`Error.error`) and will go away in a later
+  major version; read `code`, `message` and `detail`.
+- `mc players --json` on a stopped server is a failure (`ok:false`, `code: server_offline`, exit 1).
+- `mc config get --json` answers `{ok, code:"config", server, config, secrets_set}` and
+  `mc config get <key> --json` answers `{ok, code:"config_value", key, value | write_only}`; without
+  `--json` the previous output is unchanged.
 - `mc backup` as a CLI command answers synchronously with `BackupCreated`; through the API it is a job whose
   `result` is that object.

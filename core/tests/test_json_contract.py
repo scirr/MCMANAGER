@@ -48,7 +48,7 @@ class Base(unittest.TestCase):
 class TestOkAndCode(Base):
 
     def test_every_document_has_ok_and_code(self):
-        for argv in (["status"], ["status", "a"], ["active"], ["players"], ["java", "list"], ["sleep", "status"]):
+        for argv in (["status"], ["status", "a"], ["active"], ["java", "list"], ["sleep", "status"]):
             with self.subTest(command=" ".join(argv)):
                 rc, doc = self.js(*argv)
                 self.assertEqual((rc, doc["ok"], doc["schema"]), (0, True, 1))
@@ -63,6 +63,81 @@ class TestOkAndCode(Base):
         rc, doc = self.js("active")
         self.assertEqual((rc, doc["ok"], doc["code"], doc["error"]["code"]), (3, False, "no_active_server",
                                                                                "no_active_server"))
+
+    def test_players_of_a_stopped_server_is_a_failure(self):
+        rc, doc = self.js("players")
+        self.assertEqual((rc, doc["ok"], doc["code"], doc["server"]), (1, False, "server_offline", "a"))
+        self.assertEqual((doc["online"], doc["max"], doc["players"]), (0, None, []))
+        self.assertTrue(doc["message"])
+
+    def test_every_failure_carries_a_message(self):
+        for argv, rc, code in ((["status", "zz"], 3, "not_found"), (["freeze", "zz"], 3, "not_found"),
+                               (["remove", "a"], 2, "confirm_required"), (["players"], 1, "server_offline")):
+            with self.subTest(command=" ".join(argv)):
+                got, doc = self.js(*argv)
+                self.assertEqual((got, doc["ok"], doc["code"]), (rc, False, code))
+                self.assertIsInstance(doc["message"], str)
+                self.assertTrue(doc["message"].strip())
+
+    def test_not_found_names_the_target_and_the_choices(self):
+        for argv in (["status", "zz"], ["freeze", "zz"], ["doctor", "zz"], ["use", "zz"]):
+            with self.subTest(command=" ".join(argv)):
+                rc, doc = self.js(*argv)
+                self.assertEqual((rc, doc["code"], doc["target"], doc["available"]), (3, "not_found", "zz", ["1:a"]))
+
+    def test_no_active_server_has_a_message_and_keeps_the_alias(self):
+        with open(os.path.join(self.data, "servers.json"), "w") as f:
+            json.dump({"active": None, "servers": {}}, f)
+        rc, doc = self.js("active")
+        self.assertEqual((rc, doc["code"], doc["error"]), (3, "no_active_server", {"code": "no_active_server"}))
+        self.assertTrue(doc["message"])
+
+    def test_java_list_of_one_server(self):
+        rc, doc = self.js("java", "list", "a")
+        self.assertEqual((rc, doc["ok"], [s["server"] for s in doc["servers"]]), (0, True, ["a"]))
+        rc, doc = self.js("java", "list", "zz")
+        self.assertEqual((rc, doc["ok"], doc["code"], doc["target"]), (3, False, "not_found", "zz"))
+
+    def test_java_list_filters_other_servers_out(self):
+        other = tempfile.mkdtemp()
+        with open(os.path.join(other, "config.json"), "w") as f:
+            json.dump({"port": 3, "rcon_port": 4, "nom_serveur": "b", "java": "21"}, f)
+        with open(os.path.join(self.data, "servers.json"), "w") as f:
+            json.dump({"active": "a", "servers": {"a": {"id": 1, "dossier_serveur": self.folder},
+                                                  "b": {"id": 2, "dossier_serveur": other}}}, f)
+        self.assertEqual([s["server"] for s in self.js("java", "list")[1]["servers"]], ["a", "b"])
+        self.assertEqual([s["server"] for s in self.js("java", "list", "2")[1]["servers"]], ["b"])
+
+    def test_config_get_json(self):
+        self.cfg["curseforge_api_key"] = "LEAK-key"
+        self.save()
+        rc, doc = self.js("config", "get")
+        self.assertEqual((rc, doc["ok"], doc["code"], doc["server"]), (0, True, "config", "a"))
+        self.assertEqual(doc["config"]["nom_serveur"], "a")
+        self.assertNotIn("mcrcon_pass", doc["config"])
+        self.assertEqual(sorted(doc["secrets_set"]), ["curseforge_api_key", "mcrcon_pass"])
+        self.assertNotIn("LEAK-key", json.dumps(doc))
+
+    def test_config_get_key_json(self):
+        rc, doc = self.js("config", "get", "port")
+        self.assertEqual((rc, doc["code"], doc["key"], doc["value"], doc["write_only"]), (0, "config_value", "port", 1, False))
+        rc, doc = self.js("config", "get", "mcrcon_pass")
+        self.assertEqual((rc, doc["ok"], doc["write_only"]), (0, True, True))
+        self.assertNotIn("value", doc)
+        self.assertNotIn('"x"', json.dumps(doc))
+        rc, doc = self.js("config", "get", "mcrcon_pass", "--reveal")
+        self.assertEqual((doc["value"], doc["write_only"]), ("x", False))
+        rc, doc = self.js("config", "get", "domaine")
+        self.assertEqual((rc, doc["ok"], doc["code"], doc["key"]), (1, False, "config_key_unset", "domaine"))
+        self.assertTrue(doc["message"])
+        self.assertEqual(self.js("config", "get", "port", "zz")[0], 3)
+
+    def test_config_get_text_is_unchanged(self):
+        res = subprocess.run([sys.executable, os.path.join(APP, "mc_cli.py"), "config", "get"],
+                             capture_output=True, text=True, env=self.env, stdin=subprocess.DEVNULL, timeout=60)
+        doc = json.loads(res.stdout)
+        self.assertEqual((doc["mcrcon_pass"], doc["secrets_set"]), ("***", ["mcrcon_pass"]))
+        self.assertNotIn("code", doc)
 
     def test_existing_fields_are_kept(self):
         rc, doc = self.js("active")

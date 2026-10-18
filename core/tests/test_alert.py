@@ -226,6 +226,15 @@ class TestNotify(AlertBase):
             self.assertNotIn(secret, text)
         self.assertEqual([c["name"] for c in mc_alert.listing(cfg)], ["t", "w", "discord"])
 
+    def test_listing_drops_secret_fields_instead_of_masking(self):
+        cfg = {"alerts": [{"name": "t", "type": "telegram", "token": "SECRET", "chat_id": "1", "events": ["*"]},
+                          {"name": "m", "type": "email", "password": "PW", "host": "h", "events": ["*"]}]}
+        listed = mc_alert.listing(cfg)
+        self.assertNotIn("***", json.dumps(listed))
+        for channel in listed:
+            self.assertFalse({"secret", "token", "password"} & set(channel))
+        self.assertEqual([c["secrets_set"] for c in listed], [["token"], ["password"]])
+
     def test_test_channels_ignores_filters_and_reaches_legacy_discord(self):
         cfg = {"nom_serveur": "S", "webhook_url": "https://discord.com/api/webhooks/1/x",
                "alerts": [{"name": "c", "type": "webhook", "url": "https://h.example/c", "events": ["crash"]}]}
