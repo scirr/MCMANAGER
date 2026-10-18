@@ -133,3 +133,32 @@ jobs:
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y --noninteractive flathub org.gnome.Platform//47 org.gnome.Sdk//47
           flatpak-builder --user --install-deps-from=flathub --force-clean --disable-rofiles-fuse --state-dir="$RUNNER_TEMP/fb-state" "$RUNNER_TEMP/fb-build" apps/linux/flatpak/io.github.scirr.MCManager.yml
+
+  app-windows-libs:
+    name: Windows app libraries (client, view models)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Client tests
+        run: dotnet test apps/windows/MCManager.Client.Tests -c Release
+      - name: View model tests
+        run: dotnet test apps/windows/MCManager.ViewModels.Tests -c Release
+
+  app-windows:
+    name: Windows app (WinUI 3 build)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build
+        working-directory: apps/windows
+        run: dotnet build MCManager.App -c Release -p:Platform=x64
