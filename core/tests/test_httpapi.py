@@ -109,6 +109,7 @@ class TestUnixSocket(ApiCase):
         self.assertNotIn("secret detail", json.dumps(body))
         self.assertEqual(self.client.request("GET", "/v1/servers")[0], 200)
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     def test_start_goes_through_the_release_hook(self):
         calls = []
         self.api.stop()
@@ -162,6 +163,7 @@ def resolve_response(operation_id, status="200"):
 class TestTcpWithToken(ApiCase):
     mode = "tcp"
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     def test_token_file_and_bearer(self):
         path = os.path.join(self.env["run"], "api.token")
         info = json.load(open(path))

@@ -210,6 +210,7 @@ class TestLinuxBehaviourKept(unittest.TestCase):
         self.assertIn("out Job failed", text)
         self.assertNotIn("error", text.lower().replace("erreur", ""))
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     def test_ipc_files_are_0644_with_a_pid_temporary(self):
         import platform_linux
         folder = tempfile.mkdtemp()
@@ -233,6 +234,7 @@ class TestLinuxBehaviourKept(unittest.TestCase):
         self.assertEqual([c.kwargs for c in secure.call_args_list],
                          [{"owner_of": base}, {"owner_of": base}, {}, {}])
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     def test_secure_dir_chowns_only_when_asked_and_root(self):
         import platform_linux
         folder = tempfile.mkdtemp()

@@ -132,6 +132,7 @@ class TestDisabledByDefault(RemoteCase):
         self.assertIsNone(api.server)
         self.assertFalse(os.path.exists(os.path.join(self.env["data"], "remote.json")))
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     def test_enable_writes_private_settings_and_opens_the_port_with_the_label(self):
         res = mc_remote.set_access(True, "0.0.0.0:8765")
         self.assertEqual((res["ok"], res["code"], res["firewall"]), (True, "remote_enabled", "opened"))
@@ -192,6 +193,7 @@ class TestDisabledByDefault(RemoteCase):
 class TestCertificate(RemoteCase):
     start_remote = False
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     def test_each_available_generator_makes_a_p256_ten_year_private_certificate(self):
         available = [name for name, _ in mc_remote.generators()]
         self.assertTrue(available)
@@ -263,6 +265,7 @@ class TestCertificate(RemoteCase):
 
 class TestPairing(RemoteCase):
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     def test_full_pairing_returns_a_token_once_and_stores_only_hashes(self):
         created = mc_remote.create_code("operator", None)
         self.assertRegex(created["pairing_code"], r"^[0-9]{8}$")
@@ -288,6 +291,7 @@ class TestPairing(RemoteCase):
         pairing = os.path.join(self.env["data"], "remote_pairing.json")
         self.assertFalse(os.path.exists(pairing))
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     def test_code_is_stored_hashed_with_its_role_while_waiting(self):
         created = mc_remote.create_code("viewer", None)
         path = os.path.join(self.env["data"], "remote_pairing.json")
@@ -731,6 +735,7 @@ class TestAudit(RemoteCase):
         path = os.path.join(self.logs, "audit.log")
         return [json.loads(line) for line in slurp(path).splitlines()]
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     def test_every_request_is_logged_without_secrets(self):
         operator = self.pair("operator", name="phone")
         marker = "LEAK-body-secret-777"
@@ -896,6 +901,7 @@ class TestClient(RemoteCase):
         self.assertEqual(status, 0, text)
         return json.loads(text)
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     def test_add_pins_the_fingerprint_and_stores_a_private_profile(self):
         document = self.add_profile()
         self.assertEqual(document["fingerprint"], self.fingerprint)

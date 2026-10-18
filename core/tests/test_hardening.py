@@ -46,6 +46,7 @@ class TestPrivateFiles(unittest.TestCase):
             mc_config.save_config({"dossier_serveur": folder, "port": 1})
         self.assertEqual(_mode(mc_config.config_path(folder)), 0o600)
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     @unittest.skipUnless(hasattr(os, "geteuid") and os.geteuid() == 0, "needs root")
     def test_root_write_keeps_the_owner(self):
         folder = tempfile.mkdtemp()

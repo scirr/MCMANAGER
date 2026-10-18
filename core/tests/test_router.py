@@ -301,6 +301,7 @@ class TestRouterConfig(unittest.TestCase):
         self.patch.start()
         self.addCleanup(self.patch.stop)
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     def test_defaults_and_atomic_private_save(self):
         config = mc_router.load()
         self.assertFalse(config["enabled"])
