@@ -1194,6 +1194,33 @@
         ],
         "type": "object"
       },
+      "DaemonResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "description": "Output of `mc daemon start|stop|restart|status --json`. `daemon_status` carries installed and running; the other codes carry the action.",
+            "properties": {
+              "action": {
+                "enum": [
+                  "start",
+                  "stop",
+                  "restart"
+                ],
+                "type": "string"
+              },
+              "installed": {
+                "type": "boolean"
+              },
+              "running": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
       "Datapack": {
         "properties": {
           "enabled": {
@@ -2215,6 +2242,29 @@
             },
             "required": [
               "subject"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "LanguageResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Result"
+          },
+          {
+            "description": "Output of `mc language [fr|en] --json`.",
+            "properties": {
+              "language": {
+                "enum": [
+                  "fr",
+                  "en"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "language"
             ],
             "type": "object"
           }
@@ -3304,6 +3354,30 @@
         ],
         "type": "object"
       },
+      "RconReply": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "description": "Output of `mc rcon <command> --json`.",
+            "properties": {
+              "command": {
+                "type": "string"
+              },
+              "reply": {
+                "description": "RCON reply without ANSI codes or carriage returns (may be empty).",
+                "type": "string"
+              }
+            },
+            "required": [
+              "command",
+              "reply"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "RemoteEnableRequest": {
         "properties": {
           "bind": {
@@ -3682,6 +3756,45 @@
           "close_minute"
         ],
         "type": "object"
+      },
+      "ScheduleUpdated": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServerResult"
+          },
+          {
+            "description": "Output of `mc schedule <open_h> <open_m> <close_h> <close_m> --json`; the server leaves always-on mode.",
+            "properties": {
+              "close_hour": {
+                "maximum": 23,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "close_minute": {
+                "maximum": 59,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "open_hour": {
+                "maximum": 23,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "open_minute": {
+                "maximum": 59,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "open_hour",
+              "open_minute",
+              "close_hour",
+              "close_minute"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "ServerConfig": {
         "description": "Server configuration without its secret keys (`mcrcon_pass`, `webhook_url`, `curseforge_api_key`, `backup_encrypt_key_file`, `alerts`, `backup_remotes`): they never appear in a response, `secrets_set` of the enclosing document names the configured ones.",

@@ -241,6 +241,68 @@ def rcon_exec(config, command, wait=0):
             pass
 
 
+_ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def rcon_reply(name, config, command):
+    if not mc_core.is_server_running(config):
+        return result(False, "server_offline", server=name, message=T["console_offline"])
+    ok, reply = rcon_exec(config, command, wait=RCON_RETRY)
+    if not ok:
+        return result(False, "rcon_failed", server=name, detail=reply,
+                      message=T["rcon_failed"].format(detail=reply))
+    clean = _ANSI.sub("", reply or "").replace("\r", "")
+    return result(True, "rcon_reply", server=name, command=command, reply=clean)
+
+
+def set_schedule(name, config, open_h, open_m, close_h, close_m):
+    for value, upper in ((open_h, 23), (open_m, 59), (close_h, 23), (close_m, 59)):
+        if not 0 <= value <= upper:
+            key = "invalid_hour" if upper == 23 else "invalid_minute"
+            return result(False, "invalid_time", server=name, detail=str(value), message=T[key].format(val=value))
+    if (open_h, open_m) == (close_h, close_m):
+        return result(False, "schedule_same_time", server=name, message=T["schedule_same_time"])
+    config["always_on"] = 0
+    config["heure_ouverture"], config["minute_ouverture"] = open_h, open_m
+    config["heure_fermeture"], config["minute_fermeture"] = close_h, close_m
+    mc_config.save_config(config)
+    return result(True, "schedule_updated", server=name, open_hour=open_h, open_minute=open_m,
+                  close_hour=close_h, close_minute=close_m)
+
+
+DAEMON_DONE = {"start": "daemon_started", "stop": "daemon_stopped", "restart": "daemon_restarted"}
+
+
+def daemon_status():
+    installed = bool(plat.service_installed())
+    return result(True, "daemon_status", installed=installed, running=installed and bool(plat.service_running()))
+
+
+def daemon_control(action):
+    if action == "status":
+        return daemon_status()
+    code, detail = plat.service_control(action)
+    if code == "ok":
+        return result(True, DAEMON_DONE[action], action=action)
+    if code == "not_installed":
+        return result(False, "daemon_not_installed", message=T["daemon_not_installed"])
+    if code == "no_permission":
+        return result(False, "daemon_no_permission",
+                      message=T["daemon_no_perms"].format(action=action))
+    rc, sep, text = detail.partition("|")
+    if not (sep and rc.isdigit()):
+        rc, text = code, detail
+    return result(False, "daemon_error", detail=text.strip(),
+                  message=T["daemon_error_msg"].format(action=action, code=rc, detail=text.strip()))
+
+
+def language_document(lang=None):
+    import mc_lang
+    if lang is not None:
+        mc_lang.set_language(lang)
+    return result(True, "language", language=mc_lang.current_language())
+
+
 _FORMATTING = re.compile(r"§.")
 _COUNTS = re.compile(r"(\d+)\s*(?:/|of a max of|out of maximum|sur)\s*(\d+)", re.IGNORECASE)
 
@@ -512,7 +574,7 @@ def backup_now(name, config):
 def log_lines(name=None, count=30):
     log_file = os.path.join(BASE_DIR, "logs", "daemon.log")
     if not os.path.exists(log_file):
-        return result(False, "no_log_file", server=name)
+        return result(False, "no_log_file", **({"server": name} if name else {}))
     with open(log_file, "r", encoding="utf-8", errors="replace") as f:
         lines = f.read().splitlines()
     if name is not None:

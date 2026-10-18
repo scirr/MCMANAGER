@@ -420,10 +420,10 @@ def print_categorized_help():
     categories = [
         (T["help_cat_lifecycle"], [
             (f"start [{tgt}]", T["help_start"]),
-            (f"stop [{tgt}] [--force]", T["help_stop"]),
+            (f"stop [{tgt}] [--force] [--json]", T["help_stop"]),
             (f"stop [{tgt}] --reason <r> [--quiet]", T["help_stop_reason"]),
             (f"console [{tgt}]", T["help_console"]),
-            (f"rcon \"<cmd>\" [{tgt}]", T["help_rcon"]),
+            (f"rcon \"<cmd>\" [{tgt}] [--json]", T["help_rcon"]),
             (f"players [{tgt}] [--json]", T["help_players"]),
             (f"backup [{tgt}]", T["help_backup"]),
             (f"backup list|restore <ref> [{tgt}] [--yes]", T["help_backup_sub"]),
@@ -531,6 +531,7 @@ def build_parser():
     subparsers.add_parser("version", help=T["help_version"])
     p_lang = subparsers.add_parser("language", help=T["help_language"])
     p_lang.add_argument("lang", nargs="?", choices=["fr", "en"], default=None)
+    p_lang.add_argument("--json", action="store_true", help=T["help_json"])
     p_update = subparsers.add_parser("update", help=T["help_update"])
     g_update = p_update.add_mutually_exclusive_group()
     g_update.add_argument("--check", action="store_true", help=T["help_update_check"])
@@ -568,6 +569,7 @@ def build_parser():
     p_rcon = subparsers.add_parser("rcon", help=T["help_rcon"])
     p_rcon.add_argument("command", help=T["help_rcon_command"])
     p_rcon.add_argument("target", nargs="?", default=None, help=T["cli_target_help"])
+    p_rcon.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_freeze = subparsers.add_parser("freeze", parents=[target_parser], help=T["help_freeze"])
     p_freeze.add_argument("--max", default=None, metavar="DURATION", help=T["help_freeze_max"])
@@ -695,6 +697,7 @@ def build_parser():
     p_stop.add_argument("--force", "-f", action="store_true", help=T["help_stop_force"])
     p_stop.add_argument("--reason", choices=mc_api.STOP_REASONS, default=None, help=T["help_stop_reason_arg"])
     p_stop.add_argument("--quiet", "-q", action="store_true", help=T["help_stop_quiet"])
+    p_stop.add_argument("--json", action="store_true", help=T["help_json"])
     subparsers.add_parser("console", parents=[target_parser], help=T["help_console"])
     _add_exploitation_parsers(subparsers)
     subparsers.add_parser("open", parents=[target_parser], help=T["help_open"])
@@ -716,13 +719,15 @@ def build_parser():
     p_schedule.add_argument("close_h", type=int)
     p_schedule.add_argument("close_m", type=int)
     p_schedule.add_argument("target", nargs="?", default=None)
+    p_schedule.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_edit = subparsers.add_parser("edit", help=T["help_edit"])
     p_edit.add_argument("what", choices=["config", "webhooks"])
     p_edit.add_argument("target", nargs="?", default=None)
 
     p_daemon = subparsers.add_parser("daemon", help=T["help_daemon"])
-    p_daemon.add_argument("daemon_action", choices=["run", "start", "stop", "restart"])
+    p_daemon.add_argument("daemon_action", choices=["run", "start", "stop", "restart", "status"])
+    p_daemon.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_image = subparsers.add_parser("image", help=T["help_image"])
     image_subs = p_image.add_subparsers(dest="image_action", metavar="<action>", parser_class=_IntermixedParser)
@@ -825,6 +830,9 @@ def main():
         return
 
     if args.action == "language":
+        if args.json:
+            print_json({"schema": mc_api.SCHEMA_VERSION, **mc_api.language_document(args.lang)})
+            return EXIT_OK
         if args.lang is None:
             print_res(True, T["language_current"].format(lang=mc_lang.current_language()))
             print(f"\033[90m{T['language_usage']}\033[0m")
@@ -941,6 +949,9 @@ def main():
     if getattr(args, "json", False) and args.action in JSON_SIMPLE_ACTIONS:
         return cmd_simple_json(args)
 
+    if getattr(args, "json", False) and args.action in ("stop", "schedule"):
+        return cmd_stop_schedule_json(args)
+
     if args.action == "use":
         if mc_servers.set_active(args.target):
             info = mc_servers.list_servers().get(mc_servers.get_active_name(), {})
@@ -1018,7 +1029,7 @@ def main():
         return print_logs(args.target)
 
     if args.action == "daemon":
-        return dispatch_daemon(args.daemon_action)
+        return dispatch_daemon(args.daemon_action, args.json)
 
     # --- centralized resolution for server-targeting commands ---
     config = None
@@ -1206,6 +1217,11 @@ def cmd_players(args):
     return EXIT_OK
 
 def cmd_rcon(args):
+    if args.json:
+        loaded, code = _load(args.target, True)
+        if not loaded:
+            return code
+        return _finish(mc_api.rcon_reply(loaded[0], loaded[1], args.command), True)
     loaded = _load_target_config(args.target)
     if not loaded:
         return EXIT_NOT_FOUND
@@ -1291,6 +1307,19 @@ def cmd_freeze_thaw_json(args, command=None):
         released = mc_api.thaw_op(name, config)
     print_json({"schema": mc_api.SCHEMA_VERSION, **res, "command_exit_code": rc, "thaw": released})
     return rc
+
+def cmd_stop_schedule_json(args):
+    loaded, code = _load(args.target, True)
+    if not loaded:
+        return code
+    name, config = loaded
+    if args.action == "stop":
+        with _quiet(True):
+            res = mc_api.stop(name, config, reason=args.reason, quiet=args.quiet, force=args.force)
+        return _finish(res, True)
+    res = mc_api.set_schedule(name, config, args.open_h, args.open_m, args.close_h, args.close_m)
+    code = _finish(res, True)
+    return EXIT_USAGE if not res["ok"] else code
 
 JSON_SIMPLE_ACTIONS = ("use", "remove", "mode", "resume", "backup", "logs")
 
@@ -2349,7 +2378,20 @@ def cmd_alert(args):
     return _finish_checked(res, args.json)
 
 
-def dispatch_daemon(daemon_action):
+def dispatch_daemon(daemon_action, as_json=False):
+    if as_json:
+        if daemon_action == "run":
+            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": "daemon_run_json",
+                        "message": T["daemon_run_json"]})
+            return EXIT_USAGE
+        return _finish(mc_api.daemon_control(daemon_action), True)
+    if daemon_action == "status":
+        res = mc_api.daemon_status()
+        if not res["installed"]:
+            print_res(False, T["daemon_not_installed"])
+            return EXIT_ERROR
+        print_info(T["daemon_status_running" if res["running"] else "daemon_status_stopped"])
+        return EXIT_OK
     if daemon_action == "run":
         print(f"\033[90m[i]\033[0m {T['daemon_launching']}")
         import mc_daemon

@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -575,13 +576,20 @@ class TestCliOutputsFollowTheContract(unittest.TestCase):
     def test_the_read_only_documents(self):
         for argv, target in ((("status",), "listServers"), (("status", "a"), "listServers"),
                              (("active",), "getServer"),                              (("java", "list"), "listJava"), (("sleep", "status"), "getSleepSettings"),
-                             (("logs",), "getServerLogs"), (("world", "list"), "listWorlds"),
+                             (("world", "list"), "listWorlds"),
                              (("datapack", "list"), "listDatapacks"), (("mod", "list"), "listMods"),
                              (("ban", "list"), "listPlayerList"), (("op", "list"), "listPlayerList"),
                              (("whitelist", "list"), "listPlayerList"), (("router", "status"), "getRouter"),
                              (("router", "route", "list"), "getRouter"), (("task", "list"), "listTasks")):
             with self.subTest(command=" ".join(argv)):
                 self.check(argv, target)
+
+    def test_logs_whether_or_not_the_daemon_log_exists(self):
+        rc, doc = self.cli("logs")
+        if doc["code"] == "no_log_file":
+            self.check_failure(("logs",), "no_log_file")
+        else:
+            self.check(("logs",), "getServerLogs")
 
     def test_history_freeze_resume_use_mode(self):
         doc = self.check(("players", "history", "--days", "3650"), "getPlayerHistory")
@@ -684,6 +692,73 @@ class TestCliOutputsFollowTheContract(unittest.TestCase):
         failure = {"schema": 1, "ok": False, "code": "rcon_failed", "server": "a", "detail": "refused",
                    "message": "m", "error": {"code": "rcon_failed", "detail": "refused"}}
         self.assertEqual(validate_strict(failure, resolve("#/components/schemas/Error")), [])
+
+    def test_stop_rcon_schedule_language_daemon_fit_the_contract(self):
+        doc = self.check(("stop",), "stopServer")
+        self.assertEqual((doc["code"], doc["reason"], doc["server"]), ("already_stopped", "user", "a"))
+        self.check(("stop", "--reason", "maintenance", "--quiet"), "stopServer")
+        doc = self.check(("schedule", "8", "30", "23", "0"), "#ScheduleUpdated")
+        self.assertEqual((doc["code"], doc["open_hour"], doc["close_minute"]), ("schedule_updated", 8, 0))
+        self.assertEqual(self.cli("config", "get", "always_on")[1]["value"], 0)
+        doc = self.check(("language",), "#LanguageResult")
+        self.assertIn(doc["language"], ("fr", "en"))
+
+    def test_stop_rcon_schedule_failures_fit_the_error_object(self):
+        self.assertEqual(self.check_failure(("stop", "zz"), "not_found")[0], 3)
+        self.assertEqual(self.check_failure(("rcon", "list", "zz"), "not_found")[0], 3)
+        self.assertEqual(self.check_failure(("schedule", "1", "0", "2", "0", "zz"), "not_found")[0], 3)
+        rc, doc = self.check_failure(("rcon", "list"), "server_offline")
+        self.assertEqual(rc, 1)
+        self.assertTrue(doc["message"])
+        rc, doc = self.check_failure(("schedule", "25", "0", "3", "0"), "invalid_time")
+        self.assertEqual((rc, doc["detail"]), (2, "25"))
+        self.assertEqual(self.check_failure(("schedule", "5", "10", "5", "10"), "schedule_same_time")[0], 2)
+
+    def test_rcon_reply_is_cleaned_and_fits_the_contract(self):
+        sys.path.insert(0, os.path.join(ROOT, "core"))
+        import mc_api
+        with mock.patch.object(mc_api.mc_core, "is_server_running", return_value=True), \
+                mock.patch.object(mc_api, "rcon_exec", return_value=(True, "\x1b[0mThere are 0\r\nplayers\x1b[1;31m")):
+            doc = mc_api.wire(mc_api.rcon_reply("a", {}, "list"))
+        self.assertEqual(doc["reply"], "There are 0\nplayers")
+        self.assertEqual((doc["code"], doc["command"]), ("rcon_reply", "list"))
+        self.assertEqual(validate_strict(doc, resolve("#/components/schemas/RconReply")), [])
+        with mock.patch.object(mc_api.mc_core, "is_server_running", return_value=True), \
+                mock.patch.object(mc_api, "rcon_exec", return_value=(False, "refused")):
+            doc = mc_api.wire(mc_api.rcon_reply("a", {}, "list"))
+        self.assertEqual((doc["ok"], doc["code"], doc["detail"]), (False, "rcon_failed", "refused"))
+        error = dict(resolve("#/components/schemas/Error"), required=["ok", "code", "message"])
+        self.assertEqual(validate_strict(doc, error), [])
+
+    def test_daemon_documents_fit_the_contract(self):
+        sys.path.insert(0, os.path.join(ROOT, "core"))
+        import mc_api
+        schema = resolve("#/components/schemas/DaemonResult")
+        error = dict(resolve("#/components/schemas/Error"), required=["ok", "code", "message"])
+        with mock.patch.object(mc_api.plat, "service_installed", return_value=True, create=True), \
+                mock.patch.object(mc_api.plat, "service_running", return_value=False, create=True):
+            doc = mc_api.wire(mc_api.daemon_control("status"))
+        self.assertEqual((doc["installed"], doc["running"]), (True, False))
+        self.assertEqual(validate_strict(doc, schema), [])
+        for outcome, code in ((("ok", ""), "daemon_restarted"), (("not_installed", "x"), "daemon_not_installed"),
+                              (("no_permission", "x"), "daemon_no_permission"),
+                              (("error", "3|boom"), "daemon_error")):
+            with mock.patch.object(mc_api.plat, "service_control", return_value=outcome, create=True):
+                doc = mc_api.wire(mc_api.daemon_control("restart"))
+            self.assertEqual(doc["code"], code)
+            self.assertEqual(validate_strict(doc, schema if doc["ok"] else error), [], code)
+            self.assertEqual(bool(doc["ok"]), code == "daemon_restarted")
+
+    def test_language_set_fits_the_contract(self):
+        sys.path.insert(0, os.path.join(ROOT, "core"))
+        import mc_api
+        import mc_lang
+        saved = mc_lang.current_language()
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(mc_lang, "_LANG_FILE", os.path.join(tmp, "l.txt")):
+            doc = mc_api.wire(mc_api.language_document("en"))
+        mc_lang._apply_language(saved)
+        self.assertEqual((doc["code"], doc["language"]), ("language", "en"))
+        self.assertEqual(validate_strict(doc, resolve("#/components/schemas/LanguageResult")), [])
 
     def test_doctor_report(self):
         sys.path.insert(0, os.path.join(ROOT, "core"))
