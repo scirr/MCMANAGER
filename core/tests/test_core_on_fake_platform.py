@@ -246,7 +246,6 @@ class TestLinuxBehaviourKept(unittest.TestCase):
             chown.assert_not_called()
 
     def test_restic_password_file_error_is_not_swallowed(self):
-        import platform_linux
         fake = FakePlatform(secure_file=False)
         saved = mc_platform._Lazy._impl
         self.addCleanup(setattr, mc_platform._Lazy, "_impl", saved)

@@ -8,3 +8,7 @@ select = ["E4", "E7", "E9", "F"]
 # The codebase's own conventions: imports after sys.path setup, one-line
 # guards ("if not x: return"), short loop names.
 ignore = ["E402", "E701", "E741"]
+
+[lint.per-file-ignores]
+# re-exports the protocol helpers its callers and tests import from it
+"core/mc_sleep.py" = ["F401"]

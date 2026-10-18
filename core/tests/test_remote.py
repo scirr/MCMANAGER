@@ -557,7 +557,8 @@ class TestRoles(RemoteCase):
         self.add_server("b")
         unrestricted = self.pair("viewer", name="all")
         only_b = self.pair("viewer", ["b"], name="b-only")
-        names = lambda r: [s["name"] for s in r.request("GET", "/v1/servers")[1]["servers"]]
+        def names(r):
+            return [s["name"] for s in r.request("GET", "/v1/servers")[1]["servers"]]
         self.assertEqual(names(unrestricted), ["a", "b"])
         self.assertEqual(names(only_b), ["b"])
         self.assertIsNone(only_b.request("GET", "/v1/servers")[1]["active"])

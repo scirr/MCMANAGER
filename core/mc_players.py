@@ -199,7 +199,8 @@ def edit_list(config, kind, action, subject, reason=None, rcon=None):
     if mc_core.is_server_running(config):
         if rcon is None:
             import mc_api
-            rcon = lambda cfg, cmd: mc_api.rcon_exec(cfg, cmd, wait=mc_api.RCON_RETRY)
+            def rcon(cfg, cmd):
+                return mc_api.rcon_exec(cfg, cmd, wait=mc_api.RCON_RETRY)
         ok, reply = rcon(config, _rcon_command(kind, action, subject, reason))
         if not ok:
             return result(False, "rcon_failed", subject=subject, detail=reply)
@@ -252,7 +253,8 @@ def set_whitelist_enabled(config, enabled, rcon=None):
     if mc_core.is_server_running(config):
         if rcon is None:
             import mc_api
-            rcon = lambda cfg, cmd: mc_api.rcon_exec(cfg, cmd, wait=mc_api.RCON_RETRY)
+            def rcon(cfg, cmd):
+                return mc_api.rcon_exec(cfg, cmd, wait=mc_api.RCON_RETRY)
         ok, reply = rcon(config, "whitelist on" if enabled else "whitelist off")
         if not ok:
             return result(False, "rcon_failed", detail=reply)

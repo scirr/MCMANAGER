@@ -22,7 +22,6 @@ import mc_apiops
 import mc_core
 import mc_httpapi
 import mc_jobs
-import mc_servers
 from apiclient import Client, api_environment, read_event
 from test_openapi import OPERATIONS, SPEC, validate_strict, resolve
 
