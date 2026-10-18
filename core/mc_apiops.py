@@ -10,6 +10,7 @@ import os
 import mc_api
 import mc_config
 import mc_core
+import mc_remote
 import mc_servers
 from mc_lang import T
 
@@ -56,8 +57,9 @@ def op(operation_id):
 
 
 class Context:
-    def __init__(self, app, route, params, query, body, headers=None):
+    def __init__(self, app, route, params, query, body, headers=None, request=None):
         self.app = app
+        self.request = request
         self.route = route
         self.params = params
         self.query = query
@@ -77,6 +79,18 @@ class Context:
                 raise Failure(error)
             self._server = loaded
         return self._server
+
+    @property
+    def device(self):
+        return self.request.device if self.request else None
+
+    def allowed(self):
+        """Servers this caller may see, or None for no restriction."""
+        return mc_remote.allowed_servers(self.device) if self.device else None
+
+    def alive(self):
+        device = self.device
+        return (lambda: self.app.remote.active(device["id"])) if device and self.app.remote else None
 
     def job(self, function, name=None):
         return self.app.start_job(self.route.operation_id, name, function)
@@ -110,22 +124,68 @@ def server_op(operation_id):
 @op("getApiInfo")
 def get_api_info(ctx):
     from mc_lang import VERSION
-    return mc_api.result(True, "api_info", api="1", daemon=VERSION, remote=False)
+    return mc_api.result(True, "api_info", api="1", daemon=VERSION, remote=ctx.app.remote is not None)
 
 
-def not_implemented(ctx):
-    return mc_api.result(False, "not_implemented", message="Remote access is not available in this version.")
+# ── remote access ───────────────────────────────────────────────────────────
+
+@op("getRemoteStatus")
+def get_remote_status(ctx):
+    return mc_api.remote_status()
 
 
-for _name in REMOTE_OPERATIONS:
-    HANDLERS[_name] = not_implemented
+@op("setRemoteAccess")
+def set_remote_access(ctx):
+    return mc_api.remote_access(ctx.body["enabled"] is True, ctx.body.get("bind"))
+
+
+@op("createPairingCode")
+def create_pairing_code(ctx):
+    return mc_api.remote_pair_code(ctx.body.get("role") or "operator", ctx.body.get("servers"),
+                                   ctx.body.get("name"))
+
+
+@op("pairDevice")
+def pair_device(ctx):
+    res = mc_api.remote_pair(ctx.body["code"], ctx.body["name"], ctx.request.ip if ctx.request else None)
+    if res["ok"]:
+        ctx.request.paired = res["device_id"]
+    return res
+
+
+@op("listDevices")
+def list_devices(ctx):
+    return mc_api.remote_devices()
+
+
+@op("revokeDevice")
+def revoke_device(ctx):
+    return mc_api.remote_revoke(ctx.params["device"])
+
+
+@op("setDeviceRoles")
+def set_device_roles(ctx):
+    servers = ctx.body["servers"] if "servers" in ctx.body else False
+    return mc_api.remote_set_roles(ctx.params["device"], ctx.body["roles"], servers)
+
+
+@op("listAuditLog")
+def list_audit_log(ctx):
+    return mc_api.result(True, "audit_log", entries=mc_remote.read_audit(
+        int(ctx.query.get("limit", 100)), ctx.query.get("device"), ctx.query.get("server")))
 
 
 # ── servers ─────────────────────────────────────────────────────────────────
 
 @op("listServers")
 def list_servers(ctx):
-    return mc_api.status_document()
+    document = mc_api.status_document()
+    allowed = ctx.allowed()
+    if allowed is not None:
+        document["servers"] = [s for s in document["servers"] if s.get("name") in allowed]
+        if document.get("active") not in allowed:
+            document["active"] = None
+    return document
 
 
 @server_op("getServer")
@@ -371,12 +431,14 @@ def send_console_command(ctx, name, config):
 
 @server_op("streamConsole")
 def stream_console(ctx, name, config):
-    return ctx.app.console_stream(name, config, int(ctx.query.get("tail", 50)), ctx.headers.get("last-event-id"))
+    return ctx.app.console_stream(name, config, int(ctx.query.get("tail", 50)), ctx.headers.get("last-event-id"),
+                                  ctx.device["id"] if ctx.device else None, ctx.alive())
 
 
 @op("streamEvents")
 def stream_events(ctx):
-    return ctx.app.event_stream(ctx.query.get("servers"), ctx.headers.get("last-event-id"))
+    return ctx.app.event_stream(ctx.query.get("servers"), ctx.headers.get("last-event-id"), ctx.allowed(),
+                                ctx.device["id"] if ctx.device else None, ctx.alive())
 
 
 # ── world ───────────────────────────────────────────────────────────────────
@@ -696,12 +758,16 @@ def rollback_update(ctx):
 
 @op("listJobs")
 def list_jobs(ctx):
-    return mc_api.result(True, "jobs", jobs=ctx.app.jobs.listing(ctx.query.get("state")))
+    allowed = ctx.allowed()
+    jobs = ctx.app.jobs.listing(ctx.query.get("state"))
+    return mc_api.result(True, "jobs", jobs=[j for j in jobs if allowed is None or j.get("server") in allowed])
 
 
 @op("getJob")
 def get_job(ctx):
     job = ctx.app.jobs.get(ctx.params["job"])
+    if job is not None and ctx.allowed() is not None and job.server not in ctx.allowed():
+        job = None
     if job is None:
         fail("job_not_found", id=ctx.params["job"], message="No such job.")
     return Reply(200, job.document())
@@ -710,6 +776,9 @@ def get_job(ctx):
 @op("cancelJob")
 def cancel_job(ctx):
     job_id = ctx.params["job"]
+    visible = ctx.app.jobs.get(job_id)
+    if visible is not None and ctx.allowed() is not None and visible.server not in ctx.allowed():
+        fail("job_not_found", id=job_id, message="No such job.")
     cancelled = ctx.app.jobs.cancel(job_id)
     if cancelled is None:
         fail("job_not_found", id=job_id, message="No such job.")
