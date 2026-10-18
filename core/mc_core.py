@@ -995,6 +995,7 @@ def stop_server(config, manual=True, wait=True, timeout=None, reason=None, quiet
     """
     if not is_server_running(config):
         return False, T["already_offline"]
+    mark_stop_requested(config)
     resume_server(config)
 
     if timeout is None:
@@ -1072,6 +1073,7 @@ def stop_server(config, manual=True, wait=True, timeout=None, reason=None, quiet
         _remove_pid_file(config)
         return True, T["stop_done_term"].format(secs=timeout)
 
+    mark_stop_requested(config)
     _signal_server(config, "kill")
     gone = wait_for_exit(config, 10)
     if gone:
@@ -1101,6 +1103,27 @@ def send_start_webhook(config):
         variables = {"nom": nom, "version_label": version_label}
     payload = {"embeds": [_build_embed(tpl, variables, display_ip)]}
     return send_discord_webhook(config, payload, force=True)
+
+STOP_MARKER = ".mcmanager_stop_requested"
+
+
+def mark_stop_requested(config):
+    """Remember when a stop was asked for, so the daemon never reads it as a
+    crash, even when 'mc stop' and 'mc resume' both happen between two ticks."""
+    try:
+        with open(os.path.join(config.get("dossier_serveur", ""), STOP_MARKER), "w", encoding="utf-8") as f:
+            f.write(str(time.time()))
+    except OSError:
+        pass
+
+
+def stop_requested_since(config, since):
+    try:
+        with open(os.path.join(config.get("dossier_serveur", ""), STOP_MARKER), encoding="utf-8") as f:
+            return float(f.read().strip() or 0) >= (since or 0)
+    except (OSError, ValueError):
+        return False
+
 
 SUSPENDED_MARKER = ".mcmanager_suspended"
 
