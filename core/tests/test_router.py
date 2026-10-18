@@ -214,6 +214,7 @@ class TestRouterLimits(RouterCase):
     def test_rate_limit_per_second(self):
         survie = self.fake()
         listener = self.router({"s": target_for(survie)}.get, default="s", per_second=2, per_ip=16)
+        listener._rate = mc_proxy.RateLimiter(2, clock=lambda: 0.0)
         results = []
         for _ in range(4):
             reply, client = self.welcome(listener, "x")
