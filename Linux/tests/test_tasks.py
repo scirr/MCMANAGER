@@ -3,7 +3,6 @@ test_tasks.py — task storage in config.json, execution of each action and the
 daemon's launching of due tasks. Process, RCON and clock are simulated.
 """
 import datetime
-import json
 import os
 import sys
 import tempfile
