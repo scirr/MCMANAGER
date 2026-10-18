@@ -53,13 +53,14 @@ for _status, _codes in (
     (409, "server_running stop_first players_online already_active not_sleeping already_frozen mod_exists "
           "mod_ambiguous defines_blocks router_port_conflict folder_not_empty remote_exists channel_exists "
           "task_name_taken blocked_by_maintenance downgrade_refused job_finished console_offline server_offline "
-          "config_conflict device_revoked"),
+          "config_conflict device_revoked kick_offline player_not_online chunky_missing no_previous "
+          "not_cancellable output_exists pregen_offline server_running_not_frozen sleeping"),
     (422, "confirm_required confirmation_required eula_required name_required sleep_after_too_short "
           "sleep_needs_rcon key_not_found s3_credentials_missing restic_password_missing overworld_protected "
           "unknown_dimension unknown_loader not_a_jar unsafe_archive no_level_dat java_bad_choice bad_signature "
           "router_usage status_page_interval_too_short sleep_setting_refused sleep_hold_timeout_range "
           "command_required command_not_allowed warn_not_allowed unsupported_on_windows encrypt_key_missing "
-          "tls_unavailable"),
+          "tls_unavailable java_unavailable schedule_same_time"),
     (503, "rcon_failed rcon_error daemon_timeout source_unreachable check_failed java_download_failed "
           "announce_failed"),
     (501, "not_implemented"),

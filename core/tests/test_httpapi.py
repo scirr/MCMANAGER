@@ -587,3 +587,40 @@ class TestApiCommand(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDocumentedStatuses(unittest.TestCase):
+    """Every failure code the contract documents with an HTTP status gets that
+    status from the server, never a 500."""
+
+    def test_documented_codes_have_their_status(self):
+        import re
+        with open(os.path.join(os.path.dirname(__file__), "..", "..", "api", "openapi.json"), encoding="utf-8") as f:
+            spec = json.load(f)
+        found = {}
+
+        def scan(text):
+            pending, current = [], None
+            for token in re.findall(r"`[a-z][a-z0-9_]+`|\(\d{3}\)|\b\d{3}:", text):
+                if token.startswith("`"):
+                    (found.__setitem__(token.strip("`"), current) if current else pending.append(token.strip("`")))
+                elif token.startswith("("):
+                    for code in pending:
+                        found[code] = int(token[1:4])
+                    pending, current = [], None
+                else:
+                    pending, current = [], int(token[:3])
+
+        def walk(node):
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    scan(value) if key == "description" and isinstance(value, str) else walk(value)
+            elif isinstance(node, list):
+                for value in node:
+                    walk(value)
+        walk(spec)
+        self.assertGreater(len(found), 50)
+        from mc_lang import T
+        wrong = {code: want for code, want in found.items()
+                 if code not in ("ok", "java_present", "pack_deployed") and "res_" + code in T and mc_httpapi.status_for(code) == 500 and want != 500}
+        self.assertEqual(wrong, {})
