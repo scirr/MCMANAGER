@@ -30,7 +30,7 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Unit tests
         working-directory: core
-        run: python -m unittest discover tests
+        run: python ../tools/run_tests_ci.py tests
 
   checks:
     name: Lint, security, dependencies
