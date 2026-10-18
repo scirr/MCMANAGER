@@ -242,6 +242,10 @@ def script_launch_args(script):
     return ["cmd", "/c", script, "nogui"]
 
 
+def launch_args_name():
+    return "win_args.txt"
+
+
 def spawn_server(cmd, cwd, env=None, log=None):
     handle = open(log, "ab") if log else None
     try:

@@ -9,7 +9,7 @@ FUNCTIONS = (
     "find_server_processes", "process_alive", "process_name", "process_uptime",
     "process_memory", "process_cpu_seconds", "terminate", "kill", "suspend", "resume",
     "reap_children", "spawn_server", "set_affinity", "find_zombie_java",
-    "server_script_name", "script_launch_args",
+    "server_script_name", "script_launch_args", "launch_args_name", "os_name",
     "port_in_use", "port_listener", "listens_on_all_interfaces",
     "service_installed", "service_running", "service_control", "service_install",
     "service_unit_drift",

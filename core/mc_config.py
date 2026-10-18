@@ -185,7 +185,7 @@ def detect_default_jar(dossier):
     if not dossier or not os.path.exists(dossier):
         return fallback
     try:
-        # Forge/NeoForge servers launch through run.sh (no single runnable
+        # Forge/NeoForge servers launch through a run script (no single runnable
         # jar), so 'mc add' must suggest the script, not a jar.
         script = plat.server_script_name()
         if os.path.exists(os.path.join(dossier, script)):
@@ -648,7 +648,7 @@ def run_setup_performance(config):
     config["java_flags"] = config.get("java_flags", mc_core.DEFAULT_JAVA_FLAGS)
     # Forge/NeoForge get their heap from user_jvm_args.txt, which mc_core
     # rewrites at start time — tell the user so the value does not look ignored.
-    if str(config.get("jar_name", "")).endswith(".sh"):
+    if mc_core.is_run_script(config.get("jar_name", "")):
         print(f"\033[90m[{T['icon_info']}]\033[0m {T['forge_sh_note']}")
     return config
 

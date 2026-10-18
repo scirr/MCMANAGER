@@ -38,6 +38,7 @@ set_affinity = _process.set_affinity
 find_zombie_java = _process.find_zombie_java
 server_script_name = _process.server_script_name
 script_launch_args = _process.script_launch_args
+launch_args_name = _process.launch_args_name
 
 port_in_use = _net.port_in_use
 port_listener = _net.port_listener
@@ -128,6 +129,10 @@ def java_search_paths():
         roots = [r"C:\Program Files"]
     names = ("Java", "Eclipse Adoptium", "Microsoft", "BellSoft")
     return [ntpath.join(root, name, "**", "java.exe") for root in roots for name in names]
+
+
+def os_name():
+    return "Windows"
 
 
 def java_exe_name():

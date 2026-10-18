@@ -248,6 +248,14 @@ def script_launch_args(script):
     return ["bash", script, "nogui"]
 
 
+def launch_args_name():
+    return "unix_args.txt"
+
+
+def os_name():
+    return "Linux"
+
+
 def cgroup_of(pid):
     try:
         with open(f"/proc/{pid}/cgroup") as f:

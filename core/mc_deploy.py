@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-mc_deploy.py — Automated Minecraft server deployment (Linux)
+mc_deploy.py — Automated Minecraft server deployment
 Supports: Vanilla, Paper, Fabric, Forge, NeoForge
 """
 import hashlib

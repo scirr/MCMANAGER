@@ -75,6 +75,7 @@ _DEFAULTS = {
     "process_memory": (1024, None), "process_cpu_seconds": 1.0, "terminate": True,
     "kill": True, "reap_children": None, "set_affinity": True, "find_zombie_java": [],
     "server_script_name": "run.sh", "script_launch_args": None,
+    "launch_args_name": "unix_args.txt", "os_name": "Linux",
     "port_in_use": False, "port_listener": None, "listens_on_all_interfaces": None,
     "service_installed": False, "service_running": False, "service_control": ("ok", ""),
     "service_install": (True, ""), "service_unit_drift": ("ok", []),
