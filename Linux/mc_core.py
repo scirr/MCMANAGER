@@ -1162,6 +1162,7 @@ def stop_server(config, manual=True, wait=True, timeout=None, reason=None, quiet
     """
     if not is_server_running(config):
         return False, T["already_offline"]
+    mark_stop_requested(config)
     resume_server(config)
 
     if timeout is None:
@@ -1269,6 +1270,27 @@ def send_start_webhook(config):
     payload = {"embeds": [_build_embed(tpl, variables, display_ip)]}
     return send_discord_webhook(config, payload, force=True)
 
+STOP_MARKER = ".mcmanager_stop_requested"
+
+
+def mark_stop_requested(config):
+    """Remember when a stop was asked for, so the daemon never reads it as a
+    crash, even when 'mc stop' and 'mc resume' both happen between two ticks."""
+    try:
+        with open(os.path.join(config.get("dossier_serveur", ""), STOP_MARKER), "w", encoding="utf-8") as f:
+            f.write(str(time.time()))
+    except OSError:
+        pass
+
+
+def stop_requested_since(config, since):
+    try:
+        with open(os.path.join(config.get("dossier_serveur", ""), STOP_MARKER), encoding="utf-8") as f:
+            return float(f.read().strip() or 0) >= (since or 0)
+    except (OSError, ValueError):
+        return False
+
+
 SUSPENDED_MARKER = ".mcmanager_suspended"
 
 def _suspended_path(config):
@@ -1324,6 +1346,7 @@ def force_kill_server(config):
     """SIGKILL this server's processes (identified by PID file and java + server
     folder — never by the port, which a legitimate third-party program may
     hold) and wait for them to be gone. Returns True if nothing survives."""
+    mark_stop_requested(config)
     _signal_server(config, signal.SIGKILL)
     gone = wait_for_exit(config, 10)
     if gone:

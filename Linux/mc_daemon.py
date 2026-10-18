@@ -79,6 +79,8 @@ def _watch_crash(name, config, state, en_ligne, now=None):
     now = now or time.time()
     if en_ligne:
         state["expected_up"] = True
+        if not state.get("up_since"):
+            state["up_since"] = now
         if mc_crash.is_crashed(config) and mc_core.server_ready(config):
             mc_crash.clear(config)
             state["crash_logged"] = False
@@ -87,6 +89,10 @@ def _watch_crash(name, config, state, en_ligne, now=None):
     if not state["expected_up"]:
         return
     state["expected_up"] = False
+    up_since, state["up_since"] = state.get("up_since"), None
+    if mc_core.stop_requested_since(config, (up_since or now) - 60):
+        state["launched_at"] = None
+        return
     since = state["launched_at"]
     startup = not mc_core.log_has_done(config, since)
     state["launched_at"] = None

@@ -5,6 +5,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -115,6 +116,20 @@ class TestDaemonCrashLoop(unittest.TestCase):
         mc_crash.record_failure(self.cfg, startup=True)
         self.assertEqual(self._tick(False), [])
         self.assertEqual(self.announced, [])
+
+    def test_stop_and_resume_between_two_ticks_is_not_a_failure(self):
+        self.assertEqual(self._tick(True), [])            # seen up
+        mc_core.mark_stop_requested(self.cfg)             # mc stop, then mc resume, before the next tick
+        self.assertEqual(self._tick(False), [1])          # simply relaunched
+        self.assertFalse(mc_crash.is_crashed(self.cfg))
+        self.assertEqual(mc_crash.read(self.cfg), None)
+
+    def test_an_old_stop_does_not_hide_a_later_crash(self):
+        mc_core.mark_stop_requested(self.cfg)
+        with mock.patch.object(mc_daemon.time, "time", return_value=time.time() + 3600):
+            self.assertEqual(self._tick(True), [])
+        self.assertEqual(self._tick(False), [])           # died before "Done": crashed
+        self.assertTrue(mc_crash.is_crashed(self.cfg))
 
     def test_maintenance_stop_is_not_a_failure(self):
         self.state["expected_up"] = True
