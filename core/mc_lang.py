@@ -161,6 +161,9 @@ _FR = {
     "daemon_label_started":  "démarré",
     "daemon_label_stopped":  "arrêté",
     "daemon_label_restarted":"redémarré",
+    "daemon_run_json":      "'mc daemon run' tourne au premier plan : --json ne s'applique pas.",
+    "daemon_status_running": "Le service tourne.",
+    "daemon_status_stopped": "Le service est arrêté.",
 
     # ── mc_config — smart_ask ─────────────────────────────────────────────────
     "hint_current":          "[Actuel: {val} | RESET pour défaut: {default}]",
@@ -1234,6 +1237,9 @@ _EN = {
     "daemon_label_started":  "started",
     "daemon_label_stopped":  "stopped",
     "daemon_label_restarted":"restarted",
+    "daemon_run_json":      "'mc daemon run' runs in the foreground: --json does not apply.",
+    "daemon_status_running": "The service is running.",
+    "daemon_status_stopped": "The service is stopped.",
 
     # ── mc_config — smart_ask ─────────────────────────────────────────────────
     "hint_current":          "[Current: {val} | RESET for default: {default}]",

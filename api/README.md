@@ -87,6 +87,11 @@ operation) or listed below with the reason. `test_openapi.py` enforces this.
 | `mc_api.freeze_expired` | Internal to the daemon tick that thaws an expired freeze. |
 | `mc_api.suspend` | Sleep freeze (SIGSTOP) driven by the daemon sleep loop; the setting is `freeze` of `setSleepSettings`. |
 | `mc_api.restart_pending` | Feeds `pending_restart` of the router answers. |
+| `mc_api.rcon_reply` | `mc rcon --json` (`RconReply`); the API route is `sendConsoleCommand`. |
+| `mc_api.set_schedule` | `mc schedule --json` (`ScheduleUpdated`); the API sets the hours with `setConfigValue`. |
+| `mc_api.daemon_control` | `mc daemon start\|stop\|restart\|status --json` (`DaemonResult`); it is the service manager, not an API route. |
+| `mc_api.daemon_status` | Same as `daemon_control("status")`. |
+| `mc_api.language_document` | `mc language --json` (`LanguageResult`); CLI preference. |
 | `mc_api.metrics_serve` | Foreground Prometheus listener of `mc metrics serve` (`metrics_bind`, `metrics_allow_remote`); it is its own endpoint, not an API route. `GET /v1/metrics` is the JSON view. |
 
 Exposed through a route that does not carry their name: `rcon_exec` (`sendConsoleCommand`, console
