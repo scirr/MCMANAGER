@@ -50,6 +50,8 @@ def print_target(name):
     print(f"\033[90m[i]\033[0m {T['target_info'].format(name=name, sid=info.get('id', '?'))}", file=sys.stderr)
 
 def print_json(obj):
+    if isinstance(obj, dict) and obj.get("ok") is False and not obj.get("message"):
+        obj = {**obj, "message": render(obj)}
     print(json.dumps(obj, indent=2, ensure_ascii=False))
 
 def resolve_for_json(target):
@@ -59,7 +61,9 @@ def resolve_for_json(target):
     with contextlib.redirect_stdout(sys.stderr):
         resolved = mc_servers.resolve_target(target)
     if not resolved:
+        available = [f"{i.get('id')}:{n}" for n, i in mc_servers.list_servers().items()]
         print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": "not_found",
+                    "target": target, "available": available,
                     "error": {"code": "not_found", "target": target}})
     return resolved
 
@@ -648,6 +652,7 @@ def build_parser():
     p_config.add_argument("key", nargs="?", default=None)
     p_config.add_argument("rest", nargs="*", help=T["help_config_rest"])
     p_config.add_argument("--reveal", action="store_true", help=T["help_config_reveal"])
+    p_config.add_argument("--json", action="store_true", help=T["help_json"])
 
     p_use = subparsers.add_parser("use", help=T["help_use"])
     p_use.add_argument("target", help=T["help_use_target"])
@@ -1149,16 +1154,17 @@ def cmd_players(args):
     name, config = loaded
     if not mc_core.is_server_running(config):
         if args.json:
-            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "server_offline",
-                        "server": name, "online": 0, "max": None,
+            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": "server_offline",
+                        "message": T["players_offline"], "server": name, "online": 0, "max": None,
                         "players": [], "state": mc_api.server_state(config)})
-            return EXIT_OK
+            return EXIT_ERROR
         print_info(T["players_offline"])
         return EXIT_OK
     ok, data = mc_api.query_players(config, wait=mc_api.RCON_RETRY)
     if not ok:
         if args.json:
             print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": "rcon_failed", "server": name,
+                        "detail": data, "message": T["players_failed"].format(detail=data),
                         "error": {"code": "rcon_failed", "detail": data}})
         else:
             print_res(False, T["players_failed"].format(detail=data))
@@ -1287,6 +1293,26 @@ def cmd_simple_json(args):
         res = mc_api.backup_now(name, config)
     return _finish(res, True)
 
+def config_get_json(name, config, args):
+    if args.key is None:
+        shown, secrets_set = mc_config.redacted(config)
+        shown = {k: v for k, v in shown.items() if k not in mc_config.SECRET_KEYS}
+        print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "config", "server": name,
+                    "config": shown, "secrets_set": secrets_set})
+        return EXIT_OK
+    if args.key not in config:
+        print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": "config_key_unset",
+                    "server": name, "key": args.key})
+        return EXIT_ERROR
+    doc = {"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "config_value", "server": name, "key": args.key}
+    if args.key in mc_config.SECRET_KEYS and not args.reveal:
+        doc["write_only"] = True
+    else:
+        doc["value"] = config[args.key]
+        doc["write_only"] = False
+    print_json(doc)
+    return EXIT_OK
+
 def cmd_config(args):
     rest = list(args.rest or [])
     if args.config_action == "get":
@@ -1295,6 +1321,8 @@ def cmd_config(args):
         if not loaded:
             return EXIT_NOT_FOUND
         _name, config = loaded
+        if args.json:
+            return config_get_json(_name, config, args)
         if args.key is None:
             shown, secrets_set = mc_config.redacted(config)
             print_json({**shown, "secrets_set": secrets_set})
@@ -1656,9 +1684,20 @@ def cmd_java(args):
     import mc_java
     action = args.java_action
     if action == "list":
+        if len(args.args) > 1:
+            print_res(False, T["java_usage"])
+            return EXIT_USAGE
+        only = None
+        if args.args:
+            loaded, error = mc_api.load_server(args.args[0])
+            if error:
+                return _finish(error, args.json)
+            only = loaded[0]
         runtimes = mc_java.installed()
         servers = []
         for srv, info in mc_servers.list_servers().items():
+            if only is not None and srv != only:
+                continue
             try:
                 cfg = mc_config.load_config(info.get("dossier_serveur", ""))
             except mc_servers.DataFileError:

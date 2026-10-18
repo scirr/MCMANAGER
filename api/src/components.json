@@ -214,7 +214,8 @@
           },
           "error": {
             "additionalProperties": true,
-            "description": "Legacy nested copy of `code` and `detail` kept in some failures so existing scripts keep working.",
+            "deprecated": true,
+            "description": "Deprecated alias of `code` and `detail` kept in `status`, `players` and `active` failures so existing scripts keep working; read `code`, `message` and `detail` instead. It will be removed in a later major version.",
             "properties": {
               "code": {
                 "type": "string"
@@ -223,8 +224,11 @@
             },
             "type": "object"
           },
+          "key": {
+            "$ref": "#/components/schemas/ConfigKey"
+          },
           "message": {
-            "description": "Human text in the language of the daemon.",
+            "description": "Human text in the language of the daemon. Present on every failure.",
             "type": "string"
           },
           "ok": {
@@ -245,7 +249,7 @@
             "type": "string"
           },
           "target": {
-            "description": "Name or id that matched no server (`not_found`).",
+            "description": "Name or id that matched no server (`not_found`, always together with `available`).",
             "type": "string"
           }
         },
