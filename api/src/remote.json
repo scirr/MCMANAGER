@@ -15,6 +15,12 @@
               "null"
             ]
           },
+          "ip": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "ok": {
             "type": "boolean"
           },
@@ -27,6 +33,10 @@
               "string",
               "null"
             ]
+          },
+          "status": {
+            "description": "HTTP status of the answer.",
+            "type": "integer"
           }
         },
         "required": [
@@ -86,6 +96,16 @@
           },
           "roles": {
             "$ref": "#/components/schemas/DeviceRoles"
+          },
+          "servers": {
+            "description": "Servers the device may use; null means all.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -170,6 +190,16 @@
         "properties": {
           "roles": {
             "$ref": "#/components/schemas/DeviceRoles"
+          },
+          "servers": {
+            "description": "Servers the device may use; null means all.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -191,15 +221,63 @@
               "pairing_code": {
                 "description": "8 digits, single use.",
                 "type": "string"
+              },
+              "role": {
+                "enum": [
+                  "viewer",
+                  "operator",
+                  "admin"
+                ],
+                "type": "string"
+              },
+              "servers": {
+                "description": "Servers the device may use; null means all.",
+                "items": {
+                  "type": "string"
+                },
+                "type": [
+                  "array",
+                  "null"
+                ]
               }
             },
             "required": [
               "pairing_code",
-              "expires_in_s"
+              "expires_in_s",
+              "role"
             ],
             "type": "object"
           }
         ]
+      },
+      "PairCodeRequest": {
+        "properties": {
+          "name": {
+            "description": "Name given to the device when it does not send one.",
+            "type": "string"
+          },
+          "role": {
+            "default": "operator",
+            "description": "Role of the device that uses the code.",
+            "enum": [
+              "viewer",
+              "operator",
+              "admin"
+            ],
+            "type": "string"
+          },
+          "servers": {
+            "description": "Servers the device may use; absent or null means all.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
       },
       "PairRequest": {
         "properties": {
@@ -235,6 +313,16 @@
               },
               "roles": {
                 "$ref": "#/components/schemas/DeviceRoles"
+              },
+              "servers": {
+                "description": "Servers the device may use; null means all.",
+                "items": {
+                  "type": "string"
+                },
+                "type": [
+                  "array",
+                  "null"
+                ]
               },
               "token": {
                 "description": "Device token, 256 bits, returned only here and only once.",
@@ -385,21 +473,6 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "code": "not_implemented",
-                  "message": "Remote access is not available in this version.",
-                  "ok": false
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Audit log",
@@ -456,21 +529,6 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "code": "not_implemented",
-                  "message": "Remote access is not available in this version.",
-                  "ok": false
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Paired devices",
@@ -478,7 +536,9 @@
           "remote"
         ],
         "x-mcm-role": "admin",
-        "x-mcm-source": []
+        "x-mcm-source": [
+          "mc_api.remote_devices"
+        ]
       }
     },
     "/v1/devices/{device}": {
@@ -520,26 +580,14 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "code": "not_implemented",
-                  "message": "Remote access is not available in this version.",
-                  "ok": false
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Revoke a device",
@@ -547,7 +595,9 @@
           "remote"
         ],
         "x-mcm-role": "admin",
-        "x-mcm-source": []
+        "x-mcm-source": [
+          "mc_api.remote_revoke"
+        ]
       }
     },
     "/v1/devices/{device}/roles": {
@@ -625,6 +675,12 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
           "413": {
             "$ref": "#/components/responses/PayloadTooLarge"
           },
@@ -633,21 +689,6 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "code": "not_implemented",
-                  "message": "Remote access is not available in this version.",
-                  "ok": false
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Set the roles of a device",
@@ -655,12 +696,14 @@
           "remote"
         ],
         "x-mcm-role": "admin",
-        "x-mcm-source": []
+        "x-mcm-source": [
+          "mc_api.remote_set_roles"
+        ]
       }
     },
     "/v1/pair": {
       "post": {
-        "description": "No bearer token needed. `bad_pair_code` (422). Ten failures from one IP lock pairing for 15 minutes (429 `pair_locked`). New devices get the default role `viewer`; an admin raises it.",
+        "description": "No bearer token needed. `bad_pair_code` (422) for a wrong, expired or used code. Ten failures from one IP lock pairing for 15 minutes (429 `pair_locked`). The new device gets the role and servers chosen when the code was created (default role `operator`, all servers); an admin changes them with `PUT /v1/devices/{device}/roles`.",
         "operationId": "pairDevice",
         "requestBody": {
           "content": {
@@ -686,7 +729,7 @@
                   "fingerprint": "9F:2A:...:C1",
                   "ok": true,
                   "roles": {
-                    "default": "viewer"
+                    "default": "operator"
                   },
                   "schema": 1,
                   "token": "mcm_Zk3x...redacted"
@@ -712,21 +755,6 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "code": "not_implemented",
-                  "message": "Remote access is not available in this version.",
-                  "ok": false
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "security": [],
@@ -735,13 +763,31 @@
           "remote"
         ],
         "x-mcm-role": "viewer",
-        "x-mcm-source": []
+        "x-mcm-source": [
+          "mc_api.remote_pair"
+        ]
       }
     },
     "/v1/pair/codes": {
       "post": {
-        "description": "Local socket only. The code is valid 5 minutes and single use.",
+        "description": "Local socket only (403 from a remote device). The code is valid 5 minutes and single use; a new code replaces the previous one. Five wrong codes in a row cancel it.",
         "operationId": "createPairingCode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "role": "operator",
+                "servers": [
+                  "survie"
+                ]
+              },
+              "schema": {
+                "$ref": "#/components/schemas/PairCodeRequest"
+              }
+            }
+          },
+          "required": false
+        },
         "responses": {
           "201": {
             "content": {
@@ -751,7 +797,9 @@
                   "expires_in_s": 300,
                   "ok": true,
                   "pairing_code": "48201937",
-                  "schema": 1
+                  "role": "operator",
+                  "schema": 1,
+                  "servers": null
                 },
                 "schema": {
                   "$ref": "#/components/schemas/PairCode"
@@ -760,32 +808,26 @@
             },
             "description": "Success."
           },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "422": {
+            "$ref": "#/components/responses/Unprocessable"
+          },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "code": "not_implemented",
-                  "message": "Remote access is not available in this version.",
-                  "ok": false
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Generate a pairing code",
@@ -793,7 +835,9 @@
           "remote"
         ],
         "x-mcm-role": "admin",
-        "x-mcm-source": []
+        "x-mcm-source": [
+          "mc_api.remote_pair_code"
+        ]
       }
     },
     "/v1/remote": {
@@ -831,21 +875,6 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "code": "not_implemented",
-                  "message": "Remote access is not available in this version.",
-                  "ok": false
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Remote access status",
@@ -854,7 +883,7 @@
         ],
         "x-mcm-role": "admin",
         "x-mcm-source": [
-          "mc_ipc.daemon_listening"
+          "mc_api.remote_status"
         ]
       },
       "put": {
@@ -918,21 +947,6 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
-          },
-          "501": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "code": "not_implemented",
-                  "message": "Remote access is not available in this version.",
-                  "ok": false
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            },
-            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Enable or disable remote access",
@@ -940,7 +954,9 @@
           "remote"
         ],
         "x-mcm-role": "admin",
-        "x-mcm-source": []
+        "x-mcm-source": [
+          "mc_api.remote_access"
+        ]
       }
     }
   }
