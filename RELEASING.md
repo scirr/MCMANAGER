@@ -23,8 +23,7 @@ exists; a failed run creates nothing and can simply be run again.
 
 The release signing key is an Ed25519 key pair:
 
-- the **public key** is embedded in `core/mc_update.py` and
-  `Windows/mc_update.py` (`RELEASE_PUBLIC_KEY`, identical in both);
+- the **public key** is embedded in `core/mc_update.py` (`RELEASE_PUBLIC_KEY`);
 - the **private key** exists only as the repository secret
   `RELEASE_SIGNING_KEY` (Settings → Secrets and variables → Actions →
   New repository secret), 64 hexadecimal characters. It is never committed
@@ -46,11 +45,10 @@ updates signed with the new one: they must be updated once by hand
 
 ## Publishing a version
 
-### 1. Bump the version — same value in both files
+### 1. Bump the version
 
 | File | Field | Example |
 |---|---|---|
-| `Windows/mc_lang.py` | `VERSION` | `"2.7.0"` |
 | `core/mc_lang.py` | `VERSION` | `"2.7.0"` |
 
 Bug fix → bump the last digit. New feature → bump the middle one.

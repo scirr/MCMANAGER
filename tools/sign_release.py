@@ -46,7 +46,7 @@ def generate():
     key = Ed25519PrivateKey.generate()
     seed = key.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw,
                              serialization.NoEncryption())
-    print("Public key (RELEASE_PUBLIC_KEY in Linux/ and Windows/mc_update.py):")
+    print("Public key (RELEASE_PUBLIC_KEY in core/mc_update.py):")
     print(_raw_public(key).hex())
     print("Private key (GitHub secret RELEASE_SIGNING_KEY, never commit it):")
     print(seed.hex())

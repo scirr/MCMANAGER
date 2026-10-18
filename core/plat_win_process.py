@@ -13,7 +13,7 @@ CREATE_NEW_PROCESS_GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200
 DETACHED_PROCESS = getattr(subprocess, "DETACHED_PROCESS", 0x8)
 
 _CIM_JAVA = ("ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process "
-             "-Filter \"Name='java.exe' OR Name='javaw.exe'\" | "
+             "-Filter \"Name='java.exe' OR Name='javaw.exe' OR Name='cmd.exe'\" | "
              "Select-Object ProcessId,ParentProcessId,Name,CommandLine)")
 _CIM_PID = ("ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_Process "
             "-Filter \"ProcessId=%d\" | Select-Object ProcessId,ParentProcessId,Name,"
@@ -77,16 +77,41 @@ def command_line_has_marker(command_line, server_dir):
         start = end
 
 
+def _read_pid_file(server_dir):
+    try:
+        with open(os.path.join(server_dir, "server.pid"), encoding="utf-8") as f:
+            return int(f.read().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def _is_script_wrapper(row, server_dir, script, recorded_pid):
+    if str(row.get("Name", "")).lower() != "cmd.exe":
+        return False
+    line = (row.get("CommandLine") or "").replace("/", "\\").lower()
+    if not script or script.lower() not in line:
+        return False
+    absolute = _norm_dir(os.path.join(server_dir, script)).lower()
+    return absolute in line or row.get("ProcessId") == recorded_pid
+
+
 def find_server_processes(server_dir):
     if not server_dir:
         return []
     rows = _cim_rows(_CIM_JAVA)
     me = os.getpid()
+    by_pid = {row["ProcessId"]: row for row in rows or [] if isinstance(row.get("ProcessId"), int)}
+    script = server_script_name()
+    recorded = _read_pid_file(server_dir)
     pids = set()
-    for row in rows or []:
-        pid = row.get("ProcessId")
-        if isinstance(pid, int) and pid != me and \
-                command_line_has_marker(row.get("CommandLine"), server_dir):
+    for pid, row in by_pid.items():
+        if pid == me or not str(row.get("Name", "")).lower().startswith("java"):
+            continue
+        if command_line_has_marker(row.get("CommandLine"), server_dir):
+            pids.add(pid)
+            continue
+        parent = by_pid.get(row.get("ParentProcessId"))
+        if parent is not None and _is_script_wrapper(parent, server_dir, script, recorded):
             pids.add(pid)
     return sorted(pids)
 
@@ -240,6 +265,10 @@ def server_script_name():
 
 def script_launch_args(script):
     return ["cmd", "/c", script, "nogui"]
+
+
+def launch_args_name():
+    return "win_args.txt"
 
 
 def spawn_server(cmd, cwd, env=None, log=None):

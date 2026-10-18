@@ -788,7 +788,7 @@ def main():
         return
 
     if args.action == "version":
-        print(f"MC Manager v{VERSION} (Linux)")
+        print(f"MC Manager v{VERSION} ({plat.os_name()})")
         return
 
     if args.action == "language":

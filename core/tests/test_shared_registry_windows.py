@@ -1,5 +1,5 @@
 """
-test_shared_registry.py — Portable, cross-OS server paths (Windows).
+test_shared_registry_windows.py — Portable server paths under Windows path rules.
 
 Verifies that server folders living under the registry directory are stored as
 relative, forward-slash paths (so the same servers.json resolves on Windows and
@@ -22,7 +22,7 @@ _MOCK_REG_DIR = _CWD_DRIVE + "\\MCData"
 _NT_OS = types.SimpleNamespace(path=ntpath, sep="\\", pardir="..")
 
 
-class SharedRegistryPathTests(unittest.TestCase):
+class WindowsRegistryPathTests(unittest.TestCase):
     def setUp(self):
         self._saved_dir = mc_servers.REGISTRY_DIR
         mc_servers.REGISTRY_DIR = _MOCK_REG_DIR
@@ -82,28 +82,6 @@ class SharedRegistryPathTests(unittest.TestCase):
     def test_empty(self):
         self.assertEqual(mc_servers.to_portable(""), "")
         self.assertEqual(mc_servers.resolve_path(""), "")
-
-
-class NextFreeIdTests(unittest.TestCase):
-    """Server numbers fill removed gaps and restart at 1, never grow forever."""
-
-    def _servers(self, *ids):
-        return {f"s{i}": {"id": i} for i in ids}
-
-    def test_empty_starts_at_one(self):
-        self.assertEqual(mc_servers._next_free_id({}), 1)
-
-    def test_sequential(self):
-        self.assertEqual(mc_servers._next_free_id(self._servers(1)), 2)
-        self.assertEqual(mc_servers._next_free_id(self._servers(1, 2)), 3)
-
-    def test_fills_gap(self):
-        self.assertEqual(mc_servers._next_free_id(self._servers(1, 3)), 2)
-        self.assertEqual(mc_servers._next_free_id(self._servers(2, 3)), 1)
-
-    def test_reuses_after_removal(self):
-        # remove the only server -> next one is 1 again, not an ever-growing number
-        self.assertEqual(mc_servers._next_free_id(self._servers()), 1)
 
 
 if __name__ == "__main__":

@@ -607,7 +607,7 @@ def _process_wakes(sleep):
         logging.info(f"[{name}] Wake: {res['code']}.")
 
 def main():
-    logging.info("MC Manager service starting (Linux)...")
+    logging.info(f"MC Manager service starting ({plat.os_name()})...")
     mc_api.IN_DAEMON = True
     mc_servers.migrate_legacy_single_server()
     states = {}

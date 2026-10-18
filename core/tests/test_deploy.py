@@ -11,6 +11,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.dirname(__file__))
 import mc_deploy
 import mc_config
 
@@ -56,6 +57,17 @@ class DetectDefaultJarTests(unittest.TestCase):
         # Forge/NeoForge: run.sh is the launcher, no single runnable jar.
         self._touch("run.sh")
         self.assertEqual(mc_config.detect_default_jar(self.d), "run.sh")
+
+    def test_runbat_wins_over_jars_on_windows(self):
+        import mc_platform
+        from fake_platform import FakePlatform
+        saved = mc_platform._Lazy._impl
+        self.addCleanup(setattr, mc_platform._Lazy, "_impl", saved)
+        mc_platform.use(FakePlatform(server_script_name="run.bat"))
+        self._touch("run.bat")
+        self._touch("run.sh")
+        self._touch("server.jar")
+        self.assertEqual(mc_config.detect_default_jar(self.d), "run.bat")
 
     def test_single_jar(self):
         self._touch("paper-1.21.1.jar")

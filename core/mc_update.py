@@ -1,5 +1,5 @@
 """
-mc_update.py — Update check and signed self-update (Linux).
+mc_update.py — Update check and signed self-update.
 
 Every release publishes SHA256SUMS (hashes of both packages) and
 SHA256SUMS.sig, an Ed25519 signature of that file made in CI with a key that

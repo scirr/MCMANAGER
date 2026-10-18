@@ -5,7 +5,6 @@
 import os
 
 # Single source of truth for the tool version (shown by `mc version`).
-# Keep identical to Windows/mc_lang.py.
 VERSION = "2.11.0"
 
 _LANG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "language.txt")

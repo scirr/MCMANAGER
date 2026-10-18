@@ -586,6 +586,79 @@ def _sync_run_script_ram(dossier, ram):
     except Exception:
         pass  # a broken sync must never prevent the server from starting
 
+_SERVER_PROP = "-Dmcmanager.server="
+
+
+def is_run_script(jar_name):
+    ext = os.path.splitext(plat.server_script_name())[1].lower()
+    return str(jar_name).lower().endswith(ext)
+
+
+def _to_windows_args(text):
+    out = []
+    after_p = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if after_p:
+            line = line.replace(":", ";")
+            after_p = False
+        elif stripped in ("-p", "--module-path"):
+            after_p = True
+        elif stripped.startswith(("-p ", "--module-path ")) or stripped.startswith("-DlegacyClassPath="):
+            line = line.replace(":", ";")
+        out.append(line)
+    return "\n".join(out) + "\n"
+
+
+def find_args_file(dossier):
+    """Relative path of the Forge/NeoForge launch arguments file for this
+    system, generating win_args.txt from unix_args.txt when it is missing.
+    None when the server has no such file (legacy Forge)."""
+    wanted = plat.launch_args_name()
+    root = os.path.join(dossier, "libraries")
+    for base, _dirs, files in os.walk(root):
+        if wanted in files:
+            return os.path.relpath(os.path.join(base, wanted), dossier).replace(os.sep, "/")
+        if wanted == "win_args.txt" and "unix_args.txt" in files:
+            try:
+                with open(os.path.join(base, "unix_args.txt"), encoding="utf-8") as f:
+                    text = f.read()
+                with open(os.path.join(base, wanted), "w", encoding="utf-8", newline="\n") as f:
+                    f.write(_to_windows_args(text))
+            except OSError:
+                return None
+            return os.path.relpath(os.path.join(base, wanted), dossier).replace(os.sep, "/")
+    return None
+
+
+def _with_marker_env(env, dossier):
+    marker = '"' + _SERVER_PROP + os.path.abspath(dossier) + '"' if " " in os.path.abspath(dossier) \
+        else _SERVER_PROP + os.path.abspath(dossier)
+    env["JDK_JAVA_OPTIONS"] = (env.get("JDK_JAVA_OPTIONS", "") + " " + marker).strip()
+
+
+def build_launch_args(config, java_exe, dossier):
+    """Command line for the server. Forge/NeoForge run java directly on their
+    argument files; a server without them keeps the run script."""
+    ram = config.get("ram_allocation", DEFAULT_RAM)
+    java_flags = config.get("java_flags", DEFAULT_JAVA_FLAGS)
+    jar_name = config.get("jar_name", DEFAULT_JAR_NAME)
+    marker = _SERVER_PROP + os.path.abspath(dossier)
+    if is_run_script(jar_name):
+        _sync_run_script_ram(dossier, ram)
+        args_file = find_args_file(dossier)
+        if args_file:
+            return [java_exe, marker, "@user_jvm_args.txt", "@" + args_file, "nogui"], True
+        return plat.script_launch_args(jar_name), False
+    args = [java_exe] + java_flags.split() + [
+        marker, f"-Xms{ram}", f"-Xmx{ram}",
+        "-jar", os.path.join(dossier, jar_name),
+    ]
+    if not is_proxy(config):
+        args.append("nogui")
+    return args, True
+
+
 def is_hold_mode(config):
     return config.get("sleep_join_mode") == "hold" and config.get("sleep_enabled", 0) == 1
 
@@ -789,8 +862,6 @@ def start_server(config, send_webhook=True):
     except Exception:
         cpu_set = None
 
-    ram = config.get("ram_allocation", DEFAULT_RAM)
-    java_flags = config.get("java_flags", DEFAULT_JAVA_FLAGS)
     jar_name = config.get("jar_name", DEFAULT_JAR_NAME)
     java_exe = find_java(config)
 
@@ -798,24 +869,9 @@ def start_server(config, send_webhook=True):
     logging.info(f"Folder: {dossier}")
     logging.info(f"JAR: {jar_name}")
 
-    if jar_name.endswith(".sh"):
-        # Forge/NeoForge: run.sh handles its own JVM invocation, reading its
-        # heap settings from user_jvm_args.txt — so ram_allocation has to be
-        # pushed into that file rather than passed on the command line.
-        # bash stays alive while java runs, so PID tracking works correctly.
-        # "nogui" is forwarded (via run.sh's $@) to the Minecraft server so it
-        # starts headless — otherwise it opens its Swing GUI window, and closing
-        # that window kills the server. Interact through 'mc console' instead.
-        _sync_run_script_ram(dossier, ram)
-        launch_args = plat.script_launch_args(jar_name)
+    launch_args, direct = build_launch_args(config, java_exe, dossier)
+    if not direct:
         logging.info(f"Forge/NeoForge launch via script: {jar_name}")
-    else:
-        launch_args = [java_exe] + java_flags.split() + [
-            f"-Xms{ram}", f"-Xmx{ram}",
-            "-jar", os.path.join(dossier, jar_name),
-        ]
-        if not is_proxy(config):
-            launch_args.append("nogui")
 
     # run.sh (Forge/NeoForge) calls plain 'java': put the server's runtime
     # first on PATH so it is the one used.
@@ -823,6 +879,9 @@ def start_server(config, send_webhook=True):
     if os.path.isabs(java_exe):
         env["JAVA_HOME"] = os.path.dirname(os.path.dirname(java_exe))
         env["PATH"] = os.path.dirname(java_exe) + os.pathsep + env.get("PATH", "")
+
+    if not direct:
+        _with_marker_env(env, dossier)
 
     try:
         proc = plat.spawn_server(launch_args, dossier, env)

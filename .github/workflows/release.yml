@@ -43,7 +43,7 @@ jobs:
           else
             tag="v$version"
           fi
-          for f in core/mc_lang.py Windows/mc_lang.py; do
+          for f in core/mc_lang.py; do
             found=$(sed -n 's/^VERSION = "\(.*\)"$/\1/p' "$f")
             if [ "v$found" != "$tag" ]; then
               echo "::error file=$f::VERSION is $found, the release is $tag"
@@ -82,7 +82,7 @@ jobs:
             dir: core
           - platform: Windows
             os: windows-latest
-            dir: Windows
+            dir: core
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
