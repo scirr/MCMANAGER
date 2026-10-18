@@ -9,17 +9,17 @@ permissions:
 
 jobs:
   tests:
-    name: Tests (${{ matrix.platform }})
+    name: Tests (${{ matrix.platform }}, Python ${{ matrix.python }})
     strategy:
       fail-fast: false
       matrix:
+        python: ["3.12", "3.14"]
+        os: [ubuntu-latest, windows-latest]
         include:
-          - platform: Linux
-            os: ubuntu-latest
-            dir: core
-          - platform: Windows
-            os: windows-latest
-            dir: core
+          - os: ubuntu-latest
+            platform: Linux
+          - os: windows-latest
+            platform: Windows
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -27,9 +27,9 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
       - name: Unit tests
-        working-directory: ${{ matrix.dir }}
+        working-directory: core
         run: python -m unittest discover tests
 
   checks:

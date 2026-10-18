@@ -1,0 +1,28 @@
+
+Nom de la rŠgleÿ:                     ExampleÿBrowser (mDNS-In)
+----------------------------------------------------------------------
+Activ‚ÿ:                              Oui
+Directionÿ:                           Actif
+Profiles :                            Domaine,Priv‚,Public
+Groupementÿ:                          Example Browser
+LocalIPÿ:                             Tout
+RemoteIPÿ:                            Tout
+Protocoleÿ:                           UDP
+LocalPortÿ:                           5353
+RemotePortÿ:                          Tout
+Travers‚e lat‚raleÿ:                  Non
+Actionÿ:                              Autoriser
+
+Nom de la rŠgleÿ:                     Example App
+----------------------------------------------------------------------
+Activ‚ÿ:                              Oui
+Directionÿ:                           Actif
+Profiles :                            Domaine,Priv‚,Public
+Groupementÿ:                          {78E1CD88-49E3-476E-B926-580E596AD309}
+LocalIPÿ:                             Tout
+RemoteIPÿ:                            Tout
+Protocoleÿ:                           TCP
+LocalPortÿ:                           Tout
+RemotePortÿ:                          Tout
+Travers‚e lat‚raleÿ:                  Non
+Actionÿ:                              Autoriser

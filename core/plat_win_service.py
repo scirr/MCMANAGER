@@ -99,10 +99,29 @@ def _state_from_value(value):
         return None
     if isinstance(value, int):
         return _STATE_BY_NUMBER.get(value)
-    return _STATE_BY_NAME.get(str(value).strip().lower())
+    text = str(value).strip().lower()
+    if text.isdigit():
+        return _STATE_BY_NUMBER.get(int(text))
+    return _STATE_BY_NAME.get(text)
 
 
-def parse_powershell_state(text):
+_START_BY_NAME = {"automatic": "automatic", "automaticdelayedstart": "automatic",
+                  "manual": "manual", "disabled": "disabled", "boot": "boot", "system": "system"}
+_START_BY_NUMBER = {0: "boot", 1: "system", 2: "automatic", 3: "manual", 4: "disabled"}
+
+
+def parse_start_type(value):
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, int):
+        return _START_BY_NUMBER.get(value)
+    text = str(value).strip().lower().replace(" ", "").replace("(", "").replace(")", "")
+    if text.isdigit():
+        return _START_BY_NUMBER.get(int(text))
+    return _START_BY_NAME.get(text)
+
+
+def parse_powershell_state(text, name=SERVICE_NAME):
     text = (text or "").strip()
     if not text:
         return "absent"
@@ -111,7 +130,7 @@ def parse_powershell_state(text):
     except ValueError:
         return None
     for entry in entries:
-        if isinstance(entry, dict) and str(entry.get("Name", "")).lower() == SERVICE_NAME.lower():
+        if isinstance(entry, dict) and str(entry.get("Name", "")).lower() == name.lower():
             return _state_from_value(entry.get("Status"))
     return "absent"
 

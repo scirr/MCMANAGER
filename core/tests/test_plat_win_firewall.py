@@ -55,7 +55,8 @@ class TestNames(unittest.TestCase):
 
     def test_only_prefixed_names_are_ours(self):
         self.assertTrue(fw.is_ours("MC Manager a b 1/udp"))
-        self.assertFalse(fw.is_ours("MCManager - Port 25565"))
+        self.assertTrue(fw.is_ours("MCManager - Port 25565"))
+        self.assertFalse(fw.is_ours("MCManager - Port x"))
         self.assertFalse(fw.is_ours("Minecraft 25565/tcp"))
         self.assertFalse(fw.is_ours("MC Manager sans port"))
 

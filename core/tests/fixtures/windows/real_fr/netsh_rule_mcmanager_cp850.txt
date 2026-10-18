@@ -1,0 +1,15 @@
+
+Nom de la rŠgleÿ:                     MCManager - Port 25565
+----------------------------------------------------------------------
+Activ‚ÿ:                              Oui
+Directionÿ:                           Actif
+Profiles :                            Domaine,Priv‚,Public
+Groupementÿ:
+LocalIPÿ:                             Tout
+RemoteIPÿ:                            Tout
+Protocoleÿ:                           TCP
+LocalPortÿ:                           25565
+RemotePortÿ:                          Tout
+Travers‚e lat‚raleÿ:                  Non
+Actionÿ:                              Autoriser
+Ok.
