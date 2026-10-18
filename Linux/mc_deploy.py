@@ -9,7 +9,6 @@ import os
 import secrets
 import shutil
 import subprocess
-import re
 import sys
 import urllib.request
 import urllib.parse

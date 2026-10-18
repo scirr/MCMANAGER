@@ -259,7 +259,8 @@ def pregen(config, radius, center=None, rcon=None):
         return result(False, "invalid_radius", radius=radius)
     if rcon is None:
         import mc_api
-        rcon = lambda cfg, cmd: mc_api.rcon_exec(cfg, cmd, wait=mc_api.RCON_RETRY)
+        def rcon(cfg, cmd):
+            return mc_api.rcon_exec(cfg, cmd, wait=mc_api.RCON_RETRY)
     commands = []
     if center:
         commands.append(f"chunky center {center[0]} {center[1]}")
@@ -282,7 +283,8 @@ def pregen_progress(config, rcon=None):
         return result(False, "pregen_offline")
     if rcon is None:
         import mc_api
-        rcon = lambda cfg, cmd: mc_api.rcon_exec(cfg, cmd, wait=mc_api.RCON_RETRY)
+        def rcon(cfg, cmd):
+            return mc_api.rcon_exec(cfg, cmd, wait=mc_api.RCON_RETRY)
     ok, reply = rcon(config, "chunky progress")
     if not ok:
         return result(False, "rcon_failed", detail=reply)

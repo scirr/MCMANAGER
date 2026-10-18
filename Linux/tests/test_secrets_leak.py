@@ -17,7 +17,6 @@ import mc_alert
 import mc_api
 import mc_backup
 import mc_cli
-import mc_config
 
 SECRETS = {
     "rcon": "LEAK-rcon-pass-91",

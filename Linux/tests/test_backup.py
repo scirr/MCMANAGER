@@ -312,7 +312,7 @@ class TestBackupServer(Server):
 
     def test_failed_zip_thaws_and_reports(self):
         with mock.patch.object(mc_core, "is_server_running", return_value=True), \
-                mock.patch.object(mc_core, "send_rcon", return_value=True) as rcon, \
+                mock.patch.object(mc_core, "send_rcon", return_value=True), \
                 mock.patch.object(mc_core.time, "sleep"), \
                 mock.patch("zipfile.ZipFile", side_effect=OSError("full")):
             ok, _ = mc_core.backup_server(self.config)

@@ -252,8 +252,9 @@ class TestCli(unittest.TestCase):
 
     def test_unknown_server_is_not_found_and_bad_interval_is_usage(self):
         env = dict(os.environ, MCMANAGER_DATA_DIR=tempfile.mkdtemp(), NO_COLOR="1")
-        run = lambda *a: subprocess.run([sys.executable, os.path.join(APP, "mc_cli.py"), *a], capture_output=True,
-                                        text=True, env=env, stdin=subprocess.DEVNULL, timeout=60)
+        def run(*a):
+            return subprocess.run([sys.executable, os.path.join(APP, "mc_cli.py"), *a], capture_output=True,
+                                                text=True, env=env, stdin=subprocess.DEVNULL, timeout=60)
         self.assertEqual(run("status-page", "enable", "zz", "--json").returncode, 3)
         self.assertEqual(run("status-page", "enable", "--interval", "abc").returncode, 2)
 
