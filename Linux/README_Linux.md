@@ -902,6 +902,25 @@ mc alert remove telegram
 
 ---
 
+## Local API
+
+The service answers an HTTP/JSON API described by `openapi.json` (shipped next to the program). It listens
+on a private Unix socket, `run/api.sock` in the program folder (mode 0600, removed when the service stops);
+no token is needed, the file permissions are the protection.
+
+```bash
+mc api status [--json]      # enabled, listening, socket path
+mc api disable              # stop listening (the option lives in api.json)
+mc api enable
+curl --unix-socket ~/MCManager/run/api.sock http://localhost/v1
+curl --unix-socket ~/MCManager/run/api.sock http://localhost/v1/servers
+```
+
+Every `GET` returns the same document as the matching `mc ... --json` command. Long operations (backup,
+restore, upgrade, modpack, world export...) answer `202` with a `Location: /v1/jobs/<id>` to poll;
+`GET /v1/events` and `GET /v1/servers/<server>/console` are Server-Sent Events. Bodies are limited to 1 MiB.
+Secrets are never returned. Remote access (pairing, devices) answers `501` for now.
+
 ## Automatic updates
 
 MC Manager checks the latest published release in the background (throttled to once every few hours, silent if offline). When a newer version exists, every `mc` command shows a discreet line:
