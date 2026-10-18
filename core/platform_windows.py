@@ -135,7 +135,7 @@ def java_search_paths():
     if not roots:
         roots = [r"C:\Program Files"]
     names = ("Java", "Eclipse Adoptium", "Microsoft", "BellSoft")
-    return [ntpath.join(root, name, "**", "java.exe") for root in roots for name in names]
+    return [ntpath.join(root, name, "*", "bin", "java.exe") for root in roots for name in names]
 
 
 def os_name():

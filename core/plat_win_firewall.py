@@ -7,8 +7,10 @@ import plat_win_files as files
 
 RULE_PREFIX = "MC Manager "
 _NAME = re.compile(r"^MC Manager (.+) (\d+)/(tcp|udp)$", re.IGNORECASE)
+_LEGACY = re.compile(r"^MCManager - Port (\d+)$", re.IGNORECASE)
 _ERR_DENIED = 5
 _BLOCK_WORDS = {"block", "bloquer", "bloquear", "blockieren", "bloccare", "bloqueia"}
+_OUT_WORDS = {"out", "outbound", "sortant", "sortante", "ausgehend", "saliente", "uscita", "saida", "saída"}
 _NO_WORDS = {"no", "non", "nein", "nao", "não"}
 
 _LIST_SCRIPT = (
@@ -22,7 +24,7 @@ _LIST_SCRIPT = (
     "} catch { if ($_.CategoryInfo.Category -eq 'PermissionDenied' -or $_.Exception.HResult -eq -2147024891) "
     "{ exit 5 }; Write-Error $_; exit 1 }"
 )
-_SELECT_OURS = "-DisplayName 'MC Manager *'"
+_SELECT_OURS = "-DisplayName 'MC Manager *','MCManager - Port *'"
 _SELECT_ALLOWING = "-Direction Inbound -Action Allow -Enabled True"
 
 
@@ -40,9 +42,12 @@ def rule_name(label, port, proto="tcp"):
 
 def parse_rule_name(name):
     m = _NAME.match(name or "")
-    if not m:
-        return None
-    return m.group(1), int(m.group(2)), m.group(3).lower()
+    if m:
+        return m.group(1), int(m.group(2)), m.group(3).lower()
+    m = _LEGACY.match(name or "")
+    if m:
+        return "MCManager", int(m.group(1)), "tcp"
+    return None
 
 
 def is_ours(name):
@@ -63,7 +68,7 @@ def _bool(value):
         return value
     if isinstance(value, int):
         return value == 1
-    return str(value).strip().lower() in ("true", "1", "yes")
+    return str(value).strip().lower() in ("true", "1", "yes", "oui", "ja", "si", "sim")
 
 
 def _entry(raw):
@@ -78,8 +83,8 @@ def _entry(raw):
         "id": str(raw.get("Name", "")),
         "name": str(raw.get("DisplayName", "")),
         "enabled": _bool(raw.get("Enabled")),
-        "inbound": direction in (1, "1") or str(direction).lower() == "inbound",
-        "allow": action in (2, "2") or str(action).lower() == "allow",
+        "inbound": str(direction).strip().lower() in ("1", "inbound"),
+        "allow": str(action).strip().lower() in ("2", "allow"),
         "proto": str(raw.get("Protocol", "")).lower(),
         "ports": [str(p) for p in ports],
     }
@@ -131,7 +136,7 @@ def _close(block, rules):
     rules.append({
         "id": block["name"], "name": block["name"],
         "enabled": v[0].lower() not in _NO_WORDS,
-        "inbound": True,
+        "inbound": v[1].lower() not in _OUT_WORDS,
         "allow": v[-1].lower() not in _BLOCK_WORDS,
         "proto": v[6].lower(),
         "ports": [p.strip() for p in v[7].split(",") if p.strip()],
@@ -164,7 +169,7 @@ def list_rules(only_ours=True):
         if rules is None:
             return None
         if only_ours:
-            rules = [r for r in rules if r["name"].startswith(RULE_PREFIX)]
+            rules = [r for r in rules if is_ours(r["name"])]
         else:
             rules = [r for r in rules if r["enabled"] and r["allow"]]
     if only_ours:

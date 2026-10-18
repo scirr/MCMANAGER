@@ -5,7 +5,7 @@ import sys
 
 from mc_platform import Unsupported
 
-__all__ = ["Unsupported", "is_windows", "run", "run_powershell"]
+__all__ = ["Unsupported", "decode_output", "is_windows", "run", "run_powershell"]
 
 
 def is_windows():
@@ -20,6 +20,22 @@ def _codec(encoding):
         return "cp850" if encoding == "oem" else "utf-8"
 
 
+def decode_output(data, encoding="oem"):
+    if isinstance(data, str):
+        return data
+    data = data or b""
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        pass
+    wanted = str(encoding or "oem").lower().replace("_", "-")
+    codec = _codec("oem" if wanted in ("utf-8", "utf8", "oem") else encoding)
+    try:
+        return data.decode(codec)
+    except (UnicodeDecodeError, LookupError):
+        return data.decode("cp850", errors="replace")
+
+
 def _exec(cmd, timeout, encoding):
     kwargs = {}
     if is_windows():
@@ -32,10 +48,7 @@ def _exec(cmd, timeout, encoding):
         return 124, "", "timeout"
     except OSError as e:
         return 126, "", str(e)
-    codec = _codec(encoding)
-    out = (result.stdout or b"").decode(codec, errors="replace")
-    err = (result.stderr or b"").decode(codec, errors="replace")
-    return result.returncode, out.lstrip("﻿"), err
+    return result.returncode, decode_output(result.stdout, encoding).lstrip("﻿"), decode_output(result.stderr, encoding)
 
 
 def run(cmd, timeout=20, encoding="oem"):

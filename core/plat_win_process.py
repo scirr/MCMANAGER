@@ -1,4 +1,5 @@
 import csv
+import datetime
 import io
 import json
 import os
@@ -146,6 +147,15 @@ def parse_tasklist_csv(text):
     return rows
 
 
+def parse_tasklist_memory(text):
+    rows = []
+    for row in csv.reader(io.StringIO(text or "")):
+        if len(row) >= 5 and row[1].strip().isdigit():
+            digits = "".join(ch for ch in row[4] if ch.isdigit())
+            rows.append((row[0], int(row[1]), int(digits) if digits else None))
+    return rows
+
+
 def _tasklist(pid):
     rc, out, _ = run(["tasklist", "/FI", "PID eq %d" % int(pid), "/FO", "CSV", "/NH"])
     if rc != 0:
@@ -175,20 +185,34 @@ def process_name(pid):
 def _parse_start(value):
     if isinstance(value, (int, float)):
         return float(value)
+    if isinstance(value, dict):
+        return _parse_start(value.get("value"))
     if isinstance(value, str):
+        value = value.strip()
         m = re.search(r"Date\((-?\d+)", value)
         if m:
             return int(m.group(1)) / 1000.0
         try:
             return float(value)
         except ValueError:
+            pass
+        try:
+            moment = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
             return None
+        if moment.tzinfo is None:
+            moment = moment.astimezone()
+        return moment.timestamp()
     return None
 
 
 def process_uptime(pid):
     info = _cim_info(pid)
-    start = _parse_start(info.get("Start")) if info else None
+    start = None
+    if info:
+        start = _parse_start(info.get("Start"))
+        if start is None:
+            start = _parse_start(info.get("CreationDate"))
     if start is None:
         return None
     return max(0.0, _now() - start)
