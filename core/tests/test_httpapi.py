@@ -95,14 +95,12 @@ class TestUnixSocket(ApiCase):
             status, body, _ = self.client.request("GET", f"/v1/servers/{ref}")
             self.assertEqual((status, body["name"]), (200, "a"), ref)
 
-    def test_remote_operations_answer_501(self):
+    def test_remote_operations_are_served_by_the_local_listener_too(self):
         for operation_id in mc_apiops.REMOTE_OPERATIONS:
-            route = next(r for r in mc_httpapi.build_routes(SPEC) if r.operation_id == operation_id)
-            path = route.template.replace("{device}", "d1")
-            status, body, _ = self.client.request(route.method, path, body={"code": "1", "name": "n", "roles": {"default": "viewer"},
-                                                                              "enabled": False})
-            self.assertEqual((status, body["code"]), (501, "not_implemented"), operation_id)
-            self.assertEqual(validate_strict(body, ERROR), [])
+            self.assertNotEqual(mc_apiops.HANDLERS[operation_id].__name__, "not_implemented", operation_id)
+        status, body, _ = self.client.request("GET", "/v1/remote")
+        self.assertEqual((status, body["code"], body["enabled"]), (200, "remote_status", False))
+        self.assertEqual(validate_strict(body, resolve_response("getRemoteStatus")), [])
 
     def test_no_traceback_in_an_internal_error_and_the_server_goes_on(self):
         with mock.patch.object(mc_api, "status_document", side_effect=RuntimeError("secret detail")):
@@ -451,7 +449,7 @@ class TestContractConformity(unittest.TestCase):
         for route in mc_httpapi.build_routes(SPEC):
             self.assertEqual(route.success, min(int(c) for c in route.operation["responses"] if c[0] == "2"))
 
-    def test_only_the_remote_group_answers_501(self):
+    def test_the_remote_group_is_listed(self):
         remote = {op["operationId"] for op in OPERATIONS.values() if op["tags"] == ["remote"]}
         self.assertEqual(remote, set(mc_apiops.REMOTE_OPERATIONS))
         self.assertEqual(len(OPERATIONS) - len(remote), 88)
@@ -459,7 +457,8 @@ class TestContractConformity(unittest.TestCase):
     def test_build_package_ships_the_contract(self):
         sys.path.insert(0, os.path.join(ROOT, "Linux"))
         import build_release
-        for name in ("openapi.json", "mc_httpapi.py", "mc_apiops.py", "mc_jobs.py"):
+        for name in ("openapi.json", "mc_httpapi.py", "mc_apiops.py", "mc_jobs.py", "mc_remote.py",
+                     "mc_remoteserver.py", "mc_remoteclient.py"):
             self.assertIn(name, build_release.PACKAGE_FILES)
             self.assertTrue(os.path.exists(build_release.source_path(name)))
         self.assertTrue(os.path.exists(mc_httpapi.spec_path()))

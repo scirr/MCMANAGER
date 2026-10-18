@@ -73,6 +73,9 @@ MC_Manager/
 │   ├── mc_httpapi.py   # local HTTP API server (Unix socket / loopback + token)
 │   ├── mc_apiops.py    # one handler per operation of the API contract
 │   ├── mc_jobs.py      # in-memory registry of long API operations
+│   ├── mc_remote.py    # remote access state: TLS certificate, devices, pairing, roles, audit
+│   ├── mc_remoteserver.py # TLS 1.3 listener of the remote API
+│   ├── mc_remoteclient.py # client side: profiles, pinned fingerprint, `mc --remote`
 │   ├── mc_proxy.py     # TCP relay, connection limits, CIDR and banned IP filters
 │   ├── mc_router.py    # hostname routing and private router configuration
 │   ├── mc_protocol.py  # Minecraft network protocol (VarInt, handshake, status, login)

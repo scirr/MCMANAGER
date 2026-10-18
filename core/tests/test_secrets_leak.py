@@ -46,6 +46,7 @@ COVERED = {
     "sleep": [["sleep", "status"]],
     "status-page": [["status-page", "disable"]],
     "api": [["api", "status"]],
+    "remote": [["remote", "status"], ["remote", "devices", "list"], ["remote", "profiles"]],
     "router": [["router", "status"]],
     "datapack": [["datapack", "list"]],
     "mod": [["mod", "list"]],
