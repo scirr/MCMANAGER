@@ -204,6 +204,10 @@
               "has_issues": {
                 "type": "boolean"
               },
+              "message": {
+                "description": "Present when the report is not ok (`ok:false`).",
+                "type": "string"
+              },
               "warnings": {
                 "type": "integer"
               }

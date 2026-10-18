@@ -1032,6 +1032,21 @@ def upgrade(name, config, target="latest", progress=None):
                   mods_hint=loader in mc_software.MOD_LOADERS + mc_software.PLUGIN_LOADERS)
 
 
+def curseforge_key(config=None):
+    """The CurseForge API key: the server's, else any server's, else the
+    CURSEFORGE_API_KEY environment variable."""
+    if config and config.get("curseforge_api_key"):
+        return config["curseforge_api_key"]
+    for info in mc_servers.list_servers().values():
+        try:
+            key = mc_config.load_config(info.get("dossier_serveur", "")).get("curseforge_api_key")
+        except mc_servers.DataFileError:
+            continue
+        if key:
+            return key
+    return os.environ.get("CURSEFORGE_API_KEY")
+
+
 def modpack_install(source, name=None, folder=None, port=None, rcon_port=None, ram="6G",
                     accept_eula=False, curseforge_key=None, progress=None):
     """Create a new server from a modpack."""

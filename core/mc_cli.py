@@ -431,6 +431,7 @@ def print_categorized_help():
             (f"sleep allow|deny <{T['arg_player']}> [{tgt}]", T["help_sleep_allow"]),
             ("metrics serve [--bind 127.0.0.1:9225]", T["help_metrics"]),
             (f"status-page enable|disable [{tgt}] [--dir D] [--interval 60]", T["help_status_page"]),
+            ("api status|enable|disable [--json]", T["help_api"]),
             (f"announce [{tgt}]", T["help_announce"]),
             (f"fingerprint [{tgt}]", T["help_fingerprint"]),
         ]),
@@ -594,6 +595,9 @@ def build_parser():
     p_sp.add_argument("--interval", default=None, metavar="SECONDS", help=T["help_status_page_interval"])
     p_sp.add_argument("--show-players", action="store_true", help=T["help_status_page_players"])
     p_sp.add_argument("--json", action="store_true", help=T["help_json"])
+    p_api = subparsers.add_parser("api", help=T["help_api"])
+    p_api.add_argument("api_action", choices=["status", "enable", "disable"])
+    p_api.add_argument("--json", action="store_true", help=T["help_json"])
     p_router = subparsers.add_parser("router", help=T["help_router"])
     p_router.add_argument("router_action", choices=["enable", "disable", "status", "route", "default", "allow", "deny"])
     p_router.add_argument("operands", nargs="*", help=T["help_router_args"])
@@ -868,6 +872,9 @@ def main():
 
     if args.action == "status-page":
         return cmd_status_page(args)
+
+    if args.action == "api":
+        return cmd_api(args)
 
     if args.action == "datapack":
         return cmd_datapack(args)
@@ -1499,6 +1506,33 @@ def cmd_metrics(args):
         print_res(False, render(res))
     return EXIT_USAGE if res["code"] in ("metrics_bind_invalid", "metrics_remote_refused") else EXIT_ERROR
 
+def api_address_text(found):
+    if not found:
+        return "-"
+    return found["path"] if found["mode"] == "unix" else f"{found['host']}:{found['port']}"
+
+
+def cmd_api(args):
+    import mc_httpapi
+    if args.api_action in ("enable", "disable"):
+        mc_httpapi.set_local_enabled(args.api_action == "enable")
+        res = mc_api.result(True, f"api_{args.api_action}d")
+        return _finish(res, args.json)
+    state = mc_httpapi.status()
+    text = api_address_text(state["address"])
+    if args.json:
+        print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "api_status", "enabled": state["enabled"],
+                    "mode": state["mode"], "address": text if state["address"] else None,
+                    "listening": state["listening"]})
+    elif not state["enabled"]:
+        print_info(T["api_status_off"])
+    elif state["listening"]:
+        print_res(True, T["api_status_on"].format(address=text))
+    else:
+        print_info(T["api_status_idle"].format(address=text))
+    return EXIT_OK
+
+
 def cmd_status_page(args):
     interval = None
     if args.interval is not None:
@@ -1727,19 +1761,7 @@ def cmd_modpack(args):
     return _finish(res, args.json)
 
 
-def _curseforge_key(config=None):
-    """The CurseForge API key: the server's, else any server's, else the
-    CURSEFORGE_API_KEY environment variable."""
-    if config and config.get("curseforge_api_key"):
-        return config["curseforge_api_key"]
-    for info in mc_servers.list_servers().values():
-        try:
-            key = mc_config.load_config(info.get("dossier_serveur", "")).get("curseforge_api_key")
-        except mc_servers.DataFileError:
-            continue
-        if key:
-            return key
-    return os.environ.get("CURSEFORGE_API_KEY")
+_curseforge_key = mc_api.curseforge_key
 
 
 def cmd_update(args):

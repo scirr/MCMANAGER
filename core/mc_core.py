@@ -1203,7 +1203,15 @@ def _prune_old_backups(dossier_backup, retention_days):
 FREEZE_BACKUP_MAX = 1800
 
 
+LISTENERS = []
+
+
 def _alert(config, event, **info):
+    for listener in list(LISTENERS):
+        try:
+            listener(config, event, info)
+        except Exception:
+            pass
     try:
         import mc_alert
         mc_alert.notify(config, event, **info)
