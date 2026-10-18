@@ -89,6 +89,7 @@ MC_Manager/
 │   └── tests/
 │
 ├── packaging/linux/    # .deb and .rpm builder (build_packages.py)
+├── apps/linux/         # Desktop app (GTK 4 + libadwaita), Flatpak manifest
 │
 ├── Linux/              # Linux packaging (systemd service)
 │   ├── build_release.py
@@ -144,6 +145,19 @@ mc deploy
 ```
 
 > Both platforms share the same multi-server workflow (`mc deploy`/`mc add`/`mc configure`, dashboard, modes...). See the **[Linux guide](Linux/README_Linux.md)** or **[Windows guide](Windows/README_Windows.md)** for the full walkthrough.
+
+---
+
+### Desktop app (Linux)
+
+`apps/linux/` holds a native GTK 4 + libadwaita app (Python and PyGObject). It never reads MC Manager files: everything goes through the `/v1` API, either by the daemon's local socket (`run/api.sock`) or by a paired remote server (pinned certificate, device token). It shows the server dashboard (state, players, RAM), start/stop/restart/wake, the live console, the online players and the settings (read only). Texts follow the system language (English or French).
+
+```
+sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-adw-1   # libadwaita 1.5+
+cd apps/linux && python3 -m mcmanager_app
+```
+
+On first launch, choose **This machine** or **A remote server** (address, fingerprint check, 8-digit code from `mc remote pair`). Tests: `cd apps/linux && python3 -m unittest discover tests` (the view tests run only where GTK is installed). A Flatpak manifest is in `apps/linux/flatpak/`; it opens only the daemon's `run/` folder.
 
 ---
 

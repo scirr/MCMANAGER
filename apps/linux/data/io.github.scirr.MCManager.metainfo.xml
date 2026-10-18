@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.scirr.MCManager</id>
+  <name>MC Manager</name>
+  <summary>Manage Minecraft servers</summary>
+  <summary xml:lang="fr">Gérer des serveurs Minecraft</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>Control the Minecraft servers of this machine or of a remote MC Manager: state, players, memory, start, stop, restart and console.</p>
+  </description>
+  <launchable type="desktop-id">io.github.scirr.MCManager.desktop</launchable>
+  <url type="homepage">https://github.com/scirr/MCMANAGER</url>
+  <content_rating type="oars-1.1"/>
+  <provides>
+    <binary>mcmanager-app</binary>
+  </provides>
+  <releases>
+    <release version="3.0.0" date="2026-10-18"/>
+  </releases>
+</component>

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=MC Manager
+Name[fr]=MC Manager
+Comment=Manage Minecraft servers
+Comment[fr]=Gérer des serveurs Minecraft
+Exec=mcmanager-app
+Icon=io.github.scirr.MCManager
+Terminal=false
+Categories=GNOME;GTK;Game;Utility;
+Keywords=minecraft;server;
+StartupNotify=true
