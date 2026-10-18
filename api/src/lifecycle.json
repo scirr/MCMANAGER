@@ -1903,7 +1903,8 @@
         "x-mcm-role": "viewer",
         "x-mcm-source": [
           "mc_api.sleep_info",
-          "mc_api.server_state"
+          "mc_api.server_state",
+          "mc_api.sleep_status"
         ]
       },
       "parameters": [

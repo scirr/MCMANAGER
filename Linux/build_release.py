@@ -19,6 +19,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 DIST_DIR = os.path.join(HERE, "..", "dist")
 CORE_DIR = os.path.join(HERE, "..", "core")
+API_DIR = os.path.join(HERE, "..", "api")
 
 # Files shipped in the package. language.txt is intentionally NOT shipped so the
 # first launch prompts for the language.
@@ -58,6 +59,10 @@ PACKAGE_FILES = [
     "mc_alert.py",
     "mc_metrics.py",
     "mc_statuspage.py",
+    "mc_httpapi.py",
+    "mc_apiops.py",
+    "mc_jobs.py",
+    "openapi.json",
     "mc_platform.py",
     "platform_linux.py",
     "install.sh",
@@ -67,8 +72,11 @@ PACKAGE_FILES = [
 ]
 
 def source_path(fname):
-    local = os.path.join(HERE, fname)
-    return local if os.path.exists(local) else os.path.join(CORE_DIR, fname)
+    for folder in (HERE, CORE_DIR, API_DIR):
+        path = os.path.join(folder, fname)
+        if os.path.exists(path):
+            return path
+    return os.path.join(CORE_DIR, fname)
 
 
 def build_zip(zip_name="MCManager-Linux.zip", dist_dir=DIST_DIR):

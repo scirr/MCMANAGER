@@ -46,7 +46,7 @@ NET_TIMEOUT = 4               # keep commands snappy
 
 # Program files: what an update replaces and a rollback restores. Data
 # (servers.json, language.txt, logs/, run/, venv/...) is never touched.
-PROGRAM_PATTERN = re.compile(r".+\.(py|sh|bat)$|^webhook_templates\.json$|^requirements\.txt$")
+PROGRAM_PATTERN = re.compile(r".+\.(py|sh|bat)$|^(webhook_templates|openapi)\.json$|^requirements\.txt$")
 
 
 def result(ok, code, **data):

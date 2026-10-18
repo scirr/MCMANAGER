@@ -20,6 +20,7 @@ import mc_sleep
 import mc_task
 import mc_metrics
 import mc_statuspage
+import mc_httpapi
 import threading
 from mc_lang import T
 from mc_platform import plat
@@ -576,6 +577,12 @@ def _max_players(dossier):
     return 20
 
 
+def _release_listeners(sleep, name, config):
+    if not mc_core.is_hold_mode(config):
+        sleep.release(name)
+        sleep.release_port(config.get("port"))
+
+
 def _handle_request(sleep, request):
     """Serve one request from the CLI (see mc_ipc)."""
     action, params = request.get("action"), request.get("params") or {}
@@ -584,9 +591,7 @@ def _handle_request(sleep, request):
         if error:
             return error
         name, config = loaded
-        if not mc_core.is_hold_mode(config):
-            sleep.release(name)
-            sleep.release_port(config.get("port"))
+        _release_listeners(sleep, name, config)
         res = mc_api.start(name, config)
         if res["ok"] and config.pop("announce_next_start", None):
             mc_config.save_config(config)
@@ -617,68 +622,73 @@ def main():
     metrics = mc_metrics.DaemonEndpoint()
     status_pages = mc_statuspage.Publisher()
     router = RouterManager(sleep)
+    api = mc_httpapi.LocalApi(release=lambda name, config: _release_listeners(sleep, name, config))
     next_tick = time.time() + 30
     next_sync = 0
 
-    # One-second loop: requests from the command line and wakes are served
-    # promptly; supervision still runs every 30 seconds.
-    while True:
-        time.sleep(1)
-        mc_ipc.beat()
-        _reap_children()
+    try:
+        # One-second loop: requests from the command line and wakes are served
+        # promptly; supervision still runs every 30 seconds.
+        while True:
+            time.sleep(1)
+            mc_ipc.beat()
+            _reap_children()
 
-        for request_id, request in mc_ipc.pending_requests():
-            try:
-                answer = _handle_request(sleep, request)
-            except Exception as e:
-                logging.error(f"Request {request.get('action')} failed: {e}")
-                answer = mc_api.result(False, "daemon_error", detail=str(e))
-            mc_ipc.respond(request_id, answer)
+            for request_id, request in mc_ipc.pending_requests():
+                try:
+                    answer = _handle_request(sleep, request)
+                except Exception as e:
+                    logging.error(f"Request {request.get('action')} failed: {e}")
+                    answer = mc_api.result(False, "daemon_error", detail=str(e))
+                mc_ipc.respond(request_id, answer)
 
-        try:
-            _process_wakes(sleep)
-        except Exception as e:
-            logging.error(f"Wake failed: {e}")
+            try:
+                _process_wakes(sleep)
+            except Exception as e:
+                logging.error(f"Wake failed: {e}")
 
-        now = time.time()
-        if now >= next_sync or now >= next_tick:
-            # An unreadable servers.json must not make every server disappear:
-            # keep supervising the last known list and say so once.
-            try:
-                servers = mc_servers.list_servers()
-                if registry_error:
-                    logging.info("servers.json readable again.")
-                    registry_error = None
-            except mc_servers.DataFileError as e:
-                if registry_error != str(e):
-                    logging.error(f"servers.json unreadable, keeping the last known server list: {e}")
-                    registry_error = str(e)
+            now = time.time()
+            if now >= next_sync or now >= next_tick:
+                # An unreadable servers.json must not make every server disappear:
+                # keep supervising the last known list and say so once.
+                try:
+                    servers = mc_servers.list_servers()
+                    if registry_error:
+                        logging.info("servers.json readable again.")
+                        registry_error = None
+                except mc_servers.DataFileError as e:
+                    if registry_error != str(e):
+                        logging.error(f"servers.json unreadable, keeping the last known server list: {e}")
+                        registry_error = str(e)
 
-        if now >= next_sync:
-            next_sync = now + 5
-            try:
-                sleep.sync(servers)
-                router.sync()
-            except Exception as e:
-                logging.error(f"Sleep listeners: {e}")
-            try:
-                metrics.sync(servers)
-            except Exception as e:
-                logging.error(f"Metrics endpoint: {e}")
-            try:
-                status_pages.run(servers)
-            except Exception as e:
-                logging.error(f"Status pages: {e}")
+            if now >= next_sync:
+                next_sync = now + 5
+                try:
+                    sleep.sync(servers)
+                    router.sync()
+                except Exception as e:
+                    logging.error(f"Sleep listeners: {e}")
+                try:
+                    metrics.sync(servers)
+                except Exception as e:
+                    logging.error(f"Metrics endpoint: {e}")
+                try:
+                    status_pages.run(servers)
+                except Exception as e:
+                    logging.error(f"Status pages: {e}")
+                api.sync()
 
-        if now < next_tick:
-            continue
-        next_tick = now + 30
-        for name, info in servers.items():
-            state = states.setdefault(name, _new_state())
-            try:
-                process_server_tick(name, info.get("dossier_serveur", ""), state)
-            except Exception as e:
-                logging.error(f"[{name}] Unexpected error, server skipped this tick: {e}")
+            if now < next_tick:
+                continue
+            next_tick = now + 30
+            for name, info in servers.items():
+                state = states.setdefault(name, _new_state())
+                try:
+                    process_server_tick(name, info.get("dossier_serveur", ""), state)
+                except Exception as e:
+                    logging.error(f"[{name}] Unexpected error, server skipped this tick: {e}")
+    finally:
+        api.stop()
 
 if __name__ == "__main__":
     main()

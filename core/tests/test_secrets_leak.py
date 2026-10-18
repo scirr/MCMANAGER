@@ -13,6 +13,7 @@ from unittest import mock
 
 APP = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, APP)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mc_alert
 import mc_api
 import mc_backup
@@ -44,6 +45,7 @@ COVERED = {
     "switch": [["switch", "a"]],
     "sleep": [["sleep", "status"]],
     "status-page": [["status-page", "disable"]],
+    "api": [["api", "status"]],
     "router": [["router", "status"]],
     "datapack": [["datapack", "list"]],
     "mod": [["mod", "list"]],
@@ -184,6 +186,46 @@ class TestLeaks(unittest.TestCase):
         self.assertEqual(by_name["sf"]["secrets_set"], ["key"])
         self.assertNotIn("password_file", by_name["rs"])
         self.assertEqual(by_name["rs"]["secrets_set"], ["password_file"])
+
+
+class TestApiLeaks(unittest.TestCase):
+    """Every GET route of the local API, against the same fake secrets."""
+
+    def test_no_get_route_returns_a_secret(self):
+        import mc_httpapi
+        import mc_servers
+        from apiclient import Client
+        cases = TestLeaks
+        cases.setUpClass()
+        registry = os.path.join(cases.data, "servers.json")
+        run = tempfile.mkdtemp()
+        with mock.patch.object(mc_servers, "REGISTRY_FILE", registry), \
+                mock.patch.object(mc_servers, "REGISTRY_DIR", cases.data):
+            api = mc_httpapi.LocalApi(folder=run, enabled=lambda: True)
+            api.sync()
+            client = Client(run)
+            try:
+                checked = 0
+                for route in mc_httpapi.build_routes(mc_httpapi.load_spec()):
+                    if route.method != "GET" or route.operation_id in ("streamEvents", "streamConsole"):
+                        continue
+                    path = route.template
+                    for name, value in (("server", "a"), ("kind", "whitelist"), ("job", "j_x"), ("key", "mcrcon_pass")):
+                        path = path.replace("{" + name + "}", value)
+                    if route.operation_id in ("getModpackInfo", "checkUpdate"):
+                        continue
+                    for suffix in ("", "?include_ip=true") if "history" in path else ("",):
+                        with self.subTest(route=route.operation_id):
+                            _status, body, _ = client.request("GET", path + suffix)
+                            text = body if isinstance(body, str) else json.dumps(body)
+                            for label, value in SECRETS.items():
+                                self.assertNotIn(value, text, f"{label} leaked by GET {path}")
+                            checked += 1
+                self.assertGreater(checked, 25)
+                status, body, _ = client.request("GET", "/v1/servers/a/config/mcrcon_pass")
+                self.assertEqual((status, body["write_only"], "value" in body), (200, True, False))
+            finally:
+                api.stop()
 
 
 class TestErrorMessages(unittest.TestCase):

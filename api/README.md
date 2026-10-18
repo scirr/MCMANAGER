@@ -57,10 +57,12 @@ The operation layer returns `code`; the HTTP layer maps it as follows.
 
 | Status | Codes |
 |---|---|
-| 404 | `not_found`, `no_server`, `folder_missing`, `mod_not_found`, `pack_not_found`, `task_not_found`, `backup_not_found`, `remote_not_found`, `channel_not_found`, `no_remote`, `no_channel`, `java_not_installed`, `config_key_unset`, `no_active_server`, `no_server`, `no_log_file` |
-| 409 | `server_running`, `stop_first`, `players_online`, `already_active`, `not_sleeping`, `already_frozen`, `mod_exists`, `mod_ambiguous`, `defines_blocks`, `router_port_conflict`, `folder_not_empty`, `remote_exists`, `channel_exists`, `task_name_taken`, `blocked_by_maintenance`, `downgrade_refused`, `job_finished`, `console_offline`, `server_offline` |
-| 422 | `bad_*`, `invalid_*`, `missing_*`, `confirm_required`, `confirmation_required`, `eula_required`, `name_required`, `sleep_after_too_short`, `sleep_needs_rcon`, `key_not_found`, `s3_credentials_missing`, `restic_password_missing`, `overworld_protected`, `unknown_dimension`, `unknown_loader`, `not_a_jar`, `unsafe_archive`, `no_level_dat`, `java_bad_choice`, `bad_signature`, `router_usage`, `status_page_interval_too_short` |
-| 503 | `rcon_failed`, `rcon_error`, `daemon_timeout`, `source_unreachable`, `check_failed`, `java_download_failed` |
+| 404 | `not_found`, `no_server`, `folder_missing`, `mod_not_found`, `pack_not_found`, `task_not_found`, `backup_not_found`, `remote_not_found`, `channel_not_found`, `no_remote`, `no_channel`, `java_not_installed`, `config_key_unset`, `no_active_server`, `no_server`, `no_log_file`, `job_not_found` |
+| 409 | `server_running`, `stop_first`, `players_online`, `already_active`, `not_sleeping`, `already_frozen`, `mod_exists`, `mod_ambiguous`, `defines_blocks`, `router_port_conflict`, `folder_not_empty`, `remote_exists`, `channel_exists`, `task_name_taken`, `blocked_by_maintenance`, `downgrade_refused`, `job_finished`, `console_offline`, `server_offline`, `config_conflict` |
+| 422 | `bad_*`, `invalid_*`, `missing_*`, `confirm_required`, `confirmation_required`, `eula_required`, `name_required`, `sleep_after_too_short`, `sleep_needs_rcon`, `sleep_setting_refused`, `sleep_hold_timeout_range`, `command_required`, `command_not_allowed`, `warn_not_allowed`, `unsupported_on_windows`, `encrypt_key_missing`, `key_not_found`, `s3_credentials_missing`, `restic_password_missing`, `overworld_protected`, `unknown_dimension`, `unknown_loader`, `not_a_jar`, `unsafe_archive`, `no_level_dat`, `java_bad_choice`, `bad_signature`, `router_usage`, `status_page_interval_too_short` |
+| 429 | `too_many_streams` |
+| 501 | `not_implemented` |
+| 503 | `rcon_failed`, `rcon_error`, `daemon_timeout`, `source_unreachable`, `check_failed`, `java_download_failed`, `announce_failed` |
 | 500 | `start_failed`, `stop_failed`, `still_running`, `backup_failed`, `safety_backup_failed`, `export_failed`, `import_failed`, `update_failed`, `router_error`, `status_page_unwritable` |
 
 Any other failing code is `500` until it is classified. Successes are `200`, `201` for a created
@@ -76,6 +78,8 @@ operation) or listed below with the reason. `test_openapi.py` enforces this.
 | Function | Reason |
 |---|---|
 | `mc_api.parse_duration` | Text helper of the CLI (`5m`, `2h`); the API takes seconds. |
+| `mc_api.render` | Text of a result code for the CLI; the API sends the code and a `message`. |
+| `mc_api.wire` | Adds `schema` and a `message` on failures to a result; used by the HTTP layer for every body. |
 | `mc_api.result` | Constructor of the result envelope, not an operation. |
 | `mc_api.load_server` | Resolves a `{server}` segment; used by the HTTP layer, not a route. |
 | `mc_api.is_frozen` | Folded into `ServerSnapshot.frozen` (`getServer`, `listServers`). |
@@ -105,3 +109,14 @@ The `--json` outputs match the contract; `test_openapi.py` runs them and compare
   `--json` the previous output is unchanged.
 - `mc backup` as a CLI command answers synchronously with `BackupCreated`; through the API it is a job whose
   `result` is that object.
+
+## Local implementation (3.0 beta)
+
+The daemon serves the contract on a local listener only: `run/api.sock` (0600) on Linux, `127.0.0.1:<port>`
+with a bearer token in `run/api.token` on Windows. `mc api status|enable|disable` shows or switches it
+(`api_local` in `api.json`, enabled by default). The remote operations (`remote` tag) exist and answer
+`501 not_implemented`. `test_httpapi.py` fails when an operation has no handler or a handler is not in the contract.
+
+Additions made while implementing: `404` on `GET`/`DELETE /v1/jobs/{job}`, `501` on the `remote` operations,
+`message` in `DoctorReport` when the report is not ok, and the codes above (`config_set` failures
+`key_not_found`, `invalid_value`, `config_conflict`; `too_many_streams`; `job_not_found`; `announce_failed`).

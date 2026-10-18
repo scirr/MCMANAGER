@@ -881,6 +881,24 @@ mc alert remove telegram
 
 ---
 
+## Local API
+
+The service answers an HTTP/JSON API described by `openapi.json` (shipped next to the program). It listens
+on `127.0.0.1` on a free port and requires a random 256-bit token: both are written to `run\api.token`
+(JSON `{"port": ..., "token": ...}`, readable by your account only) and removed when the service stops.
+
+```bat
+mc api status [--json]      & rem enabled, listening, address
+mc api disable              & rem stop listening (the option lives in api.json)
+mc api enable
+```
+
+Send the token in the `Authorization: Bearer <token>` header (`GET /v1` alone is public). Every `GET`
+returns the same document as the matching `mc ... --json` command. Long operations answer `202` with a
+`Location: /v1/jobs/<id>` to poll; `GET /v1/events` and `GET /v1/servers/<server>/console` are
+Server-Sent Events. Bodies are limited to 1 MiB. Secrets are never returned. Remote access (pairing,
+devices) answers `501` for now.
+
 ## Automatic updates
 
 MC Manager checks the latest published release in the background (throttled to once every few hours, silent if offline). When a newer version exists, every `mc` command shows a discreet line:

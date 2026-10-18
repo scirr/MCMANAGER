@@ -698,7 +698,8 @@
         ],
         "x-mcm-role": "admin",
         "x-mcm-source": [
-          "mc_api.modpack_install"
+          "mc_api.modpack_install",
+          "mc_api.curseforge_key"
         ]
       }
     },
@@ -769,7 +770,8 @@
         ],
         "x-mcm-role": "viewer",
         "x-mcm-source": [
-          "mc_modpack.info"
+          "mc_modpack.info",
+          "mc_api.curseforge_key"
         ]
       }
     },
@@ -1023,7 +1025,8 @@
         ],
         "x-mcm-role": "admin",
         "x-mcm-source": [
-          "mc_api.modpack_update"
+          "mc_api.modpack_update",
+          "mc_api.curseforge_key"
         ]
       }
     },
@@ -1087,7 +1090,8 @@
         "x-mcm-source": [
           "mc_content.mod_list",
           "mc_content.jar_metadata",
-          "mc_modsources.load_manifest"
+          "mc_modsources.load_manifest",
+          "mc_api.mod_listing"
         ]
       },
       "parameters": [

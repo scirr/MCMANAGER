@@ -385,6 +385,21 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_implemented",
+                  "message": "Remote access is not available in this version.",
+                  "ok": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Audit log",
@@ -441,6 +456,21 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_implemented",
+                  "message": "Remote access is not available in this version.",
+                  "ok": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Paired devices",
@@ -495,6 +525,21 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_implemented",
+                  "message": "Remote access is not available in this version.",
+                  "ok": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Revoke a device",
@@ -588,6 +633,21 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_implemented",
+                  "message": "Remote access is not available in this version.",
+                  "ok": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Set the roles of a device",
@@ -652,6 +712,21 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_implemented",
+                  "message": "Remote access is not available in this version.",
+                  "ok": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "security": [],
@@ -696,6 +771,21 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_implemented",
+                  "message": "Remote access is not available in this version.",
+                  "ok": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Generate a pairing code",
@@ -741,6 +831,21 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_implemented",
+                  "message": "Remote access is not available in this version.",
+                  "ok": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Remote access status",
@@ -813,6 +918,21 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_implemented",
+                  "message": "Remote access is not available in this version.",
+                  "ok": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Enable or disable remote access",

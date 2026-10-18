@@ -1612,6 +1612,10 @@
               "has_issues": {
                 "type": "boolean"
               },
+              "message": {
+                "description": "Present when the report is not ok (`ok:false`).",
+                "type": "string"
+              },
               "warnings": {
                 "type": "integer"
               }
@@ -4990,6 +4994,21 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_implemented",
+                  "message": "Remote access is not available in this version.",
+                  "ok": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Audit log",
@@ -5046,6 +5065,21 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_implemented",
+                  "message": "Remote access is not available in this version.",
+                  "ok": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Paired devices",
@@ -5100,6 +5134,21 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_implemented",
+                  "message": "Remote access is not available in this version.",
+                  "ok": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Revoke a device",
@@ -5193,6 +5242,21 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_implemented",
+                  "message": "Remote access is not available in this version.",
+                  "ok": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Set the roles of a device",
@@ -5265,7 +5329,8 @@
         "x-mcm-source": [
           "mc_doctor.check_host",
           "mc_doctor.check_server",
-          "mc_doctor.run_doctor"
+          "mc_doctor.run_doctor",
+          "mc_doctor.doctor_document"
         ]
       }
     },
@@ -5383,7 +5448,8 @@
         ],
         "x-mcm-role": "viewer",
         "x-mcm-source": [
-          "mc_java.installed"
+          "mc_java.installed",
+          "mc_api.java_listing"
         ]
       }
     },
@@ -5630,6 +5696,9 @@
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
           "409": {
             "$ref": "#/components/responses/Conflict"
           },
@@ -5694,6 +5763,9 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -5857,7 +5929,8 @@
         ],
         "x-mcm-role": "admin",
         "x-mcm-source": [
-          "mc_api.modpack_install"
+          "mc_api.modpack_install",
+          "mc_api.curseforge_key"
         ]
       }
     },
@@ -5928,7 +6001,8 @@
         ],
         "x-mcm-role": "viewer",
         "x-mcm-source": [
-          "mc_modpack.info"
+          "mc_modpack.info",
+          "mc_api.curseforge_key"
         ]
       }
     },
@@ -5986,6 +6060,21 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_implemented",
+                  "message": "Remote access is not available in this version.",
+                  "ok": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "security": [],
@@ -6030,6 +6119,21 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_implemented",
+                  "message": "Remote access is not available in this version.",
+                  "ok": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Generate a pairing code",
@@ -6075,6 +6179,21 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_implemented",
+                  "message": "Remote access is not available in this version.",
+                  "ok": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Remote access status",
@@ -6147,6 +6266,21 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "code": "not_implemented",
+                  "message": "Remote access is not available in this version.",
+                  "ok": false
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            },
+            "description": "Not implemented: the remote access group is served in a later release; the local API answers 501."
           }
         },
         "summary": "Enable or disable remote access",
@@ -8044,7 +8178,8 @@
         ],
         "x-mcm-role": "viewer",
         "x-mcm-source": [
-          "mc_config.load_config"
+          "mc_config.load_config",
+          "mc_api.config_document"
         ]
       },
       "parameters": [
@@ -8111,7 +8246,8 @@
         ],
         "x-mcm-role": "viewer",
         "x-mcm-source": [
-          "mc_config.load_config"
+          "mc_config.load_config",
+          "mc_api.config_value"
         ]
       },
       "parameters": [
@@ -8571,7 +8707,8 @@
         ],
         "x-mcm-role": "viewer",
         "x-mcm-source": [
-          "mc_doctor.check_server"
+          "mc_doctor.check_server",
+          "mc_doctor.doctor_document"
         ]
       },
       "parameters": [
@@ -8715,7 +8852,8 @@
         "x-mcm-role": "viewer",
         "x-mcm-source": [
           "mc_java.installed",
-          "mc_api.load_server"
+          "mc_api.load_server",
+          "mc_api.java_listing"
         ]
       },
       "parameters": [
@@ -9380,7 +9518,8 @@
         ],
         "x-mcm-role": "admin",
         "x-mcm-source": [
-          "mc_api.modpack_update"
+          "mc_api.modpack_update",
+          "mc_api.curseforge_key"
         ]
       }
     },
@@ -9444,7 +9583,8 @@
         "x-mcm-source": [
           "mc_content.mod_list",
           "mc_content.jar_metadata",
-          "mc_modsources.load_manifest"
+          "mc_modsources.load_manifest",
+          "mc_api.mod_listing"
         ]
       },
       "parameters": [
@@ -9783,7 +9923,8 @@
         "x-mcm-role": "viewer",
         "x-mcm-source": [
           "mc_api.query_players",
-          "mc_api.parse_player_list"
+          "mc_api.parse_player_list",
+          "mc_api.players_document"
         ]
       },
       "parameters": [
@@ -10154,7 +10295,8 @@
         "x-mcm-role": "viewer",
         "x-mcm-source": [
           "mc_api.sleep_info",
-          "mc_api.server_state"
+          "mc_api.server_state",
+          "mc_api.sleep_status"
         ]
       },
       "parameters": [
