@@ -36,6 +36,11 @@ RELEASE_PUBLIC_KEY = bytes.fromhex("3b6de7bf90729201ba040a923be3e278c0fb1e8ece57
 
 CACHE_FILE = os.path.join(BASE_DIR, "update_check.json")
 PREVIOUS_DIR = os.path.join(BASE_DIR, "previous")
+PACKAGE_MARKER = os.path.join(BASE_DIR, "installed-by-package")
+PACKAGE_COMMANDS = {
+    "apt": "sudo apt update && sudo apt install --only-upgrade mcmanager",
+    "dnf": "sudo dnf upgrade mcmanager",
+}
 CACHE_TTL = 6 * 3600          # re-check at most every 6 hours
 NET_TIMEOUT = 4               # keep commands snappy
 
@@ -46,6 +51,24 @@ PROGRAM_PATTERN = re.compile(r".+\.(py|sh|bat)$|^webhook_templates\.json$|^requi
 
 def result(ok, code, **data):
     return {"ok": ok, "code": code, **data}
+
+
+def package_manager():
+    """'apt' or 'dnf' when this copy was installed by a system package (the
+    package ships a marker file), else None."""
+    try:
+        with open(PACKAGE_MARKER, "r", encoding="utf-8") as f:
+            manager = f.read().strip()
+    except OSError:
+        return None
+    return manager if manager in PACKAGE_COMMANDS else None
+
+
+def _managed_refusal():
+    manager = package_manager()
+    if not manager:
+        return None
+    return result(False, "managed_by_package", manager=manager, command=PACKAGE_COMMANDS[manager])
 
 
 # ── version comparison (pure, testable) ──────────────────────────────────────
@@ -258,6 +281,9 @@ def _download(url, dest):
 def perform_update(target=None, progress=None):
     """Install the latest release, or `target` (any version, for a downgrade).
     Returns a result dict; installs nothing unless the package is verified."""
+    refused = _managed_refusal()
+    if refused:
+        return refused
     try:
         tag, assets = _fetch_release(target, timeout=10)
     except Exception as e:
@@ -310,6 +336,9 @@ def perform_update(target=None, progress=None):
 
 def rollback():
     """Swap the current installation with the one kept in previous/."""
+    refused = _managed_refusal()
+    if refused:
+        return refused
     prev = previous_version()
     if not prev:
         return result(False, "no_previous", current=VERSION)
