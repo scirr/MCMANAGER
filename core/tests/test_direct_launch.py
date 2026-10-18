@@ -79,6 +79,7 @@ class DirectLaunch(unittest.TestCase):
         with open(os.path.join(self.dir, SUB, "win_args.txt"), encoding="utf-8") as f:
             self.assertEqual(f.read(), "custom\n")
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     def test_missing_args_files_fall_back_to_the_script(self):
         fake = self.use()
         args, direct = mc_core.build_launch_args(self.config(), "java", self.dir)

@@ -335,6 +335,7 @@ class TestRemoteConfig(Server):
             with self.assertRaises(mc_backup.BackupError):
                 mc_backup.parse_remote_url(bad)
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     def test_s3_remote_stored_with_secrets_private_and_masked_in_listing(self):
         res = self.add("cloud", "s3://bkt/mc", access_key="AK", secret_key="SK", endpoint="https://minio.lan:9000",
                        region="fr-par")
@@ -354,6 +355,7 @@ class TestRemoteConfig(Server):
             self.assertEqual(self.add("c", "s3://b/p")["code"], "s3_credentials_missing")
         self.assertEqual(self.add("c", "s3://b/p", access_key="a", secret_key="b", endpoint="http://example.com")["code"], "bad_url")
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     def test_restic_password_goes_to_a_600_file(self):
         res = self.add("rs", "restic:/mnt/backups", password="hunter2")
         self.assertTrue(res["ok"], res)
@@ -362,6 +364,7 @@ class TestRemoteConfig(Server):
         self.assertEqual(stat.S_IMODE(os.stat(pw).st_mode), 0o600)
         self.assertEqual(self.add("rs2", "restic:/x")["code"], "restic_password_missing")
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     def test_existing_password_file_is_tightened(self):
         pw = os.path.join(self.root, "pw")
         Path(pw).write_text("x")

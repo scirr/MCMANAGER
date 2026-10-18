@@ -347,6 +347,7 @@ class ApiBase(AlertBase):
 
 class TestApi(ApiBase):
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX-only behavior")
     def test_add_list_test_remove_roundtrip_and_perms(self):
         res = mc_api.alert_add("s", self.config, "telegram", {"token": "123:ABC", "chat_id": "9"}, "crash,start")
         self.assertTrue(res["ok"], res)
