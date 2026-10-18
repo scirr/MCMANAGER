@@ -1,0 +1,3 @@
+#!/bin/sh
+export PYTHONPATH=/app/lib/mcmanager-app${PYTHONPATH:+:$PYTHONPATH}
+exec python3 -m mcmanager_app "$@"

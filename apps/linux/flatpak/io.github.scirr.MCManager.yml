@@ -1,0 +1,30 @@
+app-id: io.github.scirr.MCManager
+runtime: org.gnome.Platform
+runtime-version: "47"
+sdk: org.gnome.Sdk
+command: mcmanager-app
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Local control: only the daemon's run folder (api.sock), nothing else of MC Manager.
+  # Remote control uses the network.
+  - --filesystem=/opt/mcmanager/run
+  - --share=network
+  - --env=MCMANAGER_CORE=/app/share/mcmanager/core
+  - --env=MCMANAGER_RUN_DIR=/opt/mcmanager/run
+modules:
+  - name: mcmanager-app
+    buildsystem: simple
+    build-commands:
+      - install -d /app/share/mcmanager/core /app/lib/mcmanager-app
+      - cp -r core/*.py core/webhook_templates.json /app/share/mcmanager/core/
+      - cp -r apps/linux/mcmanager_app /app/lib/mcmanager-app/
+      - install -Dm755 apps/linux/flatpak/mcmanager-app /app/bin/mcmanager-app
+      - install -Dm644 apps/linux/data/io.github.scirr.MCManager.desktop /app/share/applications/io.github.scirr.MCManager.desktop
+      - install -Dm644 apps/linux/data/io.github.scirr.MCManager.metainfo.xml /app/share/metainfo/io.github.scirr.MCManager.metainfo.xml
+      - install -Dm644 apps/linux/data/io.github.scirr.MCManager.svg /app/share/icons/hicolor/scalable/apps/io.github.scirr.MCManager.svg
+    sources:
+      - type: dir
+        path: ../../..
