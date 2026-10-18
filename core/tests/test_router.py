@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 import mc_api
 import mc_protocol
+import mc_proxy
 import mc_router
 import mc_servers
 import mc_sleep
