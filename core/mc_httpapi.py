@@ -728,26 +728,27 @@ class TcpServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
         self.server_name, self.server_port = "localhost", self.server_address[1]
 
 
-class UnixServer(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
-    daemon_threads = True
+if hasattr(socketserver, "UnixStreamServer"):
+    class UnixServer(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
+        daemon_threads = True
 
-    def __init__(self, path, app):
-        self.app = app
-        old = os.umask(0o177)
-        try:
-            super().__init__(path, Handler)
-        finally:
-            os.umask(old)
-        plat.secure_file(path)
+        def __init__(self, path, app):
+            self.app = app
+            old = os.umask(0o177)
+            try:
+                super().__init__(path, Handler)
+            finally:
+                os.umask(old)
+            plat.secure_file(path)
 
-    def get_request(self):
-        request, _ = super().get_request()
-        return request, ("local", 0)
+        def get_request(self):
+            request, _ = super().get_request()
+            return request, ("local", 0)
 
-    def server_bind(self):
-        socketserver.UnixStreamServer.server_bind(self)
-        self.server_name = "localhost"
-        self.server_port = 0
+        def server_bind(self):
+            socketserver.UnixStreamServer.server_bind(self)
+            self.server_name = "localhost"
+            self.server_port = 0
 
 
 # ── lifecycle ────────────────────────────────────────────────────────────────
