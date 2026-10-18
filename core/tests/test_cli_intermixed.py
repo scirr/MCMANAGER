@@ -27,6 +27,7 @@ CASES = [
     (["modpack", "install", "pack", "--name", "n", "--ram", "6G"],
      ["modpack", "install", "--name", "n", "--ram", "6G", "pack"]),
     (["freeze", "srv", "--max", "1h"], ["freeze", "--max", "1h", "srv"]),
+    (["update", "--check", "--json"], ["update", "--json", "--check"]),
     (["image", "add", "a.png", "srv"], ["image", "add", "a.png", "srv"]),
 ]
 

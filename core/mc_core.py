@@ -631,6 +631,12 @@ def find_args_file(dossier):
     return None
 
 
+def _with_marker_env(env, dossier):
+    marker = '"' + _SERVER_PROP + os.path.abspath(dossier) + '"' if " " in os.path.abspath(dossier) \
+        else _SERVER_PROP + os.path.abspath(dossier)
+    env["JDK_JAVA_OPTIONS"] = (env.get("JDK_JAVA_OPTIONS", "") + " " + marker).strip()
+
+
 def build_launch_args(config, java_exe, dossier):
     """Command line for the server. Forge/NeoForge run java directly on their
     argument files; a server without them keeps the run script."""
@@ -873,6 +879,9 @@ def start_server(config, send_webhook=True):
     if os.path.isabs(java_exe):
         env["JAVA_HOME"] = os.path.dirname(os.path.dirname(java_exe))
         env["PATH"] = os.path.dirname(java_exe) + os.pathsep + env.get("PATH", "")
+
+    if not direct:
+        _with_marker_env(env, dossier)
 
     try:
         proc = plat.spawn_server(launch_args, dossier, env)

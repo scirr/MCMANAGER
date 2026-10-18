@@ -86,6 +86,15 @@ class DirectLaunch(unittest.TestCase):
         self.assertEqual(args, ["sh", "run.sh", "nogui"])
         self.assertEqual(fake.called("script_launch_args"), [("run.sh",)])
 
+    def test_fallback_marker_goes_through_the_environment(self):
+        env = {}
+        mc_core._with_marker_env(env, self.dir)
+        self.assertEqual(env["JDK_JAVA_OPTIONS"], "-Dmcmanager.server=" + self.dir)
+        env = {"JDK_JAVA_OPTIONS": "-Xss1m"}
+        mc_core._with_marker_env(env, "/a b/srv")
+        self.assertEqual(env["JDK_JAVA_OPTIONS"],
+                         '-Xss1m "-Dmcmanager.server=' + os.path.abspath("/a b/srv") + '"')
+
     def test_plain_jar_carries_the_marker(self):
         self.use()
         args, direct = mc_core.build_launch_args(self.config("server.jar"), "java", self.dir)
