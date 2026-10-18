@@ -92,15 +92,30 @@ def _arch():
 
 def _safe_members(tar, root):
     root = os.path.realpath(root)
+    root = os.path.realpath(root)
     for member in tar.getmembers():
+        if os.path.isabs(member.name) or member.name.startswith(("/", "\\")):
+            raise ValueError(f"unsafe path in archive: {member.name}")
         target = os.path.realpath(os.path.join(root, member.name))
         if not (target == root or target.startswith(root + os.sep)):
             raise ValueError(f"unsafe path in archive: {member.name}")
+        if member.isdev() or member.isfifo():
+            raise ValueError(f"special file in archive: {member.name}")
         if member.issym() or member.islnk():
-            link = os.path.realpath(os.path.join(os.path.dirname(target), member.linkname))
-            if not link.startswith(root + os.sep):
+            base = os.path.dirname(target) if member.issym() else root
+            link = os.path.realpath(os.path.join(base, member.linkname))
+            if os.path.isabs(member.linkname) or not (link == root or link.startswith(root + os.sep)):
                 raise ValueError(f"unsafe link in archive: {member.name}")
         yield member
+
+
+def _extract_tar(archive, root):
+    with tarfile.open(archive) as tar:
+        members = list(_safe_members(tar, root))
+        if hasattr(tarfile, "data_filter"):
+            tar.extractall(root, members=members, filter="data")  # nosec B202 - members checked
+        else:
+            tar.extractall(root, members=members)  # nosec B202 - members checked
 
 
 def _extract_zip(archive, root):
@@ -147,8 +162,7 @@ def install(major, progress=None):
             if plat.java_archive_kind() == "zip":
                 _extract_zip(archive, extract)
             else:
-                with tarfile.open(archive) as tar:
-                    tar.extractall(extract, members=list(_safe_members(tar, extract)))  # nosec B202 - members checked
+                _extract_tar(archive, extract)
         except (tarfile.TarError, zipfile.BadZipFile, ValueError) as e:
             return result(False, "java_download_failed", major=major, detail=str(e))
         tops = os.listdir(extract)
