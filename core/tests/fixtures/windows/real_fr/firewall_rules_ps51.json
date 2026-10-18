@@ -1,0 +1,16 @@
+[
+    {
+        "DisplayName":  "Utilisation de spouleur Wi-Fi Direct (Entrée)",
+        "Enabled":  1,
+        "Direction":  1,
+        "Action":  2,
+        "Profile":  4
+    },
+    {
+        "DisplayName":  "Gestion réseau de base - IPv6 (Trafic entrant IPv6)",
+        "Enabled":  1,
+        "Direction":  1,
+        "Action":  2,
+        "Profile":  0
+    }
+]

@@ -1,0 +1,8 @@
+
+Connexions actives
+
+  Proto  Adresse locale         Adresse distante       êtat
+  UDP    0.0.0.0:123            *:*                                    18344
+  UDP    0.0.0.0:49161          203.0.113.10:443                       15548
+  UDP    127.0.0.1:1900         *:*                                    9116
+  UDP    127.0.0.1:49170        127.0.0.1:49171                        16140

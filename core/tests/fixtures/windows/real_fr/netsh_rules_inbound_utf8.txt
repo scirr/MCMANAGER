@@ -1,0 +1,28 @@
+
+Nom de la règle :                     Example Browser (mDNS-In)
+----------------------------------------------------------------------
+Activé :                              Oui
+Direction :                           Actif
+Profiles :                            Domaine,Privé,Public
+Groupement :                          Example Browser
+LocalIP :                             Tout
+RemoteIP :                            Tout
+Protocole :                           UDP
+LocalPort :                           5353
+RemotePort :                          Tout
+Traversée latérale :                  Non
+Action :                              Autoriser
+
+Nom de la règle :                     Example App
+----------------------------------------------------------------------
+Activé :                              Oui
+Direction :                           Actif
+Profiles :                            Domaine,Privé,Public
+Groupement :                          {78E1CD88-49E3-476E-B926-580E596AD309}
+LocalIP :                             Tout
+RemoteIP :                            Tout
+Protocole :                           TCP
+LocalPort :                           Tout
+RemotePort :                          Tout
+Traversée latérale :                  Non
+Action :                              Autoriser

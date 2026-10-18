@@ -1,0 +1,15 @@
+
+Nom de la règle :                     MCManager - Port 25565
+----------------------------------------------------------------------
+Activé :                              Oui
+Direction :                           Actif
+Profiles :                            Domaine,Privé,Public
+Groupement :
+LocalIP :                             Tout
+RemoteIP :                            Tout
+Protocole :                           TCP
+LocalPort :                           25565
+RemotePort :                          Tout
+Traversée latérale :                  Non
+Action :                              Autoriser
+Ok.

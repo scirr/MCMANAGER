@@ -1,0 +1,20 @@
+[
+    {
+        "ProcessId":  9100,
+        "ParentProcessId":  9076,
+        "Name":  "explorer.exe",
+        "CreationDate":  "\/Date(1792299900406)\/",
+        "WorkingSetSize":  243154944,
+        "KernelModeTime":  30312500,
+        "UserModeTime":  25156250
+    },
+    {
+        "ProcessId":  17356,
+        "ParentProcessId":  9100,
+        "Name":  "cmd.exe",
+        "CreationDate":  "\/Date(1792299944756)\/",
+        "WorkingSetSize":  6930432,
+        "KernelModeTime":  0,
+        "UserModeTime":  0
+    }
+]
