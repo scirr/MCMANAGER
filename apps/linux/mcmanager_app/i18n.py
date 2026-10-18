@@ -1,0 +1,181 @@
+import os
+
+TEXTS = {
+    "en": {
+        "app_title": "MC Manager",
+        "servers": "Servers",
+        "no_servers": "No servers",
+        "no_servers_hint": "Create a server with the mc command, it will appear here.",
+        "select_server": "Select a server",
+        "state_running": "Running",
+        "state_starting": "Starting",
+        "state_crashed": "Crashed",
+        "state_stopped": "Stopped",
+        "state_closed": "Closed",
+        "state_stopped-by-user": "Stopped",
+        "state_sleeping": "Sleeping",
+        "state_maintenance": "Maintenance",
+        "state_unknown": "Unknown",
+        "players_count": "{online} online",
+        "players_count_max": "{online}/{max} online",
+        "ram_value": "{value} RAM",
+        "start": "Start",
+        "stop": "Stop",
+        "restart": "Restart",
+        "wake": "Wake",
+        "action_running": "In progress...",
+        "action_start_done": "Server started",
+        "action_stop_done": "Server stopped",
+        "action_restart_done": "Server restarted",
+        "action_wake_done": "Server woken",
+        "tab_console": "Console",
+        "tab_players": "Players",
+        "tab_settings": "Settings",
+        "console_placeholder": "Type a command",
+        "console_send": "Send command",
+        "console_offline": "The console is available while the server runs.",
+        "no_players": "Nobody is online",
+        "settings_empty": "No settings available",
+        "secrets_set": "Secrets configured: {names}",
+        "welcome_title": "Welcome to MC Manager",
+        "welcome_text": "Choose which MC Manager you want to control.",
+        "this_machine": "This machine",
+        "remote_server": "A remote server",
+        "remote_title": "Add a remote server",
+        "remote_text": "Enter the address, the fingerprint shown by the server and the pairing code.",
+        "address": "Address (host:port)",
+        "pair_code": "Pairing code (8 digits)",
+        "device_name": "Name of this device",
+        "pair": "Pair",
+        "back": "Back",
+        "fingerprint_confirm": "Server fingerprint",
+        "refresh": "Refresh",
+        "menu": "Main menu",
+        "connect_failed": "Cannot reach MC Manager. Is the daemon running?",
+        "connection_lost": "Connection lost, reconnecting...",
+        "error_unknown": "Something went wrong ({code})",
+        "error_unauthorized": "Access refused: pair this device again",
+        "error_forbidden": "Your role does not allow this action",
+        "error_not_found": "Server not found",
+        "error_server_running": "The server is already running",
+        "error_server_offline": "The server is not running",
+        "error_console_offline": "The server is not running",
+        "error_players_online": "Players are online",
+        "error_too_many_streams": "Too many open consoles",
+        "error_rate_limited": "Too many requests, wait a moment",
+        "error_remote_unreachable": "The remote server cannot be reached",
+        "error_fingerprint_mismatch": "The server certificate changed: connection refused",
+        "error_bad_pair_code": "Wrong or expired pairing code",
+        "error_pair_locked": "Too many attempts, try again later",
+        "error_invalid_address": "Invalid address, use host:port",
+        "error_daemon_timeout": "The operation took too long",
+        "error_start_failed": "The server could not start",
+        "error_stop_failed": "The server could not stop",
+        "error_rcon_failed": "The server did not answer",
+    },
+    "fr": {
+        "app_title": "MC Manager",
+        "servers": "Serveurs",
+        "no_servers": "Aucun serveur",
+        "no_servers_hint": "Créez un serveur avec la commande mc, il apparaîtra ici.",
+        "select_server": "Choisissez un serveur",
+        "state_running": "En marche",
+        "state_starting": "Démarrage",
+        "state_crashed": "Planté",
+        "state_stopped": "Arrêté",
+        "state_closed": "Fermé",
+        "state_stopped-by-user": "Arrêté",
+        "state_sleeping": "En veille",
+        "state_maintenance": "Maintenance",
+        "state_unknown": "Inconnu",
+        "players_count": "{online} en ligne",
+        "players_count_max": "{online}/{max} en ligne",
+        "ram_value": "{value} de RAM",
+        "start": "Démarrer",
+        "stop": "Arrêter",
+        "restart": "Redémarrer",
+        "wake": "Réveiller",
+        "action_running": "En cours...",
+        "action_start_done": "Serveur démarré",
+        "action_stop_done": "Serveur arrêté",
+        "action_restart_done": "Serveur redémarré",
+        "action_wake_done": "Serveur réveillé",
+        "tab_console": "Console",
+        "tab_players": "Joueurs",
+        "tab_settings": "Réglages",
+        "console_placeholder": "Saisir une commande",
+        "console_send": "Envoyer la commande",
+        "console_offline": "La console est disponible quand le serveur tourne.",
+        "no_players": "Personne n'est en ligne",
+        "settings_empty": "Aucun réglage disponible",
+        "secrets_set": "Secrets configurés : {names}",
+        "welcome_title": "Bienvenue dans MC Manager",
+        "welcome_text": "Choisissez le MC Manager que vous voulez piloter.",
+        "this_machine": "Cette machine",
+        "remote_server": "Un serveur distant",
+        "remote_title": "Ajouter un serveur distant",
+        "remote_text": "Saisissez l'adresse, l'empreinte affichée par le serveur et le code d'appairage.",
+        "address": "Adresse (hôte:port)",
+        "pair_code": "Code d'appairage (8 chiffres)",
+        "device_name": "Nom de cet appareil",
+        "pair": "Appairer",
+        "back": "Retour",
+        "fingerprint_confirm": "Empreinte du serveur",
+        "refresh": "Actualiser",
+        "menu": "Menu principal",
+        "connect_failed": "MC Manager est injoignable. Le daemon tourne-t-il ?",
+        "connection_lost": "Connexion perdue, reconnexion...",
+        "error_unknown": "Une erreur est survenue ({code})",
+        "error_unauthorized": "Accès refusé : appairez à nouveau cet appareil",
+        "error_forbidden": "Votre rôle n'autorise pas cette action",
+        "error_not_found": "Serveur introuvable",
+        "error_server_running": "Le serveur tourne déjà",
+        "error_server_offline": "Le serveur ne tourne pas",
+        "error_console_offline": "Le serveur ne tourne pas",
+        "error_players_online": "Des joueurs sont en ligne",
+        "error_too_many_streams": "Trop de consoles ouvertes",
+        "error_rate_limited": "Trop de requêtes, patientez un instant",
+        "error_remote_unreachable": "Le serveur distant est injoignable",
+        "error_fingerprint_mismatch": "Le certificat du serveur a changé : connexion refusée",
+        "error_bad_pair_code": "Code d'appairage faux ou expiré",
+        "error_pair_locked": "Trop d'essais, réessayez plus tard",
+        "error_invalid_address": "Adresse invalide, utilisez hôte:port",
+        "error_daemon_timeout": "L'opération a pris trop de temps",
+        "error_start_failed": "Le serveur n'a pas pu démarrer",
+        "error_stop_failed": "Le serveur n'a pas pu s'arrêter",
+        "error_rcon_failed": "Le serveur n'a pas répondu",
+    },
+}
+
+_state = {"lang": None}
+
+
+def system_language(environ=None):
+    environ = os.environ if environ is None else environ
+    for name in ("LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
+        value = environ.get(name, "")
+        if value:
+            first = value.split(":")[0].lower()
+            return "fr" if first.startswith("fr") else "en"
+    return "en"
+
+
+def set_language(lang):
+    _state["lang"] = lang if lang in TEXTS else "en"
+
+
+def language():
+    return _state["lang"] or system_language()
+
+
+def t(key, **values):
+    table = TEXTS[language()]
+    text = table.get(key) or TEXTS["en"].get(key) or key
+    return text.format(**values) if values else text
+
+
+def error_text(code):
+    key = "error_" + str(code)
+    if key in TEXTS["en"]:
+        return t(key)
+    return t("error_unknown", code=code)
