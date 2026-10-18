@@ -37,11 +37,20 @@ def read_packet(sock):
 
 
 def free_port():
-    s = socket.socket()
-    s.bind(("127.0.0.1", 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
+    # outside the ephemeral range: the port is released, then bound again later
+    # by the test, and outgoing connections must not take it in between
+    import random
+    for _ in range(200):
+        port = random.randint(15000, 24999)
+        s = socket.socket()
+        try:
+            s.bind(("127.0.0.1", port))
+        except OSError:
+            continue
+        finally:
+            s.close()
+        return port
+    raise RuntimeError("no free port")
 
 
 def start_listener(hold=None, banned=None, on_login=None):
