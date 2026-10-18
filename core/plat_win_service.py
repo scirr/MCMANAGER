@@ -10,6 +10,7 @@ import plat_win_files as files
 
 SERVICE_NAME = "MCManagerDaemon"
 STOP_TIMEOUT = 30.0
+NSSM_URL = "https://nssm.cc/release/nssm-2.24.zip"
 
 _PS_STATE = (
     f"$s = Get-Service -Name '{SERVICE_NAME}' -ErrorAction SilentlyContinue; "
@@ -45,6 +46,37 @@ def find_nssm(base_dir=None):
         if os.path.exists(candidate):
             return candidate
     return shutil.which("nssm")
+
+
+def download_nssm(base_dir, opener=None):
+    import platform
+    import tempfile
+    import urllib.request
+    import zipfile
+
+    opener = opener or urllib.request.urlopen
+    arch = "win64" if platform.machine().endswith("64") else "win32"
+    target = ntpath.join(base_dir, "nssm", "nssm.exe")
+    with tempfile.TemporaryDirectory() as tmp:
+        archive = os.path.join(tmp, "nssm.zip")
+        with opener(NSSM_URL, timeout=60) as response, open(archive, "wb") as out:  # nosec B310
+            shutil.copyfileobj(response, out)
+        with zipfile.ZipFile(archive) as zf:
+            member = next(n for n in zf.namelist() if n.endswith(f"{arch}/nssm.exe"))
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with zf.open(member) as src, open(target, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+    return target
+
+
+def ensure_nssm(base_dir, opener=None):
+    found = find_nssm(base_dir)
+    if found:
+        return found, ""
+    try:
+        return download_nssm(base_dir, opener), ""
+    except Exception as e:
+        return None, f"nssm download failed: {e}"
 
 
 def _as_list(data):

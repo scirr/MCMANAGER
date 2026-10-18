@@ -120,7 +120,7 @@ class TestLauncher(unittest.TestCase):
 
 class TestService(unittest.TestCase):
     def test_install_maps_code(self):
-        with mock.patch.object(pw._service, "find_nssm", return_value="nssm.exe"), \
+        with mock.patch.object(pw._service, "ensure_nssm", return_value=("nssm.exe", "")), \
                 mock.patch.object(pw._service, "service_install",
                                   return_value=("ok", "")) as inst:
             self.assertEqual(pw.service_install(), (True, ""))
@@ -128,15 +128,16 @@ class TestService(unittest.TestCase):
         self.assertEqual(args[0], "nssm.exe")
         self.assertEqual(args[1], sys.executable)
         self.assertTrue(args[2].endswith("mc_daemon.py"))
-        with mock.patch.object(pw._service, "find_nssm", return_value="nssm.exe"), \
+        with mock.patch.object(pw._service, "ensure_nssm", return_value=("nssm.exe", "")), \
                 mock.patch.object(pw._service, "service_install",
                                   return_value=("no_permission", "cmd")):
             self.assertEqual(pw.service_install(), (False, "cmd"))
 
     def test_install_without_nssm(self):
-        with mock.patch.object(pw._service, "find_nssm", return_value=None):
+        with mock.patch.object(pw._service, "ensure_nssm", return_value=(None, "nssm download failed")):
             ok, detail = pw.service_install()
         self.assertFalse(ok)
+        self.assertIn("nssm", detail)
 
     def test_drift_passes_expected(self):
         with mock.patch.object(pw._service, "find_nssm", return_value="nssm.exe"), \

@@ -1,6 +1,13 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
+if not exist mc_config.py if exist build_release.py (
+    echo [ERROR] This is the source folder. Build the package first:
+    echo         python build_release.py
+    echo         then unzip ..\dist\MCManager.zip, open the MCManager folder and run install.bat there.
+    pause
+    exit /b 1
+)
 echo ========================================
 echo   MC Manager (Windows) — Setup
 echo ========================================
@@ -40,20 +47,26 @@ if errorlevel 1 (
     echo.
 )
 
-echo [1/4] Installing Python dependencies (Pillow)...
+echo [1/5] Installing Python dependencies (Pillow)...
 python -m pip install --quiet Pillow
 echo.
 
-echo [2/4] Installing global 'mc' command...
+echo [2/5] Installing global 'mc' command...
 python mc_config.py --install-only
 echo.
 
-echo [3/4] Installing daemon (Windows service via NSSM)...
+echo [3/5] Installing daemon (Windows service via NSSM)...
 echo       Downloading NSSM if needed, then creating the service.
-python -c "import mc_config; mc_config.install_daemon_task()"
+echo       The service never stops running servers when it restarts (AppKillProcessTree 0).
+python mc_config.py --install-daemon
 echo.
 
-echo [4/4] Done.
+echo [4/5] Checking Windows Firewall...
+python -c "import mc_firewall; print('Firewall:', mc_firewall.detect() or 'not detected - game ports will have to be opened by hand')"
+echo       Game-port rules ("MCManager - Port N") are added by 'mc deploy' and 'mc add'.
+echo.
+
+echo [5/5] Done.
 echo ========================================
 echo   Setup complete!
 echo ========================================

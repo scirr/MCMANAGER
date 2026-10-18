@@ -75,18 +75,25 @@ def resume(pid, tree=False):
     raise Unsupported("resume is not available on Windows")
 
 
+def _service_python():
+    quiet = sys.executable.replace("python.exe", "pythonw.exe")
+    return quiet if os.path.exists(quiet) else sys.executable
+
+
 def _service_paths():
     nssm = _service.find_nssm(BASE_DIR)
     daemon = ntpath.join(BASE_DIR, "mc_daemon.py")
-    return nssm, sys.executable, daemon, BASE_DIR
+    return nssm, _service_python(), daemon, BASE_DIR
 
 
 def service_install(user=None):
-    nssm, python_exe, daemon, base = _service_paths()
+    nssm, err = _service.ensure_nssm(BASE_DIR)
     if not nssm:
-        return False, "nssm not found"
-    logs = ntpath.join(base, "logs")
-    code, detail = _service.service_install(nssm, python_exe, daemon, base, logs)
+        return False, err
+    daemon = ntpath.join(BASE_DIR, "mc_daemon.py")
+    logs = ntpath.join(BASE_DIR, "logs")
+    shared = os.environ.get("MCMANAGER_DATA_DIR", "").strip() or None
+    code, detail = _service.service_install(nssm, _service_python(), daemon, BASE_DIR, logs, shared)
     return code == "ok", detail
 
 

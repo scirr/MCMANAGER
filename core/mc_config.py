@@ -802,6 +802,8 @@ def install_daemon_service(user=None):
         print(f"\033[92m[{T['icon_ok']}]\033[0m {T['daemon_inst_silent']}")
     else:
         print(f"\033[91m[{T['icon_err']}]\033[0m {T['daemon_inst_failed']}")
+        if detail:
+            print(f"\033[90m[{T['icon_info']}]\033[0m {detail}\033[0m")
         print(f"\033[90m[{T['icon_info']}]\033[0m {T['daemon_inst_rerun']}\033[0m")
 
 if __name__ == "__main__":
