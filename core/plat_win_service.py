@@ -1,3 +1,4 @@
+import hashlib
 import json
 import ntpath
 import os
@@ -11,6 +12,7 @@ import plat_win_files as files
 SERVICE_NAME = "MCManagerDaemon"
 STOP_TIMEOUT = 30.0
 NSSM_URL = "https://nssm.cc/release/nssm-2.24.zip"
+NSSM_SHA256 = "727d1e42275c605e0f04aba98095c38a8e1e46def453cdffce42869428aa6743"
 
 _PS_STATE = (
     f"$s = Get-Service -Name '{SERVICE_NAME}' -ErrorAction SilentlyContinue; "
@@ -61,6 +63,11 @@ def download_nssm(base_dir, opener=None):
         archive = os.path.join(tmp, "nssm.zip")
         with opener(NSSM_URL, timeout=60) as response, open(archive, "wb") as out:  # nosec B310
             shutil.copyfileobj(response, out)
+        with open(archive, "rb") as f:
+            digest = hashlib.sha256(f.read()).hexdigest()
+        if digest != NSSM_SHA256:
+            os.remove(archive)
+            raise ValueError(f"checksum mismatch (got {digest}, expected {NSSM_SHA256})")
         with zipfile.ZipFile(archive) as zf:
             member = next(n for n in zf.namelist() if n.endswith(f"{arch}/nssm.exe"))
             os.makedirs(os.path.dirname(target), exist_ok=True)

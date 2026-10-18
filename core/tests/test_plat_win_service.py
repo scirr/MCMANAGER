@@ -1,3 +1,4 @@
+import hashlib
 import os
 import sys
 import unittest
@@ -274,6 +275,7 @@ class TestEnsureNssm(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d, \
                 mock.patch.object(svc, "find_nssm", return_value=None), \
                 mock.patch.object(svc.ntpath, "join", os.path.join), \
+                mock.patch.object(svc, "NSSM_SHA256", hashlib.sha256(data).hexdigest()), \
                 mock.patch("platform.machine", return_value="AMD64"):
             path, err = svc.ensure_nssm(d, opener=opener)
             self.assertEqual(err, "")
@@ -287,3 +289,20 @@ class TestEnsureNssm(unittest.TestCase):
             path, err = svc.ensure_nssm(d, opener=mock.Mock(side_effect=OSError("offline")))
         self.assertIsNone(path)
         self.assertIn("offline", err)
+
+    def test_wrong_checksum_installs_nothing(self):
+        import contextlib
+        import io
+        import tempfile
+
+        @contextlib.contextmanager
+        def opener(url, timeout=None):
+            yield io.BytesIO(self.archive())
+
+        with tempfile.TemporaryDirectory() as d, \
+                mock.patch.object(svc, "find_nssm", return_value=None), \
+                mock.patch.object(svc.ntpath, "join", os.path.join):
+            path, err = svc.ensure_nssm(d, opener=opener)
+            self.assertIsNone(path)
+            self.assertIn("checksum mismatch", err)
+            self.assertFalse(os.path.exists(os.path.join(d, "nssm", "nssm.exe")))
