@@ -233,6 +233,26 @@ class ApiClient:
     def players(self, server):
         return self.get("/v1/servers/%s/players" % self.ref(server))
 
+    def player_list(self, server, kind):
+        return self.get("/v1/servers/%s/lists/%s" % (self.ref(server), self.ref(kind)))
+
+    def add_to_list(self, server, kind, subject, reason=None):
+        body = {"subject": subject}
+        if reason:
+            body["reason"] = reason
+        path = "/v1/servers/%s/lists/%s" % (self.ref(server), self.ref(kind))
+        return self.call("POST", path, body)[1]
+
+    def remove_from_list(self, server, kind, subject):
+        path = "/v1/servers/%s/lists/%s/%s" % (self.ref(server), self.ref(kind), self.ref(subject))
+        return self.call("DELETE", path)[1]
+
+    def kick(self, server, player, reason=None):
+        body = {"player": player}
+        if reason:
+            body["reason"] = reason
+        return self.call("POST", "/v1/servers/%s/kick" % self.ref(server), body)[1]
+
     def config(self, server):
         return self.get("/v1/servers/%s/config" % self.ref(server))
 
