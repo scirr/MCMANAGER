@@ -947,6 +947,11 @@ class TestClient(RemoteCase):
         status, document = stolen.request("GET", "/v1/servers")
         self.assertEqual((status, document["code"]), (0, "fingerprint_mismatch"))
 
+    def test_a_profile_without_fingerprint_never_connects_unpinned(self):
+        for pin in (None, ""):
+            status, document = Remote("127.0.0.1", self.port, pin, token="x").request("GET", "/v1/servers")
+            self.assertEqual((status, document["code"]), (0, "fingerprint_mismatch"))
+
     def test_remote_status_json_equals_local_status_json(self):
         self.add_profile()
         self.add_server("b")

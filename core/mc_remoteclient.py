@@ -109,7 +109,7 @@ class Remote:
         return cls(profile["host"], profile["port"], profile["fingerprint"], profile.get("token"))
 
     def connection(self, timeout=TIMEOUT_S):
-        return PinnedConnection(self.host, self.port, self.fingerprint, timeout, self.context)
+        return PinnedConnection(self.host, self.port, self.fingerprint or "", timeout, self.context)
 
     def headers(self):
         return {"Authorization": "Bearer " + self.token} if self.token else {}
