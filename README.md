@@ -70,6 +70,9 @@ MC_Manager/
 │   ├── mc_alert.py     # alert channels (e-mail, Telegram, ntfy, webhook, Discord)
 │   ├── mc_metrics.py   # Prometheus exporter and server sampling
 │   ├── mc_statuspage.py# static public status page
+│   ├── mc_httpapi.py   # local HTTP API server (Unix socket / loopback + token)
+│   ├── mc_apiops.py    # one handler per operation of the API contract
+│   ├── mc_jobs.py      # in-memory registry of long API operations
 │   ├── mc_proxy.py     # TCP relay, connection limits, CIDR and banned IP filters
 │   ├── mc_router.py    # hostname routing and private router configuration
 │   ├── mc_protocol.py  # Minecraft network protocol (VarInt, handshake, status, login)
