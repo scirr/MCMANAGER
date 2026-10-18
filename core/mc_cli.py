@@ -4,6 +4,9 @@ import json
 import os
 import sys
 import socket
+import ssl
+import threading
+import urllib.parse
 import logging
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -20,6 +23,8 @@ import mc_lang
 import mc_update
 import mc_api
 import mc_crash
+import mc_remote
+import mc_remoteclient
 from mc_lang import T, VERSION
 from mc_platform import plat, Unsupported
 
@@ -432,6 +437,8 @@ def print_categorized_help():
             ("metrics serve [--bind 127.0.0.1:9225]", T["help_metrics"]),
             (f"status-page enable|disable [{tgt}] [--dir D] [--interval 60]", T["help_status_page"]),
             ("api status|enable|disable [--json]", T["help_api"]),
+            ("remote enable|disable|status|pair|devices|add|forget|profiles", T["help_remote"]),
+            ("--remote <profile> <command>", T["help_remote_use"]),
             (f"announce [{tgt}]", T["help_announce"]),
             (f"fingerprint [{tgt}]", T["help_fingerprint"]),
         ]),
@@ -598,6 +605,17 @@ def build_parser():
     p_api = subparsers.add_parser("api", help=T["help_api"])
     p_api.add_argument("api_action", choices=["status", "enable", "disable"])
     p_api.add_argument("--json", action="store_true", help=T["help_json"])
+    p_remote = subparsers.add_parser("remote", help=T["help_remote"])
+    p_remote.add_argument("remote_action", choices=["enable", "disable", "status", "pair", "devices", "add",
+                                                    "forget", "profiles"])
+    p_remote.add_argument("args", nargs="*", help=T["help_exploit_args"])
+    p_remote.add_argument("--bind", default=None, help=T["help_remote_bind"])
+    p_remote.add_argument("--role", choices=mc_remote.ROLES, default=None, help=T["help_remote_role"])
+    p_remote.add_argument("--servers", default=None, help=T["help_remote_servers"])
+    p_remote.add_argument("--name", default=None, help=T["help_remote_name"])
+    p_remote.add_argument("--code", default=None, help=T["help_remote_code"])
+    p_remote.add_argument("--yes", "-y", action="store_true", help=T["help_remote_yes"])
+    p_remote.add_argument("--json", action="store_true", help=T["help_json"])
     p_router = subparsers.add_parser("router", help=T["help_router"])
     p_router.add_argument("router_action", choices=["enable", "disable", "status", "route", "default", "allow", "deny"])
     p_router.add_argument("operands", nargs="*", help=T["help_router_args"])
@@ -771,11 +789,22 @@ def main():
     parser = build_parser()
 
     argv = sys.argv[1:]
+    profile = None
+    if argv and (argv[0] == "--remote" or argv[0].startswith("--remote=")):
+        if argv[0] == "--remote":
+            profile, argv = (argv[1] if len(argv) > 1 else None), argv[2:]
+        else:
+            profile, argv = argv[0].partition("=")[2], argv[1:]
+        if not profile or not argv:
+            print_res(False, T["remote_option_usage"])
+            return EXIT_USAGE
     freeze_cmd = None
     if argv and argv[0] == "freeze" and "--" in argv:
         cut = argv.index("--")
         argv, freeze_cmd = argv[:cut], argv[cut + 1:]
     args = parser.parse_args(argv)
+    if profile:
+        return cmd_remote_client(profile, args)
     if args.action in ("backup", "alert"):
         resolved_exit = _exploitation_dispatch(args)
         if resolved_exit is not None:
@@ -875,6 +904,9 @@ def main():
 
     if args.action == "api":
         return cmd_api(args)
+
+    if args.action == "remote":
+        return cmd_remote(args)
 
     if args.action == "datapack":
         return cmd_datapack(args)
@@ -1531,6 +1563,285 @@ def cmd_api(args):
     else:
         print_info(T["api_status_idle"].format(address=text))
     return EXIT_OK
+
+
+def cmd_remote(args):
+    as_json = args.json
+    action, rest = args.remote_action, args.args
+    if action in ("enable", "disable"):
+        res = mc_api.remote_access(action == "enable", args.bind)
+        code = _finish(res, as_json)
+        if res["ok"] and not as_json:
+            if res.get("fingerprint"):
+                print_info(T["remote_fingerprint_line"].format(fingerprint=res["fingerprint"]))
+            if res.get("firewall") == "manual":
+                print_info(T["remote_firewall_manual"].format(command=res.get("firewall_command")))
+        return EXIT_USAGE if res["code"] in ("bad_bind", "tls_unavailable") else code
+    if action == "status":
+        res = mc_api.remote_status()
+        if as_json:
+            print_json({"schema": mc_api.SCHEMA_VERSION, **res})
+        elif not res["enabled"]:
+            print_info(T["remote_status_off"])
+        else:
+            print_res(True, T["remote_status_on"].format(bind=res["bind"], tls=res["tls"] or "-", devices=res["devices"]))
+        if not as_json and res.get("fingerprint"):
+            print_info(T["remote_fingerprint_line"].format(fingerprint=res["fingerprint"]))
+        return EXIT_OK
+    if action == "pair":
+        servers = None if args.servers in (None, "all") else [s for s in args.servers.split(",") if s]
+        res = mc_api.remote_pair_code(args.role or "operator", servers, args.name)
+        return _finish_checked(res, as_json)
+    if action == "devices":
+        sub = rest[0] if rest else "list"
+        if sub == "revoke" and len(rest) == 2:
+            return _finish(mc_api.remote_revoke(rest[1]), as_json)
+        if sub != "list" or len(rest) > 1:
+            print_res(False, T["remote_usage"])
+            return EXIT_USAGE
+        res = mc_api.remote_devices()
+        if as_json:
+            return _finish(res, True)
+        for device in res["devices"]:
+            roles = device["roles"]
+            scope = ",".join(device["servers"]) if device.get("servers") is not None else "*"
+            state = " (revoked)" if device["revoked"] else ""
+            print(f"{device['id']}  {device['name']}  {roles['default']}  [{scope}]  {device['last_seen'] or '-'}{state}")
+        if not res["devices"]:
+            print_info(T["remote_devices_none"])
+        return EXIT_OK
+    if action == "add":
+        return cmd_remote_add(args)
+    if action == "forget":
+        if len(rest) != 1:
+            print_res(False, T["remote_usage"])
+            return EXIT_USAGE
+        profiles = mc_remoteclient.load_profiles()
+        if rest[0] not in profiles:
+            return _finish(mc_api.result(False, "profile_not_found", profile=rest[0]), as_json)
+        profiles.pop(rest[0])
+        mc_remoteclient.save_profiles(profiles)
+        return _finish(mc_api.result(True, "profile_removed", profile=rest[0]), as_json)
+    profiles = mc_remoteclient.load_profiles()
+    listing = [{"profile": name, "host": p["host"], "port": p["port"], "fingerprint": p["fingerprint"],
+                "device_id": p.get("device_id")} for name, p in sorted(profiles.items())]
+    if as_json:
+        print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "profiles", "profiles": listing})
+    else:
+        for item in listing:
+            print(f"{item['profile']}  {item['host']}:{item['port']}  {item['fingerprint']}")
+        if not listing:
+            print_info(T["remote_profiles_none"])
+    return EXIT_OK
+
+
+def cmd_remote_add(args):
+    as_json = args.json
+    if len(args.args) != 2:
+        print_res(False, T["remote_usage"])
+        return EXIT_USAGE
+    profile, address = args.args
+    try:
+        host, port = mc_remoteclient.split_address(address)
+    except ValueError:
+        return _finish(mc_api.result(False, "bad_address", address=address), as_json)
+    if profile in mc_remoteclient.load_profiles():
+        return _finish(mc_api.result(False, "profile_exists", profile=profile), as_json)
+    try:
+        presented = mc_remoteclient.fetch_fingerprint(host, port)
+    except (OSError, ssl.SSLError):
+        return _finish(mc_api.result(False, "remote_unreachable", address=address), as_json)
+    if not as_json:
+        print_info(T["remote_add_fingerprint"].format(address=address, fingerprint=presented))
+    if not args.yes:
+        if as_json or not sys.stdin.isatty():
+            return _finish_checked(mc_api.result(False, "confirm_required", fingerprint=presented), as_json)
+        if not mc_deploy.ask_yn(T["remote_add_confirm"], default=False):
+            return EXIT_ERROR
+    code = args.code
+    if not code:
+        if as_json or not sys.stdin.isatty():
+            return _finish_checked(mc_api.result(False, "missing_code"), as_json)
+        import getpass
+        code = getpass.getpass(T["remote_add_code_prompt"]).strip()
+    name = args.name or socket.gethostname()
+    document, remote = mc_remoteclient.pair(host, port, presented, code, name)
+    if remote is None:
+        return _finish(document, as_json)
+    profiles = mc_remoteclient.load_profiles()
+    profiles[profile] = {"host": host, "port": port, "fingerprint": presented, "device_id": document["device_id"],
+                         "token": document["token"]}
+    mc_remoteclient.save_profiles(profiles)
+    return _finish(mc_api.result(True, "remote_added", profile=profile, device_id=document["device_id"],
+                                 fingerprint=presented), as_json)
+
+
+def remote_segment(target):
+    return urllib.parse.quote(str(target), safe="") if target is not None else "active"
+
+
+def cmd_remote_client(profile, args):
+    """`mc --remote <profile> <command>`: the same commands, answered by a paired server."""
+    as_json = getattr(args, "json", False)
+    handler = REMOTE_COMMANDS.get(args.action)
+    if handler is None:
+        _finish(mc_api.result(False, "remote_unsupported", command=args.action), as_json)
+        return EXIT_USAGE
+    remote = mc_remoteclient.Remote.from_profile(profile)
+    if remote is None:
+        return _finish(mc_api.result(False, "profile_not_found", profile=profile), as_json)
+    return handler(remote, args)
+
+
+def remote_failed(res, as_json):
+    code = _finish(res, as_json)
+    return EXIT_USAGE if res["code"] in ("remote_unsupported",) else code
+
+
+def remote_status(remote, args):
+    _, document = remote.request("GET", "/v1/servers")
+    as_json = getattr(args, "json", False)
+    if not document.get("ok"):
+        return remote_failed(document, as_json)
+    servers = document.get("servers", [])
+    if args.target is not None:
+        wanted = str(args.target)
+        servers = [s for s in servers if s["name"] == wanted or str(s.get("id")) == wanted]
+        if not servers:
+            return _finish(mc_api.result(False, "not_found", target=wanted), as_json)
+        document = dict(document, servers=servers)
+    if as_json:
+        print_json({"schema": mc_api.SCHEMA_VERSION, **document})
+        return EXIT_OK
+    for server in servers:
+        mark = "*" if server.get("active") else " "
+        print(f"{mark} {server.get('id')}  {server['name']}  {server.get('state') or '-'}")
+    return EXIT_OK
+
+
+def remote_start(remote, args):
+    _, res = remote.request("POST", f"/v1/servers/{remote_segment(args.target)}/start")
+    if res.get("code") == "already_running":
+        print_info(T["already_online"])
+        return EXIT_OK
+    print_res(res["ok"], res.get("message") or render(res))
+    return EXIT_OK if res["ok"] else EXIT_ERROR
+
+
+def remote_stop(remote, args):
+    body = {"force": args.force, "quiet": args.quiet}
+    if args.reason:
+        body["reason"] = args.reason
+    _, res = remote.request("POST", f"/v1/servers/{remote_segment(args.target)}/stop", body)
+    if res.get("code") == "already_stopped":
+        print_info(T["already_offline"])
+    elif res.get("code") == "killed":
+        print_res(True, T["stop_forced"])
+    else:
+        print_res(res["ok"], res.get("message") or (T["stop_done"] if res["ok"] else render(res)))
+    if res["ok"]:
+        print_res(True, T["maintenance_activated"])
+    return EXIT_OK if res["ok"] else EXIT_ERROR
+
+
+def remote_players(remote, args):
+    history = bool(args.args) and args.args[0] == "history"
+    rest = args.args[1:] if history else args.args
+    if history:
+        return _finish_checked(mc_api.result(False, "remote_unsupported", command="players history"), args.json)
+    if len(rest) > 1:
+        print_res(False, T["players_usage"])
+        return EXIT_USAGE
+    target = rest[0] if rest else None
+    _, res = remote.request("GET", f"/v1/servers/{remote_segment(target)}/players")
+    if args.json:
+        print_json({"schema": mc_api.SCHEMA_VERSION, **res})
+        return EXIT_OK if res["ok"] else EXIT_ERROR
+    if res["code"] == "server_offline":
+        print_info(T["players_offline"])
+        return EXIT_OK
+    if not res["ok"]:
+        print_res(False, res.get("message") or render(res))
+        return EXIT_ERROR
+    names = ", ".join(res["players"]) or "-"
+    print(T["players_line"].format(online=res["online"], max=res["max"], names=names))
+    return EXIT_OK
+
+
+def remote_logs(remote, args):
+    _, res = remote.request("GET", f"/v1/servers/{remote_segment(args.target)}/logs?lines=30")
+    if args.json or not res["ok"]:
+        return _finish(res, args.json)
+    print("\n".join(res["lines"]) or T["logs_nothing"])
+    return EXIT_OK
+
+
+def remote_backup(remote, args):
+    rest = list(args.args)
+    listing = bool(rest) and rest[0] == "list"
+    if listing:
+        rest = rest[1:]
+    elif rest and rest[0] in BACKUP_SUBCOMMANDS:
+        return _finish_checked(mc_api.result(False, "remote_unsupported", command="backup " + rest[0]), args.json)
+    if len(rest) > 1:
+        print_res(False, T["backup_usage"])
+        return EXIT_USAGE
+    segment = remote_segment(rest[0] if rest else None)
+    if listing:
+        _, res = remote.request("GET", f"/v1/servers/{segment}/backups")
+        if args.json or not res["ok"]:
+            return _finish(res, args.json)
+        _print_backup_list(res)
+        return EXIT_OK
+    status, res = remote.request("POST", f"/v1/servers/{segment}/backups")
+    if status == 202:
+        res = remote.job(res)
+    return _finish_checked(res, args.json)
+
+
+def remote_console(remote, args, stdin=None, out=None):
+    segment = remote_segment(args.target)
+    stdin = stdin or sys.stdin
+    out = out or sys.stdout
+    conn, response = remote.stream(f"/v1/servers/{segment}/console")
+    if response.status != 200:
+        payload = response.read()
+        conn.close()
+        try:
+            res = json.loads(payload)
+        except ValueError:
+            res = mc_api.result(False, "bad_remote_answer")
+        return _finish(res, False)
+    print_info(T["remote_console_hint"])
+
+    def send():
+        for line in stdin:
+            line = line.strip()
+            if line:
+                _, res = remote.request("POST", f"/v1/servers/{segment}/console", {"command": line})
+                if res.get("output"):
+                    print(res["output"], file=out)
+                elif not res.get("ok"):
+                    print_res(False, res.get("message") or render(res))
+    threading.Thread(target=send, daemon=True).start()
+    try:
+        while True:
+            line = response.fp.readline()
+            if not line:
+                break
+            text = line.decode("utf-8", "replace").rstrip("\r\n")
+            if text.startswith("data: "):
+                print(text[6:], file=out, flush=True)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        conn.close()
+    return EXIT_OK
+
+
+REMOTE_COMMANDS = {"status": remote_status, "start": remote_start, "stop": remote_stop,
+                   "players": remote_players, "logs": remote_logs, "backup": remote_backup,
+                   "console": remote_console}
 
 
 def cmd_status_page(args):
