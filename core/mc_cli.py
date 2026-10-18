@@ -1152,28 +1152,18 @@ def cmd_players(args):
     if not loaded:
         return EXIT_NOT_FOUND
     name, config = loaded
-    if not mc_core.is_server_running(config):
-        if args.json:
-            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": "server_offline",
-                        "message": T["players_offline"], "server": name, "online": 0, "max": None,
-                        "players": [], "state": mc_api.server_state(config)})
-            return EXIT_ERROR
+    res = mc_api.players_document(name, config)
+    if args.json:
+        print_json({"schema": mc_api.SCHEMA_VERSION, **res})
+        return EXIT_OK if res["ok"] else EXIT_ERROR
+    if res["code"] == "server_offline":
         print_info(T["players_offline"])
         return EXIT_OK
-    ok, data = mc_api.query_players(config, wait=mc_api.RCON_RETRY)
-    if not ok:
-        if args.json:
-            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": "rcon_failed", "server": name,
-                        "detail": data, "message": T["players_failed"].format(detail=data),
-                        "error": {"code": "rcon_failed", "detail": data}})
-        else:
-            print_res(False, T["players_failed"].format(detail=data))
+    if not res["ok"]:
+        print_res(False, res["message"])
         return EXIT_ERROR
-    if args.json:
-        print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "players", "server": name, **data})
-    else:
-        names = ", ".join(data["players"]) or "-"
-        print(T["players_line"].format(online=data["online"], max=data["max"], names=names))
+    names = ", ".join(res["players"]) or "-"
+    print(T["players_line"].format(online=res["online"], max=res["max"], names=names))
     return EXIT_OK
 
 def cmd_rcon(args):
@@ -1295,23 +1285,11 @@ def cmd_simple_json(args):
 
 def config_get_json(name, config, args):
     if args.key is None:
-        shown, secrets_set = mc_config.redacted(config)
-        shown = {k: v for k, v in shown.items() if k not in mc_config.SECRET_KEYS}
-        print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "config", "server": name,
-                    "config": shown, "secrets_set": secrets_set})
+        print_json({"schema": mc_api.SCHEMA_VERSION, **mc_api.config_document(name, config)})
         return EXIT_OK
-    if args.key not in config:
-        print_json({"schema": mc_api.SCHEMA_VERSION, "ok": False, "code": "config_key_unset",
-                    "server": name, "key": args.key})
-        return EXIT_ERROR
-    doc = {"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "config_value", "server": name, "key": args.key}
-    if args.key in mc_config.SECRET_KEYS and not args.reveal:
-        doc["write_only"] = True
-    else:
-        doc["value"] = config[args.key]
-        doc["write_only"] = False
-    print_json(doc)
-    return EXIT_OK
+    doc = mc_api.config_value(name, config, args.key, args.reveal)
+    print_json({"schema": mc_api.SCHEMA_VERSION, **doc})
+    return EXIT_OK if doc["ok"] else EXIT_ERROR
 
 def cmd_config(args):
     rest = list(args.rest or [])
@@ -1362,22 +1340,7 @@ def cmd_config(args):
 # SWITCH / SLEEP / DATAPACKS / MODS
 # ==========================================
 
-def render(res):
-    """Text for an API result, from its code (strings 'res_<code>')."""
-    template = (res.get("versions") and T.get(f"res_{res.get('code')}_versions")) or T.get(f"res_{res.get('code')}")
-    if not template:
-        return res.get("message") or res.get("code", "?")
-    class _Missing(dict):
-        def __missing__(self, key):
-            return "?"
-    data = _Missing({k: (", ".join(map(str, v)) if isinstance(v, (list, tuple)) else ("?" if v is None else v))
-                     for k, v in res.items()})
-    if "version" not in data and "mc_version" in data:
-        data["version"] = data["mc_version"]
-    try:
-        return template.format_map(data)
-    except (IndexError, ValueError):
-        return template
+render = mc_api.render
 
 def _finish(res, as_json):
     """Print an API result (JSON or text) and return the exit code."""
@@ -1469,8 +1432,7 @@ def cmd_sleep(args):
         info = mc_api.sleep_info(config)
         state = mc_api.server_state(config)
         if args.json:
-            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "sleep_status", "server": name,
-                        "state": state, **info})
+            print_json({"schema": mc_api.SCHEMA_VERSION, **mc_api.sleep_status(name, config)})
             return EXIT_OK
         if info["enabled"]:
             print_res(True, T["sleep_status_on"].format(after=_human_duration(info["after_s"])))
@@ -1613,14 +1575,9 @@ def cmd_mod(args):
         return code
     _name, config = loaded
     if action == "list":
-        res = mc_content.mod_list(config)
+        res = mc_api.mod_listing(config)
         tracked = {e["file"]: e for e in mc_modsources.load_manifest(config).get("entries", {}).values()}
         if args.json:
-            for mod in res["mods"]:
-                entry = tracked.get(mod["file"])
-                if entry:
-                    mod.update(source=entry["source"], project=entry.get("slug"),
-                               tracked_version=entry.get("version"))
             return _finish(res, True)
         for mod in res["mods"]:
             where = []
@@ -1693,20 +1650,11 @@ def cmd_java(args):
             if error:
                 return _finish(error, args.json)
             only = loaded[0]
-        runtimes = mc_java.installed()
-        servers = []
-        for srv, info in mc_servers.list_servers().items():
-            if only is not None and srv != only:
-                continue
-            try:
-                cfg = mc_config.load_config(info.get("dossier_serveur", ""))
-            except mc_servers.DataFileError:
-                continue
-            servers.append({"server": srv, "java": cfg.get("java") or cfg.get("java_major") or "system",
-                            "minecraft": cfg.get("mc_version")})
+        res = mc_api.java_listing(only)
+        runtimes = {int(k): v for k, v in res["runtimes"].items()}
+        servers = res["servers"]
         if args.json:
-            print_json({"schema": mc_api.SCHEMA_VERSION, "ok": True, "code": "java_list", "runtimes": {str(k): v for k, v in runtimes.items()},
-                        "servers": servers})
+            print_json({"schema": mc_api.SCHEMA_VERSION, **res})
             return EXIT_OK
         if runtimes:
             for major, path in sorted(runtimes.items()):

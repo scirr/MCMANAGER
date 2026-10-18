@@ -371,6 +371,33 @@ def result(ok, code, **data):
     return {"ok": ok, "code": code, **data}
 
 
+def render(res):
+    """Text for an API result, from its code (strings 'res_<code>')."""
+    template = (res.get("versions") and T.get(f"res_{res.get('code')}_versions")) or T.get(f"res_{res.get('code')}")
+    if not template:
+        return res.get("message") or res.get("code", "?")
+
+    class _Missing(dict):
+        def __missing__(self, key):
+            return "?"
+    data = _Missing({k: (", ".join(map(str, v)) if isinstance(v, (list, tuple)) else ("?" if v is None else v))
+                     for k, v in res.items()})
+    if "version" not in data and "mc_version" in data:
+        data["version"] = data["mc_version"]
+    try:
+        return template.format_map(data)
+    except (IndexError, ValueError):
+        return template
+
+
+def wire(res):
+    """The document sent to a client: schema version first, a message on every failure."""
+    doc = {"schema": SCHEMA_VERSION, **res}
+    if doc.get("ok") is False and not doc.get("message"):
+        doc["message"] = render(doc)
+    return doc
+
+
 def load_server(target=None):
     """(name, config) for a target (name, number or None = active server), or
     a failure result. Never prints."""
@@ -598,6 +625,67 @@ def switch(target, force=False):
                   server=in_name, previous=out_name, port=in_cfg["port"],
                   rcon_port=in_cfg["rcon_port"], previous_rcon_port=out_cfg["rcon_port"],
                   start=started)
+
+
+def players_document(name, config):
+    if not mc_core.is_server_running(config):
+        return result(False, "server_offline", message=T["players_offline"], server=name, online=0, max=None,
+                      players=[], state=server_state(config))
+    ok, data = query_players(config, wait=RCON_RETRY)
+    if not ok:
+        return result(False, "rcon_failed", server=name, detail=data,
+                      message=T["players_failed"].format(detail=data),
+                      error={"code": "rcon_failed", "detail": data})
+    return result(True, "players", server=name, **data)
+
+
+def config_document(name, config):
+    shown, secrets_set = mc_config.redacted(config)
+    shown = {k: v for k, v in shown.items() if k not in mc_config.SECRET_KEYS}
+    return result(True, "config", server=name, config=shown, secrets_set=secrets_set)
+
+
+def config_value(name, config, key, reveal=False):
+    if key not in config:
+        return result(False, "config_key_unset", server=name, key=key)
+    doc = result(True, "config_value", server=name, key=key)
+    if key in mc_config.SECRET_KEYS and not reveal:
+        doc["write_only"] = True
+    else:
+        doc["value"] = config[key]
+        doc["write_only"] = False
+    return doc
+
+
+def mod_listing(config):
+    import mc_content
+    import mc_modsources
+    res = mc_content.mod_list(config)
+    tracked = {e["file"]: e for e in mc_modsources.load_manifest(config).get("entries", {}).values()}
+    for mod in res["mods"]:
+        entry = tracked.get(mod["file"])
+        if entry:
+            mod.update(source=entry["source"], project=entry.get("slug"), tracked_version=entry.get("version"))
+    return res
+
+
+def java_listing(only=None):
+    import mc_java
+    servers = []
+    for srv, info in mc_servers.list_servers().items():
+        if only is not None and srv != only:
+            continue
+        try:
+            cfg = mc_config.load_config(info.get("dossier_serveur", ""))
+        except mc_servers.DataFileError:
+            continue
+        servers.append({"server": srv, "java": cfg.get("java") or cfg.get("java_major") or "system",
+                        "minecraft": cfg.get("mc_version")})
+    return result(True, "java_list", runtimes={str(k): v for k, v in mc_java.installed().items()}, servers=servers)
+
+
+def sleep_status(name, config):
+    return result(True, "sleep_status", server=name, state=server_state(config), **sleep_info(config))
 
 
 # ── sleep settings ───────────────────────────────────────────────────────────

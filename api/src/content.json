@@ -1087,7 +1087,8 @@
         "x-mcm-source": [
           "mc_content.mod_list",
           "mc_content.jar_metadata",
-          "mc_modsources.load_manifest"
+          "mc_modsources.load_manifest",
+          "mc_api.mod_listing"
         ]
       },
       "parameters": [

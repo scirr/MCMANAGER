@@ -748,7 +748,8 @@
         "x-mcm-role": "viewer",
         "x-mcm-source": [
           "mc_api.query_players",
-          "mc_api.parse_player_list"
+          "mc_api.parse_player_list",
+          "mc_api.players_document"
         ]
       },
       "parameters": [

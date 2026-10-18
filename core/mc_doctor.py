@@ -248,9 +248,9 @@ def _check_entry(server, check):
             "detail": detail, "fix": fix}
 
 
-def _doctor_json(target):
+def doctor_document(target=None):
+    """(document, exit code) of the JSON report; nothing is printed."""
     import contextlib
-    import json
     import sys
 
     def emit(code, ok, exit_code, **data):
@@ -258,8 +258,7 @@ def _doctor_json(target):
         if not ok:
             doc["message"] = T.get(f"res_{code}", T.get(code, code)).format_map(
                 {"target": "", "available": "", "errors": data.get("errors"), "path": "", "detail": "", **data})
-        print(json.dumps(doc, indent=2, ensure_ascii=False))
-        return exit_code
+        return doc, exit_code
 
     try:
         servers = mc_servers.list_servers()
@@ -282,6 +281,13 @@ def _doctor_json(target):
     warnings = sum(1 for c in checks if c["level"] == "warn")
     return emit("doctor", errors == 0, 1 if errors else 0, checks=checks, errors=errors, warnings=warnings,
                 has_issues=bool(errors or warnings))
+
+
+def _doctor_json(target):
+    import json
+    doc, exit_code = doctor_document(target)
+    print(json.dumps(doc, indent=2, ensure_ascii=False))
+    return exit_code
 
 
 def run_doctor(target=None, as_json=False):

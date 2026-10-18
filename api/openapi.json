@@ -5265,7 +5265,8 @@
         "x-mcm-source": [
           "mc_doctor.check_host",
           "mc_doctor.check_server",
-          "mc_doctor.run_doctor"
+          "mc_doctor.run_doctor",
+          "mc_doctor.doctor_document"
         ]
       }
     },
@@ -5383,7 +5384,8 @@
         ],
         "x-mcm-role": "viewer",
         "x-mcm-source": [
-          "mc_java.installed"
+          "mc_java.installed",
+          "mc_api.java_listing"
         ]
       }
     },
@@ -8044,7 +8046,8 @@
         ],
         "x-mcm-role": "viewer",
         "x-mcm-source": [
-          "mc_config.load_config"
+          "mc_config.load_config",
+          "mc_api.config_document"
         ]
       },
       "parameters": [
@@ -8111,7 +8114,8 @@
         ],
         "x-mcm-role": "viewer",
         "x-mcm-source": [
-          "mc_config.load_config"
+          "mc_config.load_config",
+          "mc_api.config_value"
         ]
       },
       "parameters": [
@@ -8571,7 +8575,8 @@
         ],
         "x-mcm-role": "viewer",
         "x-mcm-source": [
-          "mc_doctor.check_server"
+          "mc_doctor.check_server",
+          "mc_doctor.doctor_document"
         ]
       },
       "parameters": [
@@ -8715,7 +8720,8 @@
         "x-mcm-role": "viewer",
         "x-mcm-source": [
           "mc_java.installed",
-          "mc_api.load_server"
+          "mc_api.load_server",
+          "mc_api.java_listing"
         ]
       },
       "parameters": [
@@ -9444,7 +9450,8 @@
         "x-mcm-source": [
           "mc_content.mod_list",
           "mc_content.jar_metadata",
-          "mc_modsources.load_manifest"
+          "mc_modsources.load_manifest",
+          "mc_api.mod_listing"
         ]
       },
       "parameters": [
@@ -9783,7 +9790,8 @@
         "x-mcm-role": "viewer",
         "x-mcm-source": [
           "mc_api.query_players",
-          "mc_api.parse_player_list"
+          "mc_api.parse_player_list",
+          "mc_api.players_document"
         ]
       },
       "parameters": [
@@ -10154,7 +10162,8 @@
         "x-mcm-role": "viewer",
         "x-mcm-source": [
           "mc_api.sleep_info",
-          "mc_api.server_state"
+          "mc_api.server_state",
+          "mc_api.sleep_status"
         ]
       },
       "parameters": [

@@ -76,6 +76,8 @@ operation) or listed below with the reason. `test_openapi.py` enforces this.
 | Function | Reason |
 |---|---|
 | `mc_api.parse_duration` | Text helper of the CLI (`5m`, `2h`); the API takes seconds. |
+| `mc_api.render` | Text of a result code for the CLI; the API sends the code and a `message`. |
+| `mc_api.wire` | Adds `schema` and a `message` on failures to a result; used by the HTTP layer for every body. |
 | `mc_api.result` | Constructor of the result envelope, not an operation. |
 | `mc_api.load_server` | Resolves a `{server}` segment; used by the HTTP layer, not a route. |
 | `mc_api.is_frozen` | Folded into `ServerSnapshot.frozen` (`getServer`, `listServers`). |
