@@ -18,7 +18,7 @@ import uuid
 from mc_platform import plat
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-RUN_DIR = os.path.join(BASE_DIR, "run")
+RUN_DIR = os.environ.get("MCMANAGER_RUN_DIR") or os.path.join(BASE_DIR, "run")
 REQUESTS_DIR = os.path.join(RUN_DIR, "requests")
 RESPONSES_DIR = os.path.join(RUN_DIR, "responses")
 HEARTBEAT_FILE = os.path.join(RUN_DIR, "daemon.heartbeat")

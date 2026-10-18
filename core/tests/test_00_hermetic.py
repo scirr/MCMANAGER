@@ -8,6 +8,7 @@ CORE = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 _TMP = tempfile.mkdtemp(prefix="mcm-tests-")
 atexit.register(shutil.rmtree, _TMP, ignore_errors=True)
 os.environ.setdefault("MCMANAGER_LOG_DIR", os.path.join(_TMP, "logs"))
+os.environ.setdefault("MCMANAGER_RUN_DIR", os.path.join(_TMP, "run"))
 os.environ.setdefault("MCMANAGER_UPDATE_CACHE", os.path.join(_TMP, "update_check.json"))
 
 

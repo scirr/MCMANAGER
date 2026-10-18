@@ -84,7 +84,8 @@ def check_host():
     registry_perms = check_private_file(mc_servers.REGISTRY_FILE)
     if registry_perms:
         results.append(registry_perms)
-    run_dir = os.path.join(mc_config.BASE_DIR, "run")
+    import mc_ipc
+    run_dir = mc_ipc.RUN_DIR
     if os.path.isdir(run_dir):
         plat.secure_dir(run_dir)
 
