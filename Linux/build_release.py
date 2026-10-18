@@ -71,10 +71,10 @@ def source_path(fname):
     return local if os.path.exists(local) else os.path.join(CORE_DIR, fname)
 
 
-def build_zip(zip_name="MCManager-Linux.zip"):
+def build_zip(zip_name="MCManager-Linux.zip", dist_dir=DIST_DIR):
     print(f"Building {zip_name} (bilingual FR/EN)...")
-    os.makedirs(DIST_DIR, exist_ok=True)
-    zip_path = os.path.join(DIST_DIR, zip_name)
+    os.makedirs(dist_dir, exist_ok=True)
+    zip_path = os.path.join(dist_dir, zip_name)
 
     with tempfile.TemporaryDirectory() as tmp:
         pkg = os.path.join(tmp, "MCManager")

@@ -82,6 +82,8 @@ MC_Manager/
 │   ├── webhook_templates.json
 │   └── tests/
 │
+├── packaging/linux/    # .deb and .rpm builder (build_packages.py)
+│
 ├── Linux/              # Linux packaging (systemd service)
 │   ├── build_release.py
 │   ├── install.sh / uninstall.sh
@@ -109,6 +111,23 @@ mc deploy
 ```
 
 Or download `MCManager-Linux.zip` from the latest release and run `sudo ./install.sh` inside it.
+
+### Install from a package (Debian, Ubuntu, Fedora)
+
+Build the package with `python3 packaging/linux/build_packages.py` (output in `dist/`). The application goes to `/opt/mcmanager`, the command to `/usr/bin/mc`.
+
+```bash
+# Debian / Ubuntu
+sudo apt install ./mcmanager_<version>_all.deb
+
+# Fedora
+sudo dnf install ./mcmanager-<version>-1.noarch.rpm
+
+sudo mcmanager-setup        # installs the service for your user
+mc deploy
+```
+
+Java is not a dependency: MC Manager installs one per server. Update with `sudo apt install ./<new>.deb` or `sudo dnf upgrade ./<new>.rpm` (`mc update` refuses on a package install). Removing the package never deletes your servers or worlds.
 
 ### Windows
 
