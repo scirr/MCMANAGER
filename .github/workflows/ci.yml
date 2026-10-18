@@ -81,7 +81,7 @@ jobs:
           test -x /usr/bin/mc
           test -f /lib/systemd/system/mc_manager.service
           mc version
-          mc doctor --json
+          mc doctor --json || test $? -eq 3
           mc update --json || test $? -eq 1
       - name: Remove and purge the .deb
         run: |

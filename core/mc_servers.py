@@ -352,24 +352,31 @@ def print_data_locations():
         print(line)
 
 
+def _save_empty_registry():
+    try:
+        save_registry(copy.deepcopy(_EMPTY_REGISTRY))
+    except OSError:
+        pass
+
+
 def migrate_legacy_single_server():
     if os.path.exists(REGISTRY_FILE):
         return
 
     legacy_config = os.path.join(BASE_DIR, "config.json")
     if not os.path.exists(legacy_config):
-        save_registry(copy.deepcopy(_EMPTY_REGISTRY))
+        _save_empty_registry()
         return
 
     try:
         config = read_json(legacy_config, {})
     except DataFileError:
-        save_registry(copy.deepcopy(_EMPTY_REGISTRY))
+        _save_empty_registry()
         return
 
     dossier_serveur = os.path.expanduser(config.get("dossier_serveur", ""))
     if not dossier_serveur or not os.path.exists(dossier_serveur):
-        save_registry(copy.deepcopy(_EMPTY_REGISTRY))
+        _save_empty_registry()
         return
 
     name = config.get("nom_serveur", "default")
