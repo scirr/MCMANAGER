@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.join(ROOT, "core", "tests"))
 sys.path.insert(0, os.path.join(ROOT, "apps", "linux"))
 
 import mc_httpapi  # noqa: E402
+from apiclient import api_environment  # noqa: E402, F401 - re-exported for the tests
 
 from mcmanager_app.client import ApiClient, LocalTransport  # noqa: E402
 from mcmanager_app.models import Runner  # noqa: E402
