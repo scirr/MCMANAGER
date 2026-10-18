@@ -26,7 +26,7 @@ import threading
 from mc_lang import T
 from mc_platform import plat
 
-LOGS_DIR = os.path.join(BASE_DIR, "logs")
+LOGS_DIR = os.environ.get("MCMANAGER_LOG_DIR") or os.path.join(BASE_DIR, "logs")
 os.makedirs(LOGS_DIR, exist_ok=True)
 
 logging.basicConfig(
