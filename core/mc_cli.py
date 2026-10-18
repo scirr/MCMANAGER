@@ -355,7 +355,7 @@ def print_dashboard(target=None, with_cheatsheet=False):
 # ==========================================
 
 def print_logs(target=None):
-    log_file = os.path.join(BASE_DIR, "logs", "daemon.log")
+    log_file = os.path.join(os.environ.get("MCMANAGER_LOG_DIR") or os.path.join(BASE_DIR, "logs"), "daemon.log")
     if not os.path.exists(log_file):
         print_res(False, T["no_log_file"])
         return
@@ -2632,7 +2632,7 @@ def _log_crash():
     """Write the traceback to logs/cli-error.log and return that path."""
     import traceback
     import datetime
-    path = os.path.join(BASE_DIR, "logs", "cli-error.log")
+    path = os.path.join(os.environ.get("MCMANAGER_LOG_DIR") or os.path.join(BASE_DIR, "logs"), "cli-error.log")
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "a", encoding="utf-8") as f:
