@@ -574,7 +574,7 @@ def backup_now(name, config):
 def log_lines(name=None, count=30):
     log_file = os.path.join(BASE_DIR, "logs", "daemon.log")
     if not os.path.exists(log_file):
-        return result(False, "no_log_file", server=name)
+        return result(False, "no_log_file", **({"server": name} if name else {}))
     with open(log_file, "r", encoding="utf-8", errors="replace") as f:
         lines = f.read().splitlines()
     if name is not None:

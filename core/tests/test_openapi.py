@@ -576,13 +576,20 @@ class TestCliOutputsFollowTheContract(unittest.TestCase):
     def test_the_read_only_documents(self):
         for argv, target in ((("status",), "listServers"), (("status", "a"), "listServers"),
                              (("active",), "getServer"),                              (("java", "list"), "listJava"), (("sleep", "status"), "getSleepSettings"),
-                             (("logs",), "getServerLogs"), (("world", "list"), "listWorlds"),
+                             (("world", "list"), "listWorlds"),
                              (("datapack", "list"), "listDatapacks"), (("mod", "list"), "listMods"),
                              (("ban", "list"), "listPlayerList"), (("op", "list"), "listPlayerList"),
                              (("whitelist", "list"), "listPlayerList"), (("router", "status"), "getRouter"),
                              (("router", "route", "list"), "getRouter"), (("task", "list"), "listTasks")):
             with self.subTest(command=" ".join(argv)):
                 self.check(argv, target)
+
+    def test_logs_whether_or_not_the_daemon_log_exists(self):
+        rc, doc = self.cli("logs")
+        if doc["code"] == "no_log_file":
+            self.check_failure(("logs",), "no_log_file")
+        else:
+            self.check(("logs",), "getServerLogs")
 
     def test_history_freeze_resume_use_mode(self):
         doc = self.check(("players", "history", "--days", "3650"), "getPlayerHistory")
