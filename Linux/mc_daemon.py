@@ -686,6 +686,8 @@ def main():
                 process_server_tick(name, info.get("dossier_serveur", ""), state)
             except Exception as e:
                 logging.error(f"[{name}] Unexpected error, server skipped this tick: {e}")
+        # a server put to sleep during the tick gets its listener now, not 5 s later
+        next_sync = 0
 
 if __name__ == "__main__":
     main()
