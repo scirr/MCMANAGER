@@ -5,7 +5,7 @@ from tests.support import FakeClient, sync_runner
 
 from mcmanager_app import i18n
 from mcmanager_app.client import ApiError
-from mcmanager_app.models import (ConnectionModel, ConsoleModel, ServerDetailModel, ServerListModel, format_ram,
+from mcmanager_app.models import (ConnectionModel, ConsoleModel, ServerDetailModel, PlayersModel, ServerListModel, format_ram,
                                   players_text)
 
 
@@ -19,6 +19,47 @@ class ModelCase(unittest.TestCase):
         self.addCleanup(i18n.set_language, "en")
         self.client = FakeClient()
         self.runner = sync_runner()
+
+
+class TestPlayers(ModelCase):
+    def setUp(self):
+        super().setUp()
+        self.client.lists = {"whitelist": ["Steve"], "op": [], "ban": ["Bad"]}
+        self.model = PlayersModel(self.client, "a", self.runner)
+
+    def test_load_fills_the_three_lists(self):
+        self.model.load()
+        self.assertEqual(self.model.lists, {"whitelist": [{"name": "Steve"}], "op": [], "ban": [{"name": "Bad"}]})
+
+    def test_add_trims_reloads_and_reports(self):
+        self.assertTrue(self.model.add("op", "  Alex "))
+        self.assertIsNone(self.model.busy)
+        self.assertEqual(self.client.calls, [("add", "op", "Alex")])
+        self.assertEqual(self.model.lists["op"], [{"name": "Alex"}])
+        self.assertEqual(self.model.message, "Alex added")
+
+    def test_blank_name_and_unknown_list_are_ignored(self):
+        self.assertFalse(self.model.add("op", "  "))
+        self.assertFalse(self.model.add("zz", "x"))
+        self.assertFalse(self.model.remove("zz", "x"))
+
+    def test_remove_and_kick(self):
+        self.model.remove("whitelist", "Steve")
+        self.assertEqual(self.model.lists["whitelist"], [])
+        self.model.kick("Steve")
+        self.assertEqual(self.client.calls[-1], ("kick", "Steve"))
+        self.assertEqual(self.model.message, "Steve kicked")
+
+    def test_busy_blocks_a_second_action(self):
+        self.model.busy = ("op", "add", "x")
+        self.assertFalse(self.model.kick("Steve"))
+
+    def test_error_is_translated(self):
+        i18n.set_language("fr")
+        self.client.fail["kick"] = "player_not_online"
+        self.model.kick("Steve")
+        self.assertEqual(self.model.error, "Ce joueur n'est pas en ligne")
+        self.assertIsNone(self.model.busy)
 
 
 class TestServerList(ModelCase):

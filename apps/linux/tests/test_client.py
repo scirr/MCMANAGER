@@ -57,6 +57,26 @@ class TestAgainstLocalApi(unittest.TestCase):
             self.client.players("a")
         self.assertEqual(caught.exception.code, "server_offline")
 
+    def test_lists_add_and_remove_round_trip(self):
+        for kind in ("whitelist", "op", "ban"):
+            self.assertEqual(self.client.player_list("a", kind)["entries"], [])
+        try:
+            self.client.add_to_list("a", "whitelist", "Notch")
+        except ApiError as exc:
+            self.fail(exc.code)
+        names = [e["name"] for e in self.client.player_list("a", "whitelist")["entries"]]
+        self.assertEqual(names, ["Notch"])
+        self.client.remove_from_list("a", "whitelist", "Notch")
+        self.assertEqual(self.client.player_list("a", "whitelist")["entries"], [])
+
+    def test_invalid_name_and_offline_kick_are_typed_errors(self):
+        with self.assertRaises(ApiError) as caught:
+            self.client.add_to_list("a", "ban", "bad name!", "grief")
+        self.assertEqual(caught.exception.code, "invalid_name")
+        with self.assertRaises(ApiError) as caught:
+            self.client.kick("a", "Steve")
+        self.assertGreaterEqual(caught.exception.status, 409)
+
     def test_job_is_followed_to_its_end(self):
         with mock.patch.object(mc_api, "backup_now", lambda n, c: mc_api.result(True, "backup_created")):
             status, document = self.client.call("POST", "/v1/servers/a/backups")

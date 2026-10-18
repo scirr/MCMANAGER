@@ -234,6 +234,70 @@ class ServerDetailModel(Observable):
         }
 
 
+PLAYER_LISTS = ("whitelist", "op", "ban")
+
+
+class PlayersModel(Observable):
+    """Whitelist, operators and bans of one server, plus kicking: edits with an in-progress state."""
+
+    def __init__(self, client, name, runner=None):
+        super().__init__()
+        self.client, self.name, self.runner = client, name, runner or Runner()
+        self.lists = {kind: [] for kind in PLAYER_LISTS}
+        self.busy = None
+        self.error = None
+        self.message = None
+
+    def load(self):
+        for kind in PLAYER_LISTS:
+            self.runner.run(lambda kind=kind: self.client.player_list(self.name, kind),
+                            lambda document, error, kind=kind: self._loaded(kind, document, error))
+
+    def _loaded(self, kind, document, error):
+        if error:
+            self.error = error_text(error.code)
+        else:
+            self.lists[kind] = [entry for entry in (document.get("entries") or []) if entry.get("name")]
+        self.notify()
+
+    def add(self, kind, subject):
+        subject = subject.strip()
+        if kind not in PLAYER_LISTS or not subject:
+            return False
+        return self._start((kind, "add", subject), lambda: self.client.add_to_list(self.name, kind, subject),
+                           "player_added", subject, kind)
+
+    def remove(self, kind, subject):
+        if kind not in PLAYER_LISTS:
+            return False
+        return self._start((kind, "remove", subject), lambda: self.client.remove_from_list(self.name, kind, subject),
+                           "player_removed", subject, kind)
+
+    def kick(self, player):
+        return self._start(("kick", "kick", player), lambda: self.client.kick(self.name, player),
+                           "player_kicked", player, None)
+
+    def _start(self, busy, work, message, subject, reload_kind):
+        if self.busy:
+            return False
+        self.busy, self.error, self.message = busy, None, None
+        self.notify()
+        self.runner.run(work, lambda _document, error: self._finished(error, message, subject, reload_kind))
+        return True
+
+    def _finished(self, error, message, subject, reload_kind):
+        self.busy = None
+        if error:
+            self.error = error_text(error.code)
+            self.notify()
+            return
+        self.message = t(message, name=subject)
+        self.notify()
+        if reload_kind:
+            self.runner.run(lambda: self.client.player_list(self.name, reload_kind),
+                            lambda document, err: self._loaded(reload_kind, document, err))
+
+
 class ConsoleModel(Observable):
     """Console lines of one server (bounded buffer) and command sending."""
 

@@ -33,6 +33,7 @@ class FakeClient:
     def __init__(self):
         self.servers = []
         self.player_docs = {}
+        self.lists = {}
         self.calls = []
         self.fail = {}
         self.action_status = 200
@@ -50,6 +51,27 @@ class FakeClient:
     def players(self, name):
         self._check("players")
         return self.player_docs.get(name, {"online": 0, "max": 20, "players": []})
+
+    def player_list(self, name, kind):
+        self._check("list_" + kind)
+        return {"entries": [{"name": n} for n in self.lists.get(kind, [])]}
+
+    def add_to_list(self, name, kind, subject, reason=None):
+        self._check("add")
+        self.calls.append(("add", kind, subject))
+        self.lists.setdefault(kind, []).append(subject)
+        return {"ok": True}
+
+    def remove_from_list(self, name, kind, subject):
+        self._check("remove")
+        self.calls.append(("remove", kind, subject))
+        self.lists[kind].remove(subject)
+        return {"ok": True}
+
+    def kick(self, name, player, reason=None):
+        self._check("kick")
+        self.calls.append(("kick", player))
+        return {"ok": True}
 
     def action(self, name, action):
         self.calls.append((name, action))

@@ -5,7 +5,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, GLib, Gtk  # noqa: E402
 
 from ..i18n import t  # noqa: E402
-from ..models import ACTIONS, ConsoleModel, ServerDetailModel, players_text  # noqa: E402
+from ..models import ACTIONS, PLAYER_LISTS, ConsoleModel, PlayersModel, ServerDetailModel, players_text  # noqa: E402
 from .common import make_runner  # noqa: E402
 
 
@@ -49,27 +49,88 @@ class ConsoleTab(Gtk.Box):
 
 
 class PlayersTab(Adw.PreferencesPage):
-    def __init__(self):
+    def __init__(self, client, name, toast):
         super().__init__()
-        self.group = Adw.PreferencesGroup()
-        self.add(self.group)
-        self.rows = []
+        self.toast = toast
+        self.model = PlayersModel(client, name, make_runner())
+        self.online = Adw.PreferencesGroup()
+        self.add(self.online)
+        self.groups = {}
+        self.entries = {}
+        self.rows = {kind: [] for kind in PLAYER_LISTS}
+        self.online_rows = []
+        for kind in PLAYER_LISTS:
+            group = Adw.PreferencesGroup(title=t("list_" + kind))
+            entry = Adw.EntryRow(title=t("player_name"))
+            entry.set_show_apply_button(False)
+            button = Gtk.Button(icon_name="list-add-symbolic", valign=Gtk.Align.CENTER)
+            button.set_tooltip_text(t("player_add"))
+            button.update_property([Gtk.AccessibleProperty.LABEL], [t("player_add")])
+            button.add_css_class("flat")
+            button.connect("clicked", lambda _b, k=kind: self.add_player(k))
+            entry.connect("entry-activated", lambda _e, k=kind: self.add_player(k))
+            entry.add_suffix(button)
+            group.add(entry)
+            self.add(group)
+            self.groups[kind], self.entries[kind] = group, entry
+        self.row = None
+        self.model.subscribe(self.refresh)
+        self.model.load()
+
+    def add_player(self, kind):
+        entry = self.entries[kind]
+        if self.model.add(kind, entry.get_text()):
+            entry.set_text("")
+
+    def remove_button(self, label, callback):
+        button = Gtk.Button(icon_name="user-trash-symbolic", valign=Gtk.Align.CENTER)
+        button.add_css_class("flat")
+        button.set_tooltip_text(label)
+        button.update_property([Gtk.AccessibleProperty.LABEL], [label])
+        button.connect("clicked", lambda _b: callback())
+        return button
 
     def show(self, row):
-        for widget in self.rows:
-            self.group.remove(widget)
-        self.rows = []
-        names = row["players"] if row else []
-        self.group.set_title(players_text(row) if row else "")
-        if not names:
-            names = []
-            widget = Adw.ActionRow(title=t("no_players"))
-            self.group.add(widget)
-            self.rows.append(widget)
-        for name in names:
-            widget = Adw.ActionRow(title=name)
-            self.group.add(widget)
-            self.rows.append(widget)
+        self.row = row
+        self.refresh()
+
+    def refresh(self):
+        busy = self.model.busy is not None
+        for widget in self.online_rows:
+            self.online.remove(widget)
+        self.online_rows = []
+        names = self.row["players"] if self.row else []
+        self.online.set_title(players_text(self.row) if self.row else "")
+        for name in names or [None]:
+            widget = Adw.ActionRow(title=name or t("no_players"))
+            if name:
+                button = self.remove_button(t("player_kick", name=name), lambda n=name: self.model.kick(n))
+                button.set_sensitive(not busy)
+                widget.add_suffix(button)
+            self.online.add(widget)
+            self.online_rows.append(widget)
+        for kind in PLAYER_LISTS:
+            for widget in self.rows[kind]:
+                self.groups[kind].remove(widget)
+            self.rows[kind] = []
+            entries = self.model.lists[kind]
+            for item in entries or [None]:
+                name = item["name"] if item else None
+                widget = Adw.ActionRow(title=name or t("list_empty"))
+                if name:
+                    button = self.remove_button(t("player_remove", name=name),
+                                                lambda k=kind, n=name: self.model.remove(k, n))
+                    button.set_sensitive(not busy)
+                    widget.add_suffix(button)
+                self.groups[kind].add(widget)
+                self.rows[kind].append(widget)
+            self.entries[kind].set_sensitive(not busy)
+        if self.model.error:
+            self.toast(self.model.error)
+            self.model.error = None
+        elif self.model.message:
+            self.toast(self.model.message)
+            self.model.message = None
 
 
 class SettingsTab(Adw.PreferencesPage):
@@ -101,7 +162,7 @@ class ServerDetailPage(Adw.NavigationPage):
         self.client, self.list_model, self.name, self.toast = client, list_model, name, toast
         self.model = ServerDetailModel(client, name, make_runner())
         self.console = ConsoleTab(ConsoleModel(client, name, make_runner()), toast)
-        self.players = PlayersTab()
+        self.players = PlayersTab(client, name, toast)
         self.settings = SettingsTab()
         self.buttons = {}
         header = Adw.HeaderBar()
