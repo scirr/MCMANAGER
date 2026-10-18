@@ -254,7 +254,7 @@ Name:           {NAME}
 Version:        {version}
 Release:        1
 Summary:        {SUMMARY}
-License:        MIT
+License:        MPL-2.0
 URL:            {HOMEPAGE}
 BuildArch:      noarch
 AutoReqProv:    no

@@ -282,4 +282,4 @@ Webhooks are silenced during maintenance mode by design (no players connected).
 
 ## 📄 License
 
-MIT — Free to use, modify and distribute.
+Mozilla Public License 2.0 (MPL-2.0) — free to use, including commercially; if you distribute a modified version of MC Manager's files, those files must stay under the MPL-2.0 and their source must be available. See [LICENSE](LICENSE). Versions up to 2.5.0 were released under the MIT license.

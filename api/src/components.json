@@ -439,8 +439,8 @@
   "info": {
     "description": "API v1 of the MC Manager daemon: supervision and administration of Minecraft servers.\n\nTransport: HTTP/1.1 and JSON (UTF-8). Locally the daemon listens on the Unix socket run/api.sock (mode 0600) on Linux and macOS, or on 127.0.0.1 with a token file on Windows; no further authentication is required locally. Remotely (disabled by default) it is served over HTTPS (TLS 1.3, self-signed certificate pinned by the client) and every request carries `Authorization: Bearer <device token>` obtained through the pairing flow.\n\nEvery response body is an object with `ok` (boolean) and `code` (stable identifier, never translated); `schema` is the contract version of the JSON shapes (1). Failures use the Error object. Long operations answer 202 with a Job to follow on /v1/jobs/{id} or in the event stream. A `{server}` path segment accepts a server name, its numeric id, or `active`.\n\nLimits: request body at most 1 MB (413), 20 requests per second per device (429, header Retry-After), 3 simultaneous console streams per device. Pairing is locked for 15 minutes per IP after 10 failures. No response ever contains a secret (RCON password, webhook URL, API keys, S3 keys, SMTP or restic passwords, Telegram or ntfy tokens): secrets are write-only and only appear in requests. The only token ever returned is the device token of the pairing response, once. Roles per device and per server: viewer (read), operator (start, stop, console, players, backup), admin (everything).",
     "license": {
-      "identifier": "MIT",
-      "name": "MIT"
+      "identifier": "MPL-2.0",
+      "name": "MPL-2.0"
     },
     "title": "MC Manager API",
     "version": "1.0.0"

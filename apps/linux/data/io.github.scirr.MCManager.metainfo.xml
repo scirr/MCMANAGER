@@ -5,7 +5,7 @@
   <summary>Manage Minecraft servers</summary>
   <summary xml:lang="fr">Gérer des serveurs Minecraft</summary>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>MIT</project_license>
+  <project_license>MPL-2.0</project_license>
   <description>
     <p>Control the Minecraft servers of this machine or of a remote MC Manager: state, players, memory, start, stop, restart and console.</p>
   </description>
