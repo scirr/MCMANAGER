@@ -182,11 +182,11 @@ def stage_tree(stage, zip_path, kind):
     _write(os.path.join(stage, "usr/bin/mc"), COMMAND_SCRIPT, 0o755)
     _write(os.path.join(stage, "usr/sbin/mcmanager-setup"), SETUP_SCRIPT, 0o755)
     _write(os.path.join(stage, UNIT_DIRS[kind].lstrip("/"), UNIT_NAME), render_unit(), 0o644)
-    os.chmod(stage, 0o755)
+    os.chmod(stage, 0o755)  # nosec B103 - package directories are world-readable by design
     epoch = os.environ.get("SOURCE_DATE_EPOCH")
     for base, dirs, files in os.walk(stage):
         for entry in dirs:
-            os.chmod(os.path.join(base, entry), 0o755)
+            os.chmod(os.path.join(base, entry), 0o755)  # nosec B103 - package directories are world-readable by design
         if epoch:
             for entry in dirs + files:
                 os.utime(os.path.join(base, entry), (int(epoch), int(epoch)))
@@ -235,7 +235,7 @@ def build_deb(zip_path, out_dir, version):
         _write(os.path.join(debian, "control"), control_text(version, installed_size_kib(stage)), 0o644)
         for name, body in deb_scripts().items():
             _write(os.path.join(debian, name), body, 0o755)
-        os.chmod(debian, 0o755)
+        os.chmod(debian, 0o755)  # nosec B103 - package directories are world-readable by design
         if os.path.exists(out):
             os.remove(out)
         subprocess.run(["dpkg-deb", "--build", "--root-owner-group", stage, out], check=True)

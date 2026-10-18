@@ -110,7 +110,7 @@ def _extract_zip(archive, root):
             target = os.path.realpath(os.path.join(root, name))
             if not (target == root or target.startswith(root + os.sep)):
                 raise ValueError(f"unsafe path in archive: {name}")
-        z.extractall(root)
+        z.extractall(root)  # nosec B202 - every member checked above
 
 
 def install(major, progress=None):

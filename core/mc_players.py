@@ -52,7 +52,7 @@ def valid_ip(text):
 
 
 def offline_uuid(name):
-    digest = bytearray(hashlib.md5(f"OfflinePlayer:{name}".encode("utf-8")).digest())
+    digest = bytearray(hashlib.md5(f"OfflinePlayer:{name}".encode("utf-8"), usedforsecurity=False).digest())
     digest[6] = (digest[6] & 0x0F) | 0x30
     digest[8] = (digest[8] & 0x3F) | 0x80
     return str(uuid.UUID(bytes=bytes(digest)))

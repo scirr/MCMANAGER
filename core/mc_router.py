@@ -13,7 +13,7 @@ import mc_sleep
 from mc_lang import T
 
 DEFAULTS = {
-    "enabled": False, "port": 25565, "bind_host": "0.0.0.0",
+    "enabled": False, "port": 25565, "bind_host": "0.0.0.0",  # nosec B104 - public game port
     "routes": {}, "default": None, "allow": [], "deny": [],
     "max_connections": 128, "per_ip": 16, "per_second": 8,
     "proxy_in": False, "trusted_proxies": [], "proxy_out": False,

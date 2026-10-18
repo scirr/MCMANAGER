@@ -10,7 +10,7 @@ _PS_TCP = ("ConvertTo-Json -Compress -InputObject @(Get-NetTCPConnection -State 
 _PS_UDP = ("ConvertTo-Json -Compress -InputObject @(Get-NetUDPEndpoint "
            "-LocalPort %d -ErrorAction SilentlyContinue | "
            "Select-Object LocalAddress,LocalPort,OwningProcess)")
-_ALL = ("0.0.0.0", "::", "[::]", "*")
+_ALL = ("0.0.0.0", "::", "[::]", "*")  # nosec B104 - addresses compared, not bound
 
 
 def _split_endpoint(text):
@@ -119,7 +119,7 @@ def _new_socket(proto):
     return socket.socket(socket.AF_INET, kind)
 
 
-def port_in_use(port, proto="tcp", host="0.0.0.0"):
+def port_in_use(port, proto="tcp", host="0.0.0.0"):  # nosec B104 - bind test of the public port
     sock = _new_socket(proto)
     try:
         if is_windows() and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):

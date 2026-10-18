@@ -149,7 +149,7 @@ class S3Client:
 
     def list(self, prefix="", max_keys=1000):
         data = self.request("GET", "", {"list-type": "2", "max-keys": str(max_keys), "prefix": prefix})
-        root = ElementTree.fromstring(data)
+        root = ElementTree.fromstring(data)  # nosec B314 - answer of the configured S3 endpoint; expat refuses external entities
         ns = root.tag.partition("}")[0] + "}" if root.tag.startswith("{") else ""
         return [{"key": c.findtext(f"{ns}Key"), "size": int(c.findtext(f"{ns}Size") or 0)}
                 for c in root.iter(f"{ns}Contents")]
@@ -157,7 +157,7 @@ class S3Client:
 
 def _error_text(data):
     try:
-        root = ElementTree.fromstring(data)
+        root = ElementTree.fromstring(data)  # nosec B314 - answer of the configured S3 endpoint; expat refuses external entities
         code = root.findtext("Code") or ""
         msg = root.findtext("Message") or ""
         return f"{code} {msg}".strip()
