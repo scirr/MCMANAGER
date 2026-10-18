@@ -57,10 +57,11 @@ The operation layer returns `code`; the HTTP layer maps it as follows.
 
 | Status | Codes |
 |---|---|
-| 404 | `not_found`, `no_server`, `folder_missing`, `mod_not_found`, `pack_not_found`, `task_not_found`, `backup_not_found`, `remote_not_found`, `channel_not_found`, `no_remote`, `no_channel`, `java_not_installed`, `config_key_unset`, `no_active_server`, `no_server`, `no_log_file`, `job_not_found` |
-| 409 | `server_running`, `stop_first`, `players_online`, `already_active`, `not_sleeping`, `already_frozen`, `mod_exists`, `mod_ambiguous`, `defines_blocks`, `router_port_conflict`, `folder_not_empty`, `remote_exists`, `channel_exists`, `task_name_taken`, `blocked_by_maintenance`, `downgrade_refused`, `job_finished`, `console_offline`, `server_offline`, `config_conflict` |
-| 422 | `bad_*`, `invalid_*`, `missing_*`, `confirm_required`, `confirmation_required`, `eula_required`, `name_required`, `sleep_after_too_short`, `sleep_needs_rcon`, `sleep_setting_refused`, `sleep_hold_timeout_range`, `command_required`, `command_not_allowed`, `warn_not_allowed`, `unsupported_on_windows`, `encrypt_key_missing`, `key_not_found`, `s3_credentials_missing`, `restic_password_missing`, `overworld_protected`, `unknown_dimension`, `unknown_loader`, `not_a_jar`, `unsafe_archive`, `no_level_dat`, `java_bad_choice`, `bad_signature`, `router_usage`, `status_page_interval_too_short` |
-| 429 | `too_many_streams` |
+| 404 | `not_found`, `no_server`, `folder_missing`, `mod_not_found`, `pack_not_found`, `task_not_found`, `backup_not_found`, `remote_not_found`, `channel_not_found`, `no_remote`, `no_channel`, `java_not_installed`, `config_key_unset`, `no_active_server`, `no_server`, `no_log_file`, `job_not_found`, `device_not_found` |
+| 409 | `server_running`, `stop_first`, `players_online`, `already_active`, `not_sleeping`, `already_frozen`, `mod_exists`, `mod_ambiguous`, `defines_blocks`, `router_port_conflict`, `folder_not_empty`, `remote_exists`, `channel_exists`, `task_name_taken`, `blocked_by_maintenance`, `downgrade_refused`, `job_finished`, `console_offline`, `server_offline`, `config_conflict`, `device_revoked` |
+| 422 | `bad_*`, `invalid_*`, `missing_*`, `confirm_required`, `confirmation_required`, `eula_required`, `name_required`, `sleep_after_too_short`, `sleep_needs_rcon`, `sleep_setting_refused`, `sleep_hold_timeout_range`, `command_required`, `command_not_allowed`, `warn_not_allowed`, `unsupported_on_windows`, `encrypt_key_missing`, `key_not_found`, `s3_credentials_missing`, `restic_password_missing`, `overworld_protected`, `unknown_dimension`, `unknown_loader`, `not_a_jar`, `unsafe_archive`, `no_level_dat`, `java_bad_choice`, `bad_signature`, `router_usage`, `status_page_interval_too_short`, `tls_unavailable` |
+| 403 | `forbidden` |
+| 429 | `too_many_streams`, `pair_locked`, `rate_limited` |
 | 501 | `not_implemented` |
 | 503 | `rcon_failed`, `rcon_error`, `daemon_timeout`, `source_unreachable`, `check_failed`, `java_download_failed`, `announce_failed` |
 | 500 | `start_failed`, `stop_failed`, `still_running`, `backup_failed`, `safety_backup_failed`, `export_failed`, `import_failed`, `update_failed`, `router_error`, `status_page_unwritable` |
@@ -114,9 +115,9 @@ The `--json` outputs match the contract; `test_openapi.py` runs them and compare
 
 The daemon serves the contract on a local listener only: `run/api.sock` (0600) on Linux, `127.0.0.1:<port>`
 with a bearer token in `run/api.token` on Windows. `mc api status|enable|disable` shows or switches it
-(`api_local` in `api.json`, enabled by default). The remote operations (`remote` tag) exist and answer
-`501 not_implemented`. `test_httpapi.py` fails when an operation has no handler or a handler is not in the contract.
+(`api_local` in `api.json`, enabled by default). The remote operations (`remote` tag) are served by a second
+listener (TLS 1.3, bearer token per device, roles), off until `mc remote enable`. `test_httpapi.py` fails when an operation has no handler or a handler is not in the contract.
 
-Additions made while implementing: `404` on `GET`/`DELETE /v1/jobs/{job}`, `501` on the `remote` operations,
+Additions made while implementing: `404` on `GET`/`DELETE /v1/jobs/{job}`, `servers` (allowed servers) on devices and pairing codes, `ip` and `status` on audit entries,
 `message` in `DoctorReport` when the report is not ok, and the codes above (`config_set` failures
 `key_not_found`, `invalid_value`, `config_conflict`; `too_many_streams`; `job_not_found`; `announce_failed`).

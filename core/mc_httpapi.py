@@ -5,10 +5,12 @@ Linux: Unix socket run/api.sock (0600). Windows: 127.0.0.1 on a free port with a
 bearer token in run/api.token. The routing table is built from the contract and
 every handler lives in mc_apiops.
 """
+import collections
 import hmac
 import http.server
 import json
 import logging
+import math
 import os
 import queue
 import re
@@ -23,6 +25,7 @@ import urllib.parse
 import mc_api
 import mc_apiops
 import mc_jobs
+import mc_remote
 import mc_servers
 from mc_platform import plat
 
@@ -38,26 +41,30 @@ HISTORY = 200
 SOCKET_NAME = "api.sock"
 TOKEN_NAME = "api.token"
 PUBLIC = ("getApiInfo", "pairDevice")
+LOCAL_ONLY = ("setRemoteAccess", "createPairingCode")
+FILTERED = ("listServers", "streamEvents", "listJobs", "getJob", "cancelJob")
 METHODS = ("get", "put", "post", "delete", "patch")
 
 STATUS_BY_CODE = {}
 for _status, _codes in (
     (404, "not_found no_server folder_missing mod_not_found pack_not_found task_not_found backup_not_found "
           "remote_not_found channel_not_found no_remote no_channel java_not_installed config_key_unset "
-          "no_active_server no_log_file job_not_found"),
+          "no_active_server no_log_file job_not_found device_not_found"),
     (409, "server_running stop_first players_online already_active not_sleeping already_frozen mod_exists "
           "mod_ambiguous defines_blocks router_port_conflict folder_not_empty remote_exists channel_exists "
           "task_name_taken blocked_by_maintenance downgrade_refused job_finished console_offline server_offline "
-          "config_conflict"),
+          "config_conflict device_revoked"),
     (422, "confirm_required confirmation_required eula_required name_required sleep_after_too_short "
           "sleep_needs_rcon key_not_found s3_credentials_missing restic_password_missing overworld_protected "
           "unknown_dimension unknown_loader not_a_jar unsafe_archive no_level_dat java_bad_choice bad_signature "
           "router_usage status_page_interval_too_short sleep_setting_refused sleep_hold_timeout_range "
-          "command_required command_not_allowed warn_not_allowed unsupported_on_windows encrypt_key_missing"),
+          "command_required command_not_allowed warn_not_allowed unsupported_on_windows encrypt_key_missing "
+          "tls_unavailable"),
     (503, "rcon_failed rcon_error daemon_timeout source_unreachable check_failed java_download_failed "
           "announce_failed"),
     (501, "not_implemented"),
-    (429, "too_many_streams"),
+    (429, "too_many_streams pair_locked rate_limited"),
+    (403, "forbidden"),
 ):
     STATUS_BY_CODE.update({code: _status for code in _codes.split()})
 
@@ -214,8 +221,13 @@ def coerce(spec, text, schema, name):
 
 
 class Request:
-    def __init__(self, method, target, headers, body=b""):
+    def __init__(self, method, target, headers, body=b"", ip=None):
         parsed = urllib.parse.urlsplit(target)
+        self.ip = ip
+        self.device = None
+        self.operation = None
+        self.server = None
+        self.paired = None
         self.method = method.upper()
         self.path = parsed.path
         self.query = {k: v[0] for k, v in urllib.parse.parse_qs(parsed.query, keep_blank_values=True).items()}
@@ -270,7 +282,8 @@ def now_iso():
 class ApiApp:
     """Routing, validation and dispatch; knows nothing about sockets."""
 
-    def __init__(self, token=None, release=None, settle=SETTLE_S):
+    def __init__(self, token=None, release=None, settle=SETTLE_S, remote=None):
+        self.remote = remote
         self.spec = load_spec()
         self.routes = build_routes(self.spec)
         self.token = token
@@ -281,6 +294,7 @@ class ApiApp:
         self.jobs = mc_jobs.Registry(on_change=lambda doc: self.hub.publish({"type": "job", "job": doc}))
         self.stopping = threading.Event()
         self.streams = 0
+        self.device_streams = collections.Counter()
         self.streams_lock = threading.Lock()
         self.seen_states = {}
         self.seen_players = {}
@@ -300,6 +314,10 @@ class ApiApp:
         return sorted(found, key=lambda item: len(item[0].names))
 
     def authorized(self, request):
+        if self.remote:
+            if request.device is None:
+                request.device = self.remote.identify(request)
+            return request.device is not None
         if not self.token:
             return True
         header = request.headers.get("authorization", "")
@@ -308,10 +326,23 @@ class ApiApp:
 
     def dispatch(self, request):
         try:
-            return self._dispatch(request)
+            reply = self._dispatch(request)
         except Exception:
             logging.exception("API %s %s failed", request.method, request.path)
-            return self.error(500, "internal_error", "Internal error.")
+            reply = self.error(500, "internal_error", "Internal error.")
+        if self.remote:
+            self.record(request, reply)
+        return reply
+
+    def record(self, request, reply):
+        body = getattr(reply, "body", None)
+        code = body.get("code") if isinstance(body, dict) else None
+        device = request.device["id"] if request.device else request.paired
+        try:
+            mc_remote.audit(device, request.ip, request.method, request.operation, request.server,
+                            reply.status, code)
+        except OSError:
+            logging.exception("audit log")
 
     def _dispatch(self, request):
         found = self.candidates(request.path)
@@ -324,8 +355,16 @@ class ApiApp:
                 return self.error(405, "method_not_allowed", "Method not allowed.", {"Allow": allow})
             return self.error(404, "not_found", "No such route.")
         route, params = matching[0]
-        if not route.public and not self.authorized(request):
-            return self.unauthorized()
+        request.operation = route.operation_id
+        if self.remote is None and route.operation_id == "pairDevice":
+            return self.error(404, "not_found", "No such route.")
+        if not route.public:
+            if not self.authorized(request):
+                return self.unauthorized()
+            if self.remote:
+                denied = self.check_access(request, route, params)
+                if denied:
+                    return denied
         try:
             body = self.parse_body(request, route)
             query = self.parse_query(request, route, params)
@@ -336,7 +375,7 @@ class ApiApp:
         except BadRequest as exc:
             return self.error(exc.status, exc.code, exc.code.replace("_", " ").capitalize() + ".")
         handler = mc_apiops.HANDLERS[route.operation_id]
-        context = mc_apiops.Context(self, route, params, query, body, request.headers)
+        context = mc_apiops.Context(self, route, params, query, body, request.headers, request)
         try:
             outcome = handler(context)
         except mc_apiops.Failure as failure:
@@ -348,6 +387,45 @@ class ApiApp:
             return outcome
         return self.reply_for(route, outcome)
 
+    def forbidden(self):
+        return self.error(403, "forbidden", "Not allowed for this device.")
+
+    def check_access(self, request, route, params):
+        """Rate limit, then role and server restriction; runs before any handler."""
+        device = request.device
+        mc_remote.note_seen(device["id"], request.ip)
+        allowed, wait = self.remote.allow(device["id"])
+        if not allowed:
+            return self.error(429, "rate_limited", "Too many requests.", {"Retry-After": str(max(1, math.ceil(wait)))})
+        operation = route.operation_id
+        if operation in LOCAL_ONLY:
+            return self.forbidden()
+        restricted = mc_remote.allowed_servers(device) is not None
+        server = None
+        if "server" in params:
+            server = self.canonical_server(params["server"])
+            request.server = server
+            if server is None and restricted:
+                return self.forbidden()
+            if server is not None and not mc_remote.may_use_server(device, server):
+                return self.forbidden()
+        elif restricted and operation not in FILTERED:
+            return self.forbidden()
+        role = mc_remote.effective_role(device, server)
+        if mc_remote.rank(role) < mc_remote.rank(route.operation.get("x-mcm-role", "admin")):
+            return self.forbidden()
+        return None
+
+    @staticmethod
+    def canonical_server(reference):
+        try:
+            registry = mc_servers.load_registry()
+        except mc_servers.DataFileError:
+            return None
+        servers = registry.get("servers", {})
+        target = registry.get("active") if reference == "active" else mc_servers._lookup_key(servers, reference)
+        return target if target in servers else None
+
     def unauthorized(self):
         return self.error(401, "unauthorized", "Missing or invalid token.", {"WWW-Authenticate": "Bearer"})
 
@@ -358,7 +436,8 @@ class ApiApp:
         code = body.get("code") or "error"
         if code in mc_apiops.REPORTED_FAILURES.get(route.operation_id, ()):
             return mc_apiops.Reply(200, body)
-        return mc_apiops.Reply(status_for(code), body)
+        headers = {"Retry-After": str(body.get("retry_after_s", 900))} if code == "pair_locked" else None
+        return mc_apiops.Reply(status_for(code), body, headers)
 
     def parse_body(self, request, route):
         if not request.body:
@@ -396,19 +475,32 @@ class ApiApp:
                 return mc_apiops.Reply(status, job.result)
         return mc_apiops.Reply(202, job.document(), {"Location": f"/v1/jobs/{job.id}"})
 
-    def acquire_stream(self):
+    def acquire_stream(self, owner=None):
         with self.streams_lock:
-            if self.streams >= MAX_CONSOLE_STREAMS:
-                return False
-            self.streams += 1
+            if owner is None:
+                if self.streams >= MAX_CONSOLE_STREAMS:
+                    return False
+                self.streams += 1
+            else:
+                if self.device_streams[owner] >= MAX_CONSOLE_STREAMS:
+                    return False
+                self.device_streams[owner] += 1
             return True
 
-    def release_stream(self):
+    def release_stream(self, owner=None):
         with self.streams_lock:
-            self.streams = max(0, self.streams - 1)
+            if owner is None:
+                self.streams = max(0, self.streams - 1)
+            else:
+                self.device_streams[owner] = max(0, self.device_streams[owner] - 1)
 
-    def event_stream(self, servers, last_id):
+    def event_stream(self, servers, last_id, allowed=None, device_id=None, alive=None):
         wanted = {s for s in (servers or "").split(",") if s} or None
+        if allowed is not None:
+            wanted = (wanted & set(allowed)) if wanted else set(allowed)
+        key = ("events", device_id)
+        if device_id is not None and not self.acquire_stream(key):
+            raise mc_apiops.Failure(mc_api.result(False, "too_many_streams", message="Too many event streams."))
         try:
             after = int(last_id) if last_id else None
         except ValueError:
@@ -418,7 +510,7 @@ class ApiApp:
         def chunks():
             last_ping = time.monotonic()
             yield b": open\n\n"
-            while not self.stopping.is_set():
+            while not self.stopping.is_set() and (alive is None or alive()):
                 try:
                     event_id, event = box.get(timeout=0.25)
                 except queue.Empty:
@@ -427,14 +519,20 @@ class ApiApp:
                         yield b": ping\n\n"
                     continue
                 owner = event.get("server") or (event.get("job") or {}).get("server")
+                if allowed is not None and owner not in wanted:
+                    continue
                 if wanted and owner and owner not in wanted:
                     continue
                 last_ping = time.monotonic()
                 yield sse(event_id, event["type"], json.dumps(event, ensure_ascii=False))
-        return mc_apiops.Stream(chunks(), lambda: self.hub.unsubscribe(box))
+        def close():
+            self.hub.unsubscribe(box)
+            if device_id is not None:
+                self.release_stream(key)
+        return mc_apiops.Stream(chunks(), close)
 
-    def console_stream(self, name, config, tail, last_id):
-        if not self.acquire_stream():
+    def console_stream(self, name, config, tail, last_id, device_id=None, alive=None):
+        if not self.acquire_stream(device_id):
             raise mc_apiops.Failure(mc_api.result(False, "too_many_streams", message="Too many console streams."))
         log = os.path.join(config["dossier_serveur"], "logs", "latest.log")
 
@@ -445,7 +543,7 @@ class ApiApp:
             last_ping = time.monotonic()
             yield b": open\n\n"
             pending = b""
-            while not self.stopping.is_set():
+            while not self.stopping.is_set() and (alive is None or alive()):
                 try:
                     size = os.path.getsize(log)
                 except OSError:
@@ -471,7 +569,7 @@ class ApiApp:
                     last_ping = time.monotonic()
                     yield b": ping\n\n"
                 self.stopping.wait(0.2)
-        return mc_apiops.Stream(chunks(), self.release_stream)
+        return mc_apiops.Stream(chunks(), lambda: self.release_stream(device_id))
 
     # ── event sources ────────────────────────────────────────────────────────
 
@@ -608,7 +706,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     self.rfile.read(size)
                 return self.send_reply(app.error(413, "payload_too_large", "Request body is larger than 1 MiB."))
             body = self.rfile.read(size)
-        outcome = app.dispatch(Request(self.command, self.path, dict(self.headers), body))
+        outcome = app.dispatch(Request(self.command, self.path, dict(self.headers), body, self.client_address[0]))
         if isinstance(outcome, mc_apiops.Stream):
             return self.send_stream(outcome)
         self.send_reply(outcome)
@@ -709,6 +807,7 @@ def reachable(found):
 
 class LocalApi:
     """Owns the listener thread; sync() is called from the daemon loop and never raises."""
+    label = "Local API"
 
     def __init__(self, folder=None, mode=None, release=None, settle=SETTLE_S, enabled=None):
         self.folder = folder
@@ -729,9 +828,12 @@ class LocalApi:
     def alive(self):
         return bool(self.thread and self.thread.is_alive())
 
+    def wanted(self):
+        return local_enabled() if self.enabled is None else self.enabled()
+
     def sync(self):
         try:
-            wanted = local_enabled() if self.enabled is None else self.enabled()
+            wanted = self.wanted()
         except Exception:
             wanted = self.alive()
         try:
@@ -760,6 +862,10 @@ class LocalApi:
         folder = self.folder_path()
         os.makedirs(folder, mode=0o700, exist_ok=True)
         plat.secure_dir(folder)
+        self.bind(folder)
+        self.launch()
+
+    def bind(self, folder):
         self.token = secrets.token_urlsafe(32) if self.mode == "tcp" else None
         self.app = ApiApp(token=self.token, release=self.release, settle=self.settle)
         if self.mode == "unix":
@@ -772,6 +878,8 @@ class LocalApi:
             port = self.server.server_address[1]
             plat.write_private_file(os.path.join(folder, TOKEN_NAME),
                                     json.dumps({"port": port, "token": self.token}))
+
+    def launch(self):
         import mc_core
         mc_core.LISTENERS.append(self.app.alert_event)
         self.thread = threading.Thread(target=self.server.serve_forever, kwargs={"poll_interval": 0.2},
@@ -779,7 +887,7 @@ class LocalApi:
         self.thread.start()
         self.poller = threading.Thread(target=self.poll_loop, args=(self.app,), daemon=True, name="api-events")
         self.poller.start()
-        logging.info("Local API listening (%s).", self.mode)
+        logging.info("%s listening.", self.label)
 
     def poll_loop(self, app):
         while not app.stopping.wait(POLL_S):
@@ -803,6 +911,9 @@ class LocalApi:
         if self.thread:
             self.thread.join(timeout=5)
         self.thread = None
+        self.cleanup()
+
+    def cleanup(self):
         folder = self.folder_path()
         for name in (SOCKET_NAME, TOKEN_NAME):
             try:

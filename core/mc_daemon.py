@@ -21,6 +21,7 @@ import mc_task
 import mc_metrics
 import mc_statuspage
 import mc_httpapi
+import mc_remoteserver
 import threading
 from mc_lang import T
 from mc_platform import plat
@@ -623,6 +624,7 @@ def main():
     status_pages = mc_statuspage.Publisher()
     router = RouterManager(sleep)
     api = mc_httpapi.LocalApi(release=lambda name, config: _release_listeners(sleep, name, config))
+    remote_api = mc_remoteserver.RemoteApi(release=lambda name, config: _release_listeners(sleep, name, config))
     next_tick = time.time() + 30
     next_sync = 0
 
@@ -677,6 +679,7 @@ def main():
                 except Exception as e:
                     logging.error(f"Status pages: {e}")
                 api.sync()
+                remote_api.sync()
 
             if now < next_tick:
                 continue
@@ -689,6 +692,7 @@ def main():
                     logging.error(f"[{name}] Unexpected error, server skipped this tick: {e}")
     finally:
         api.stop()
+        remote_api.stop()
 
 if __name__ == "__main__":
     main()

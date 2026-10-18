@@ -919,7 +919,33 @@ curl --unix-socket ~/MCManager/run/api.sock http://localhost/v1/servers
 Every `GET` returns the same document as the matching `mc ... --json` command. Long operations (backup,
 restore, upgrade, modpack, world export...) answer `202` with a `Location: /v1/jobs/<id>` to poll;
 `GET /v1/events` and `GET /v1/servers/<server>/console` are Server-Sent Events. Bodies are limited to 1 MiB.
-Secrets are never returned. Remote access (pairing, devices) answers `501` for now.
+Secrets are never returned.
+
+## Remote access
+
+Off by default. The service can serve the same API on the network, always over TLS 1.3, to devices you pair
+one by one. The local API above is not affected and never goes through these checks.
+
+```
+mc remote enable [--bind 0.0.0.0:8765]   # certificate, listener, firewall rule "MC Manager API"
+mc remote status [--json]                # state, bind, certificate fingerprint (SHA-256)
+mc remote pair [--role viewer|operator|admin] [--servers a,b|all] [--name Phone]
+mc remote devices list | revoke <id>
+mc remote disable                        # closes the listener and the firewall rule
+```
+
+- A self-signed certificate (EC P-256, 10 years) is created on first use in `run/remote/`, with the
+  `cryptography` module or `openssl`; without either, `mc remote enable` refuses (`tls_unavailable`).
+- `mc remote pair` prints an 8-digit code valid 5 minutes, single use. The device sends it to
+  `POST /v1/pair` and receives a 256-bit token, shown once and stored hashed. Five wrong codes cancel the
+  code; ten failures from one IP lock pairing for 15 minutes.
+- Roles: `viewer` reads, `operator` starts, stops, backs up and uses the console, `admin` changes
+  configuration and manages devices. A device can be limited to some servers.
+- At most 20 requests per second and 3 console streams per device. Every request is logged in
+  `logs/audit.log` (no token, code or body), rotated at 5 MiB.
+- Client side: `mc remote add <profile> <host:port>` shows the certificate fingerprint, asks for the pairing
+  code and saves the profile in `remotes.json` (0600). Then `mc --remote <profile> status|start|stop|players|logs|backup|console`
+  works like the local command, and refuses any server whose certificate fingerprint changed.
 
 ## Automatic updates
 

@@ -1474,3 +1474,44 @@ def statuspage_disable(name, config):
     mc_config.save_config(config)
     return result(True, "status_page_disabled", server=name, path=directory)
 
+
+
+# ── remote access ────────────────────────────────────────────────────────────
+
+def remote_status():
+    import mc_remote
+    return mc_remote.status_document()
+
+
+def remote_access(enabled, bind=None):
+    import mc_remote
+    return mc_remote.set_access(enabled, bind)
+
+
+def remote_pair_code(role="operator", servers=None, name=None):
+    import mc_remote
+    return mc_remote.create_code(role, servers, name)
+
+
+def remote_pair(code, name, ip):
+    import mc_remote
+    res = mc_remote.pair(code, name, ip)
+    if res["ok"]:
+        info = mc_remote.certificate_info()
+        res["fingerprint"] = info["fingerprint"] if info else None
+    return res
+
+
+def remote_devices():
+    import mc_remote
+    return mc_remote.list_devices()
+
+
+def remote_revoke(device_id):
+    import mc_remote
+    return mc_remote.revoke_device(device_id)
+
+
+def remote_set_roles(device_id, roles, servers=False):
+    import mc_remote
+    return mc_remote.set_device_roles(device_id, roles, servers)
