@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import tempfile
@@ -56,6 +57,48 @@ class TestFind(unittest.TestCase):
         out = '[{"ProcessId":%d,"CommandLine":"java -Dmcmanager.server=C:\\\\x"}]' % os.getpid()
         with fake_ps(out):
             self.assertEqual(proc.find_server_processes("C:\\x"), [])
+
+
+def _row(pid, ppid, name, line):
+    return {"ProcessId": pid, "ParentProcessId": ppid, "Name": name, "CommandLine": line}
+
+
+class TestScriptWrapper(unittest.TestCase):
+    DIR = "C:\\Servers\\Forge"
+
+    def find(self, rows, recorded=None):
+        with fake_ps(json.dumps(rows)), mock.patch.object(proc, "_read_pid_file", return_value=recorded):
+            return proc.find_server_processes(self.DIR)
+
+    def test_direct_marker(self):
+        rows = [_row(10, 1, "java.exe", "java -Dmcmanager.server=C:\\Servers\\Forge -jar x.jar")]
+        self.assertEqual(self.find(rows), [10])
+
+    def test_child_of_recorded_cmd(self):
+        rows = [_row(20, 1, "cmd.exe", "cmd /c run.bat nogui"), _row(21, 20, "java.exe", "java @user_jvm_args.txt")]
+        self.assertEqual(self.find(rows, recorded=20), [21])
+
+    def test_child_of_cmd_with_absolute_script(self):
+        rows = [_row(20, 1, "cmd.exe", "cmd /c C:\\Servers\\Forge\\run.bat nogui"),
+                _row(21, 20, "java.exe", "java @user_jvm_args.txt")]
+        self.assertEqual(self.find(rows), [21])
+
+    def test_cmd_of_another_folder(self):
+        rows = [_row(20, 1, "cmd.exe", "cmd /c C:\\Servers\\Autre\\run.bat nogui"),
+                _row(21, 20, "java.exe", "java @user_jvm_args.txt")]
+        self.assertEqual(self.find(rows, recorded=999), [])
+
+    def test_unrelated_cmd_with_recorded_pid_is_refused(self):
+        rows = [_row(20, 1, "cmd.exe", "cmd /k dir"), _row(21, 20, "java.exe", "java -jar tool.jar")]
+        self.assertEqual(self.find(rows, recorded=20), [])
+
+    def test_dead_parent(self):
+        rows = [_row(21, 20, "java.exe", "java @user_jvm_args.txt")]
+        self.assertEqual(self.find(rows, recorded=20), [])
+
+    def test_recycled_parent_is_not_cmd(self):
+        rows = [_row(20, 1, "explorer.exe", "cmd /c run.bat"), _row(21, 20, "java.exe", "java @user_jvm_args.txt")]
+        self.assertEqual(self.find(rows, recorded=20), [])
 
 
 class TestAlive(unittest.TestCase):
