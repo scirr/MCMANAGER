@@ -57,8 +57,8 @@ class RouterCase(unittest.TestCase):
 
     def welcome(self, listener, host, name="Steve", suffix=""):
         client = self.connect(listener)
-        client.sendall(handshake(host=host + suffix) + login(name))
         try:
+            client.sendall(handshake(host=host + suffix) + login(name))
             pid, data, pos = read_packet(client)
         except (mc_protocol.ProtocolError, OSError):
             return None, client
