@@ -19,7 +19,7 @@ jobs:
             dir: core
           - platform: Windows
             os: windows-latest
-            dir: Windows
+            dir: core
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -47,6 +47,6 @@ jobs:
       - name: ruff
         run: ruff check core Linux Windows tools
       - name: bandit (medium and above)
-        run: bandit -r core Linux Windows tools -ll -x core/tests,Windows/tests
+        run: bandit -r core Linux Windows tools -ll -x core/tests
       - name: pip-audit
         run: pip-audit -r Linux/requirements.txt

@@ -41,7 +41,7 @@ Both platforms share the same module set and command surface. They are fully ind
 
 ```
 MC_Manager/
-├── core/               # modules shared by every platform (Linux today, Windows in 3.0)
+├── core/               # modules shared by every platform (Linux and Windows)
 │   ├── mc_cli.py       # entry point, dashboard, command dispatch
 │   ├── mc_core.py      # lifecycle, native RCON, backups, webhooks
 │   ├── mc_config.py    # config.json/webhooks.json, systemd install
@@ -87,21 +87,9 @@ MC_Manager/
 │   ├── install.sh / uninstall.sh
 │   └── README_Linux.md
 │
-└── Windows/            # Windows version (NSSM service, multi-server)
-    ├── mc_cli.py
-    ├── mc_core.py
-    ├── mc_config.py
-    ├── mc_servers.py
-    ├── mc_deploy.py
-    ├── mc_daemon.py
-    ├── mc_doctor.py
-    ├── mc_firewall.py
-    ├── mc_image.py
-    ├── mc_lang.py
-    ├── mc_validate.py
-    ├── mc_setup.py
-    ├── install.bat
-    ├── uninstall.bat
+└── Windows/            # Windows packaging (NSSM service)
+    ├── build_release.py
+    ├── install.bat / uninstall.bat
     ├── webhook_templates.json
     └── README_Windows.md
 ```
