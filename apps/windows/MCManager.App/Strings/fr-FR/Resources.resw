@@ -60,7 +60,7 @@
   <data name="BackupsTab.Header" xml:space="preserve"><value>Sauvegardes</value></data>
   <data name="BackupNowButton.Content" xml:space="preserve"><value>Sauvegarder maintenant</value></data>
   <data name="RestoreButton.Content" xml:space="preserve"><value>Restaurer</value></data>
-  <data name="BackupList.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Sauvegardes</value></data>
+  <data name="BackupsListView.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Sauvegardes</value></data>
   <data name="RestoreDialogTitle" xml:space="preserve"><value>Restaurer cette sauvegarde ?</value></data>
   <data name="RestoreDialogBody" xml:space="preserve"><value>Le serveur sera arrêté et le monde actuel remplacé par la sauvegarde du {0}. Une copie de sécurité est conservée avant.</value></data>
   <data name="RestoreDialogConfirm" xml:space="preserve"><value>Restaurer</value></data>

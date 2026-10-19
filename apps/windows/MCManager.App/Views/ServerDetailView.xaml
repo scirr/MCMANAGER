@@ -122,7 +122,7 @@
                         <Button x:Name="BackupNowButton" x:Uid="BackupNowButton" IsEnabled="{x:Bind ViewModel.Backups.CanAct, Mode=OneWay}" Command="{x:Bind ViewModel.Backups.CreateCommand, Mode=OneWay}" />
                     </StackPanel>
                     <ProgressBar x:Name="BackupProgress" Grid.Row="1" Minimum="0" Maximum="100" Value="{x:Bind ViewModel.Backups.Progress, Mode=OneWay}" Visibility="{x:Bind ViewModel.Backups.IsBusy, Mode=OneWay}" />
-                    <ListView x:Name="BackupList" x:Uid="BackupList" Grid.Row="2" ItemsSource="{x:Bind ViewModel.Backups.Items, Mode=OneWay}" SelectionMode="None">
+                    <ListView x:Name="BackupsListView" x:Uid="BackupsListView" Grid.Row="2" ItemsSource="{x:Bind ViewModel.Backups.Items, Mode=OneWay}" SelectionMode="None">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="vm:BackupItem">
                                 <Grid ColumnSpacing="12" Margin="0,4">

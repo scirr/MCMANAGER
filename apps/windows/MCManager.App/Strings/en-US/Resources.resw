@@ -60,7 +60,7 @@
   <data name="BackupsTab.Header" xml:space="preserve"><value>Backups</value></data>
   <data name="BackupNowButton.Content" xml:space="preserve"><value>Back up now</value></data>
   <data name="RestoreButton.Content" xml:space="preserve"><value>Restore</value></data>
-  <data name="BackupList.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Backups</value></data>
+  <data name="BackupsListView.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Backups</value></data>
   <data name="RestoreDialogTitle" xml:space="preserve"><value>Restore this backup?</value></data>
   <data name="RestoreDialogBody" xml:space="preserve"><value>The server will be stopped and the current world replaced by the backup of {0}. A safety copy is kept first.</value></data>
   <data name="RestoreDialogConfirm" xml:space="preserve"><value>Restore</value></data>

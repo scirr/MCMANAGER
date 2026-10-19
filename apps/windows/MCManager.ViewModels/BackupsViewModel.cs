@@ -31,7 +31,7 @@ public sealed partial class BackupsViewModel : ObservableObject
     private bool _isBusy;
 
     [ObservableProperty]
-    private int _progress;
+    private double _progress;
 
     [ObservableProperty]
     private string _lastDone = "";
