@@ -58,6 +58,7 @@ class TestPrivateFiles(unittest.TestCase):
         mc_servers._atomic_write_json(path, {"a": 1})
         self.assertEqual(os.stat(path).st_uid, 1234)
 
+    @unittest.skipIf(sys.platform == "win32", "Unix permission bits")
     def test_doctor_tightens_permissions(self):
         path = os.path.join(tempfile.mkdtemp(), "config.json")
         with open(path, "w") as f:
