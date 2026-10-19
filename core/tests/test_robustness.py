@@ -156,6 +156,7 @@ class TestPorts(unittest.TestCase):
 
 class TestProcessIdentity(unittest.TestCase):
 
+    @unittest.skipIf(sys.platform == "win32", "matches by working directory, which Windows does not expose")
     def test_pid_in_other_folder_is_not_the_server(self):
         other = tempfile.mkdtemp()
         self.assertTrue(mc_core.is_pid_running(os.getpid(), os.getcwd()))
@@ -166,6 +167,7 @@ class TestProcessIdentity(unittest.TestCase):
         proc.wait()
         self.assertFalse(mc_core.is_pid_running(proc.pid))
 
+    @unittest.skipIf(sys.platform == "win32", "zombies are a POSIX notion")
     def test_zombie_is_not_running(self):
         proc = subprocess.Popen(["true"])
         # Wait for it to exit without reaping it.

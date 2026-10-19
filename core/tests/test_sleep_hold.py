@@ -376,6 +376,7 @@ class TestHoldConfiguration(unittest.TestCase):
             self.cfg.apply_join_mode(self.config, "a", "hold")
         self.assertEqual(self.config["internal_port"], 35571)
 
+    @unittest.skipIf(sys.platform == "win32", "freeze is not supported on Windows")
     def test_freeze_needs_hold_and_relaxes_the_watchdog(self):
         self.assertEqual(self.cfg.apply_freeze(self.config, "a", True)[0], "conflict")
         self.cfg.apply_join_mode(self.config, "a", "hold")

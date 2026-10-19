@@ -25,9 +25,9 @@ class TestDeployFirewall(unittest.TestCase):
         import mc_platform
         import platform_linux
         impl = mc_platform._load()
-        for name in ("firewall_name", "firewall_port_open", "firewall_allow", "firewall_remove",
+        for name in () if impl is platform_linux else ("firewall_name", "firewall_port_open", "firewall_allow", "firewall_remove",
                      "firewall_manual_command"):
-            patch = mock.patch.object(impl, name, getattr(platform_linux, name))
+            patch = mock.patch.object(impl, name, lambda *a, _n=name, **k: getattr(platform_linux, _n)(*a, **k))
             patch.start()
             self.addCleanup(patch.stop)
         patches = [
