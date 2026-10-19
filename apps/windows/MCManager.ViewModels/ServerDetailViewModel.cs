@@ -19,6 +19,7 @@ public sealed partial class ServerDetailViewModel : ObservableObject, IDisposabl
         Name = name;
         Console = new ConsoleViewModel(client, errors, name);
         Players = new PlayersViewModel(client, errors, name);
+        Backups = new BackupsViewModel(client, errors, name);
     }
 
     public string Name { get; }
@@ -26,6 +27,8 @@ public sealed partial class ServerDetailViewModel : ObservableObject, IDisposabl
     public ConsoleViewModel Console { get; }
 
     public PlayersViewModel Players { get; }
+
+    public BackupsViewModel Backups { get; }
 
     public TimeSpan JobPollInterval { get; set; } = TimeSpan.FromSeconds(1);
 

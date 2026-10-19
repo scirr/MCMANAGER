@@ -14,6 +14,8 @@ namespace MCManager.Client;
 [JsonSerializable(typeof(OperationResult))]
 [JsonSerializable(typeof(Job))]
 [JsonSerializable(typeof(JobList))]
+[JsonSerializable(typeof(BackupList))]
+[JsonSerializable(typeof(BackupRestoreRequest))]
 [JsonSerializable(typeof(StopRequest))]
 [JsonSerializable(typeof(ConsoleCommand))]
 [JsonSerializable(typeof(PlayerListAdd))]

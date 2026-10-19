@@ -123,6 +123,26 @@ internal sealed class FakeClient : IMcClient
         return Task.FromResult(Ok("kicked"));
     }
 
+    public List<BackupEntry> Backups { get; } = new();
+
+    public Task<IReadOnlyList<BackupEntry>> ListBackupsAsync(string server, CancellationToken ct = default)
+    {
+        Record("backups " + server);
+        return Task.FromResult<IReadOnlyList<BackupEntry>>(Backups.ToList());
+    }
+
+    public Task<Job> CreateBackupAsync(string server, CancellationToken ct = default)
+    {
+        Record("create-backup " + server);
+        return Task.FromResult(new Job { Id = "jb", State = "running" });
+    }
+
+    public Task<Job> RestoreBackupAsync(string server, string backup, bool confirm, CancellationToken ct = default)
+    {
+        Record($"restore {backup} {confirm}");
+        return Task.FromResult(new Job { Id = "jr", State = "running" });
+    }
+
     public Task<IReadOnlyList<Job>> ListJobsAsync(string? state = null, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<Job>>(new List<Job>());
 

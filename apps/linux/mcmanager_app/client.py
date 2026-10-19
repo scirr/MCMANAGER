@@ -266,10 +266,22 @@ class ApiClient:
     def send_command(self, server, command):
         return self.call("POST", "/v1/servers/%s/console" % self.ref(server), {"command": command})[1]
 
-    def wait_job(self, job_id, timeout=3600, step=0.5, sleep=time.sleep, now=time.time):
+    def list_backups(self, server):
+        return self.get("/v1/servers/%s/backups" % self.ref(server))
+
+    def create_backup(self, server):
+        return self.call("POST", "/v1/servers/%s/backups" % self.ref(server))[1]
+
+    def restore_backup(self, server, backup):
+        path = "/v1/servers/%s/backups/%s/restore" % (self.ref(server), self.ref(backup))
+        return self.call("POST", path, {"confirm": True})[1]
+
+    def wait_job(self, job_id, timeout=3600, step=0.5, sleep=time.sleep, now=time.time, on_progress=None):
         end = now() + timeout
         while now() < end:
             job = self.job(job_id)
+            if on_progress:
+                on_progress(job.get("progress") or 0)
             if job.get("state") in JOB_DONE:
                 result = job.get("result")
                 if job["state"] != "succeeded" or (isinstance(result, dict) and result.get("ok") is False):

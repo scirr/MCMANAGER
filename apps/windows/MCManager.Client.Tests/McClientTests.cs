@@ -65,6 +65,38 @@ public class McClientTests
     }
 
     [Fact]
+    public async Task ListBackups_parses_the_contract_example()
+    {
+        var handler = FakeHandler.Json(HttpStatusCode.OK, Samples.Backups);
+        var backups = await handler.Client().ListBackupsAsync("survie");
+        var backup = Assert.Single(backups);
+        Assert.Equal("survie_midi_2026-10-08_12-00", backup.Id);
+        Assert.Equal("midi", backup.Type);
+        Assert.Equal(1288490188, backup.Size);
+        Assert.Equal("/v1/servers/survie/backups", handler.Requests[0].Path);
+    }
+
+    [Fact]
+    public async Task CreateBackup_posts_and_returns_the_job()
+    {
+        var handler = FakeHandler.Json(HttpStatusCode.Accepted, Samples.BackupJob);
+        var job = await handler.Client().CreateBackupAsync("survie");
+        Assert.Equal("j_createbackup", job.Id);
+        Assert.Equal(HttpMethod.Post, handler.Requests[0].Method);
+        Assert.Equal("/v1/servers/survie/backups", handler.Requests[0].Path);
+    }
+
+    [Fact]
+    public async Task RestoreBackup_sends_the_confirmation()
+    {
+        var handler = FakeHandler.Json(HttpStatusCode.Accepted, Samples.BackupJob);
+        await handler.Client().RestoreBackupAsync("survie", "a b", true);
+        Assert.Equal("/v1/servers/survie/backups/a%20b/restore", handler.Requests[0].Path);
+        using var body = JsonDocument.Parse(handler.Requests[0].Body!);
+        Assert.True(body.RootElement.GetProperty("confirm").GetBoolean());
+    }
+
+    [Fact]
     public async Task Resume_parses_the_result()
     {
         var handler = FakeHandler.Json(HttpStatusCode.OK, Samples.Resumed);

@@ -40,7 +40,7 @@ public sealed partial class MainWindow : Window
 
     private void ShowError(ErrorReporter errors)
     {
-        ErrorBar.Message = errors.Message;
+        ErrorBar.Message = Strings.Get("Error_" + errors.Code, errors.Message);
         ErrorBar.IsOpen = errors.IsOpen;
     }
 

@@ -171,7 +171,7 @@ jobs:
           $msbuild = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
           & $msbuild MCManager.App\MCManager.App.csproj -restore -m -p:Configuration=Release -p:Platform=x64 -nologo -v:minimal 2>&1 | Tee-Object -FilePath build.log
           if ($LASTEXITCODE -ne 0) {
-            Select-String -Path build.log -Pattern ': error ' | Select-Object -First 10 | ForEach-Object { "::error::" + $_.Line.Trim() }
+            Select-String -Path build.log -Pattern '\berror [A-Z]+[0-9]+' | Select-Object -First 10 | ForEach-Object { "::error::" + $_.Line.Trim() }
             exit 1
           }
 

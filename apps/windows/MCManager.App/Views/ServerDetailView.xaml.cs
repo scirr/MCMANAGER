@@ -31,6 +31,7 @@ public sealed partial class ServerDetailView : UserControl
         viewModel.Console.Start();
         _ = viewModel.RefreshAsync();
         _ = viewModel.Players.LoadListAsync();
+        _ = viewModel.Backups.RefreshAsync();
         _timer.Start();
     }
 
@@ -84,6 +85,30 @@ public sealed partial class ServerDetailView : UserControl
         {
             _viewModel.Players.KickCommand.Execute(player);
         }
+    }
+
+    private async void OnRestoreClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || !_viewModel.Backups.CanAct || sender is not FrameworkElement { Tag: string id })
+        {
+            return;
+        }
+        var item = _viewModel.Backups.Items.FirstOrDefault(entry => entry.Id == id);
+        if (item is null)
+        {
+            return;
+        }
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = Strings.Get("RestoreDialogTitle"),
+            Content = string.Format(Strings.Get("RestoreDialogBody"), item.Date),
+            PrimaryButtonText = Strings.Get("RestoreDialogConfirm"),
+            CloseButtonText = Strings.Get("RestoreDialogCancel"),
+            DefaultButton = ContentDialogButton.Close,
+        };
+        var answer = await dialog.ShowAsync();
+        await _viewModel.Backups.RestoreAsync(item.Id, answer == ContentDialogResult.Primary);
     }
 
     private void OnRemoveClick(object sender, RoutedEventArgs e)

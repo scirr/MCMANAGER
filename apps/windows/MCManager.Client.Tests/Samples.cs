@@ -43,6 +43,14 @@ internal static class Samples
     {"code": null, "created_at": "2026-10-08T10:00:00Z", "id": "j_restartserve", "kind": "restartServer", "progress": 0, "result": null, "server": null, "state": "running", "updated_at": "2026-10-08T10:00:00Z"}
     """;
 
+    public const string Backups = """
+    {"backups": [{"created": "2026-10-08T12:00:03", "created_ts": 1791460803, "encrypted": false, "file": "survie_midi_2026-10-08_12-00.zip", "id": "survie_midi_2026-10-08_12-00", "path": "/home/mc/Backup/survie_midi_2026-10-08_12-00.zip", "size": 1288490188, "type": "midi"}], "code": "backup_list", "count": 1, "keep": 3, "ok": true, "remotes": ["offsite"], "retention_days": 0, "schema": 1, "server": "survie"}
+    """;
+
+    public const string BackupJob = """
+    {"code": null, "created_at": "2026-10-08T10:00:00Z", "id": "j_createbackup", "kind": "createBackup", "progress": 0, "result": null, "server": null, "state": "running", "updated_at": "2026-10-08T10:00:00Z"}
+    """;
+
     public const string Jobs = """
     {"code": "jobs", "jobs": [{"code": null, "created_at": "2026-10-08T10:00:00Z", "id": "j_01", "kind": "createBackup", "progress": 40, "result": null, "server": "survie", "state": "running", "updated_at": "2026-10-08T10:00:05Z"}], "ok": true, "schema": 1}
     """;

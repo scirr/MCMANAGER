@@ -38,6 +38,7 @@ class FakeClient:
         self.fail = {}
         self.action_status = 200
         self.streams = []
+        self.backups = []
 
     def _check(self, name):
         if name in self.fail:
@@ -78,10 +79,26 @@ class FakeClient:
         self._check(action)
         return self.action_status, {"id": "j1"}
 
-    def wait_job(self, job_id):
+    def wait_job(self, job_id, on_progress=None):
         self.calls.append(("wait", job_id))
+        if on_progress:
+            on_progress(40)
         self._check("wait")
         return {}
+
+    def list_backups(self, name):
+        self._check("backups")
+        return {"backups": self.backups}
+
+    def create_backup(self, name):
+        self._check("create_backup")
+        self.calls.append(("backup", name))
+        return {"id": "jb"}
+
+    def restore_backup(self, name, backup):
+        self._check("restore_backup")
+        self.calls.append(("restore", backup))
+        return {"id": "jr"}
 
     def config(self, name):
         self._check("config")

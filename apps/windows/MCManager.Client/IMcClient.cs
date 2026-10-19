@@ -28,6 +28,12 @@ public interface IMcClient
 
     Task<OperationResult> KickPlayerAsync(string server, string player, string? reason = null, CancellationToken ct = default);
 
+    Task<IReadOnlyList<BackupEntry>> ListBackupsAsync(string server, CancellationToken ct = default);
+
+    Task<Job> CreateBackupAsync(string server, CancellationToken ct = default);
+
+    Task<Job> RestoreBackupAsync(string server, string backup, bool confirm, CancellationToken ct = default);
+
     Task<IReadOnlyList<Job>> ListJobsAsync(string? state = null, CancellationToken ct = default);
 
     Task<Job> GetJobAsync(string id, CancellationToken ct = default);
