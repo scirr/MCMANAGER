@@ -161,4 +161,10 @@ jobs:
           dotnet-version: 8.0.x
       - name: Build
         working-directory: apps/windows
-        run: dotnet build MCManager.App -c Release -p:Platform=x64
+        shell: pwsh
+        run: |
+          dotnet build MCManager.App -c Release -p:Platform=x64 2>&1 | Tee-Object -FilePath build.log
+          if ($LASTEXITCODE -ne 0) {
+            Select-String -Path build.log -Pattern ': error ' | Select-Object -First 10 | ForEach-Object { "::error::" + $_.Line.Trim() }
+            exit 1
+          }
