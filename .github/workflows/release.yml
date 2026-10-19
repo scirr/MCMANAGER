@@ -116,10 +116,11 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-      - name: Build both packages
+      - name: Build the packages
         run: |
           (cd Linux && python build_release.py)
           (cd Windows && python build_release.py)
+          (cd macOS && python build_release.py)
       - name: Sign
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
@@ -132,6 +133,7 @@ jobs:
           subject-path: |
             dist/MCManager.zip
             dist/MCManager-Linux.zip
+            dist/MCManager-macOS.zip
             dist/SHA256SUMS
       - name: Publish the release
         env:
@@ -147,7 +149,7 @@ jobs:
             target="--target=$SHA"
           fi
           gh release create "$TAG" \
-            dist/MCManager.zip dist/MCManager-Linux.zip dist/SHA256SUMS dist/SHA256SUMS.sig \
+            dist/MCManager.zip dist/MCManager-Linux.zip dist/MCManager-macOS.zip dist/SHA256SUMS dist/SHA256SUMS.sig \
             --repo "$GITHUB_REPOSITORY" \
             --title "MC Manager $TAG" \
             --notes-file "release-notes/$TAG.md" \
