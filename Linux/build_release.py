@@ -68,6 +68,7 @@ PACKAGE_FILES = [
     "openapi.json",
     "mc_platform.py",
     "platform_linux.py",
+    "plat_posix.py",
     "install.sh",
     "uninstall.sh",
     "webhook_templates.json",
