@@ -29,6 +29,7 @@ def build_package(version="9.9.9"):
                            ("MCManager/install.sh", "#!/bin/sh\n")):
             info = zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
             info.external_attr = 0o644 << 16
+            info.create_system = 3
             z.writestr(info, data)
     return buf.getvalue()
 
