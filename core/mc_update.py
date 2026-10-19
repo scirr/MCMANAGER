@@ -249,7 +249,10 @@ def _force_remove(func, path, _exc):
 
 def _reset_dir(folder):
     if os.path.isdir(folder):
-        shutil.rmtree(folder, onerror=_force_remove)
+        if sys.version_info >= (3, 12):
+            shutil.rmtree(folder, onexc=_force_remove)
+        else:
+            shutil.rmtree(folder, onerror=_force_remove)
 
 
 def _backup_current():
