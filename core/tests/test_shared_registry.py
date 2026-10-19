@@ -26,21 +26,25 @@ class SharedRegistryPathTests(unittest.TestCase):
         stored = mc_servers.to_portable("/mnt/shared/MCData/Servers/survie/Server")
         self.assertEqual(stored, "Servers/survie/Server")
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX path literals")
     def test_outside_registry_stays_absolute(self):
         stored = mc_servers.to_portable("/home/cris/other/Server")
         self.assertEqual(stored, "/home/cris/other/Server")
         self.assertTrue(os.path.isabs(stored))
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX path literals")
     def test_relative_resolves_against_registry_dir(self):
         resolved = mc_servers.resolve_path("Servers/survie/Server")
         self.assertEqual(resolved, "/mnt/shared/MCData/Servers/survie/Server")
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX path literals")
     def test_relative_resolves_per_mount(self):
         # Same stored string, different registry dir (different OS mount).
         mc_servers.REGISTRY_DIR = "/run/media/cris/DISK/MCData"
         resolved = mc_servers.resolve_path("Servers/survie/Server")
         self.assertEqual(resolved, "/run/media/cris/DISK/MCData/Servers/survie/Server")
 
+    @unittest.skipIf(sys.platform == "win32", "Linux reading a registry written on Windows")
     def test_windows_backslashes_are_normalised(self):
         resolved = mc_servers.resolve_path("Servers\\survie\\Server")
         self.assertEqual(resolved, "/mnt/shared/MCData/Servers/survie/Server")
@@ -51,6 +55,7 @@ class SharedRegistryPathTests(unittest.TestCase):
         self.assertEqual(mc_servers.resolve_path("X:\\MCData\\Servers\\s"),
                          "X:\\MCData\\Servers\\s")
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX path literals")
     def test_round_trip(self):
         original = "/mnt/shared/MCData/Servers/survie/Server"
         self.assertEqual(mc_servers.resolve_path(mc_servers.to_portable(original)),

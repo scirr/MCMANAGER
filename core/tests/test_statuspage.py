@@ -28,7 +28,7 @@ def sample(**extra):
 
 
 def read(path):
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return f.read()
 
 
@@ -50,7 +50,7 @@ class Checker(HTMLParser):
 
 
 def make_config(folder, motd="A §6Fancy§r server", **extra):
-    with open(os.path.join(folder, "server.properties"), "w") as f:
+    with open(os.path.join(folder, "server.properties"), "w", encoding="utf-8") as f:
         f.write(f"motd={motd}\nmax-players=30\nrcon.password=hunter2\nserver-ip=10.1.2.3\nserver-port=25565\n")
     config = {"dossier_serveur": folder, "nom_serveur": "Survie", "mcrcon_pass": "hunter2",
               "rcon_port": 25575, "domaine": "play.example.org"}

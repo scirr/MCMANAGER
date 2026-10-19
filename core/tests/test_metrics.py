@@ -187,6 +187,7 @@ class TestSampleServer(unittest.TestCase):
         players.assert_not_called()
         self.assertIsNone(s["players_online"])
 
+    @unittest.skipIf(sys.platform == "win32", "reads /proc, which only exists on Linux")
     def test_cpu_seconds_from_proc_stat(self):
         stat = "1 (java) S 1 1 1 0 -1 4194560 0 0 0 0 150 50 0 0 20 0 30 0 1000 0 0\n"
         with mock.patch("builtins.open", mock.mock_open(read_data=stat)), \

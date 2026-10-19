@@ -29,6 +29,7 @@ def _mode(path):
 
 class TestPrivateFiles(unittest.TestCase):
 
+    @unittest.skipIf(sys.platform == "win32", "Unix permission bits")
     def test_json_written_0600(self):
         folder = tempfile.mkdtemp()
         path = os.path.join(folder, "config.json")
@@ -40,6 +41,7 @@ class TestPrivateFiles(unittest.TestCase):
         with open(path) as f:
             self.assertEqual(json.load(f), {"mcrcon_pass": "x"})
 
+    @unittest.skipIf(sys.platform == "win32", "Unix permission bits")
     def test_save_config_is_private(self):
         folder = tempfile.mkdtemp()
         with mock.patch.object(mc_servers, "update_cached_ports"):
@@ -72,6 +74,7 @@ class TestPrivateFiles(unittest.TestCase):
 
 class TestRunDir(unittest.TestCase):
 
+    @unittest.skipIf(sys.platform == "win32", "Unix permission bits")
     def test_run_dir_is_0700(self):
         base = tempfile.mkdtemp()
         run = os.path.join(base, "run")
@@ -128,16 +131,17 @@ class TestSleepLimits(unittest.TestCase):
         try:
             held = [socket.create_connection(("127.0.0.1", port), timeout=5) for _ in range(mc_sleep.MAX_PER_IP)]
             time.sleep(0.3)
-            extra = socket.create_connection(("127.0.0.1", port), timeout=5)
-            extra.settimeout(3)
             try:
+                extra = socket.create_connection(("127.0.0.1", port), timeout=5)
+                extra.settimeout(3)
                 data = extra.recv(1)
-            except (ConnectionResetError, OSError):
-                data = b""
+            except OSError:
+                extra, data = None, b""
             self.assertEqual(data, b"")          # refused at once
             for c in held:
                 c.close()
-            extra.close()
+            if extra:
+                extra.close()
         finally:
             listener.stop()
         deadline = time.monotonic() + 3

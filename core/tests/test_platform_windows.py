@@ -124,7 +124,7 @@ class TestService(unittest.TestCase):
             self.assertEqual(pw.service_install(), (True, ""))
         args = inst.call_args[0]
         self.assertEqual(args[0], "nssm.exe")
-        self.assertEqual(args[1], sys.executable)
+        self.assertEqual(args[1], pw._service_python())
         self.assertTrue(args[2].endswith("mc_daemon.py"))
         with mock.patch.object(pw._service, "ensure_nssm", return_value=("nssm.exe", "")), \
                 mock.patch.object(pw._service, "service_install",
@@ -144,7 +144,7 @@ class TestService(unittest.TestCase):
             self.assertEqual(pw.service_unit_drift(), ("ok", []))
         expected = drift.call_args[0][0]
         self.assertEqual(set(expected), {"Application", "AppParameters", "AppDirectory"})
-        self.assertEqual(expected["Application"], sys.executable)
+        self.assertEqual(expected["Application"], pw._service_python())
 
 
 class FakeMsvcrt:

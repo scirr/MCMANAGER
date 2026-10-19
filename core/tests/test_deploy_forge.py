@@ -65,7 +65,7 @@ class TestInstallForge(unittest.TestCase):
             open(dest, "wb").close()
 
         def fake_installer(args, folder, timeout):
-            open(os.path.join(folder, "run.sh"), "w").close()
+            open(os.path.join(folder, mc_software.plat.server_script_name()), "w").close()
             return True, ""
 
         with mock.patch.object(mc_http, "get_json", side_effect=self._json), \

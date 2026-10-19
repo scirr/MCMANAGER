@@ -29,14 +29,14 @@ ERROR = resolve("#/components/schemas/Error")
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
-def started(env, mode="unix", **kwargs):
+def started(env, mode=None, **kwargs):
     api = mc_httpapi.LocalApi(folder=env["run"], mode=mode, enabled=lambda: True, settle=0.3, **kwargs)
     api.sync()
     return api
 
 
 class ApiCase(unittest.TestCase):
-    mode = "unix"
+    mode = mc_httpapi.default_mode()
 
     def setUp(self):
         manager = api_environment()
@@ -494,8 +494,8 @@ class TestAgreementWithTheCli(unittest.TestCase):
 
     def cli(self, env, *argv):
         res = subprocess.run([sys.executable, os.path.join(ROOT, "core", "mc_cli.py"), *argv, "--json"],
-                             capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=60,
-                             env=dict(os.environ, MCMANAGER_DATA_DIR=env["data"], NO_COLOR="1"))
+                             capture_output=True, text=True, encoding="utf-8", stdin=subprocess.DEVNULL, timeout=60,
+                             env=dict(os.environ, MCMANAGER_DATA_DIR=env["data"], NO_COLOR="1", PYTHONUTF8="1"))
         return json.loads(res.stdout)
 
     def test_get_routes_equal_the_cli_documents(self):
