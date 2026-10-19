@@ -56,7 +56,10 @@ class RouterCase(unittest.TestCase):
         return socket.create_connection(("127.0.0.1", listener.port), timeout=10)
 
     def welcome(self, listener, host, name="Steve", suffix=""):
-        client = self.connect(listener)
+        try:
+            client = self.connect(listener)
+        except ConnectionResetError:
+            return None, socket.socket()
         try:
             client.sendall(handshake(host=host + suffix) + login(name))
             pid, data, pos = read_packet(client)

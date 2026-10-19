@@ -5,7 +5,7 @@ import sys
 import tempfile
 import unittest
 
-if sys.platform == "win32":
+if sys.platform != "linux":
     raise unittest.SkipTest("Linux packaging")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -16,7 +16,7 @@ import build_packages
 import platform_linux
 
 
-@unittest.skipIf(sys.platform == "win32", "Linux packaging")
+@unittest.skipIf(sys.platform != "linux", "Linux packaging")
 class PackagingTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -29,7 +29,7 @@ class PackagingTestCase(unittest.TestCase):
         cls._tmp.cleanup()
 
 
-@unittest.skipIf(sys.platform == "win32", "Linux packaging")
+@unittest.skipIf(sys.platform != "linux", "Linux packaging")
 class ControlTests(unittest.TestCase):
     def test_version_matches_the_application(self):
         import mc_lang
@@ -66,7 +66,7 @@ class ControlTests(unittest.TestCase):
                     self.assertNotIn("rm -rf /opt/mcmanager ", line + " ")
 
 
-@unittest.skipIf(sys.platform == "win32", "Linux packaging")
+@unittest.skipIf(sys.platform != "linux", "Linux packaging")
 class UnitTests(unittest.TestCase):
     def test_unit_is_the_one_the_code_writes(self):
         unit = build_packages.render_unit()
@@ -98,7 +98,7 @@ class UnitTests(unittest.TestCase):
         self.assertIn("mc_config.install_daemon_service", build_packages.SETUP_SCRIPT)
 
 
-@unittest.skipIf(sys.platform == "win32", "Linux packaging")
+@unittest.skipIf(sys.platform != "linux", "Linux packaging")
 class StageTests(PackagingTestCase):
     def stage(self, kind):
         root = os.path.join(self.tmp, "stage-" + kind)
@@ -141,7 +141,7 @@ class StageTests(PackagingTestCase):
             mc_update.PACKAGE_MARKER = saved
 
 
-@unittest.skipIf(sys.platform == "win32", "Linux packaging")
+@unittest.skipIf(sys.platform != "linux", "Linux packaging")
 class SpecTests(PackagingTestCase):
     def spec(self):
         root = os.path.join(self.tmp, "stage-spec")
@@ -172,7 +172,7 @@ class SpecTests(PackagingTestCase):
 
 
 @unittest.skipUnless(shutil.which("dpkg-deb"), "dpkg-deb is not installed")
-@unittest.skipIf(sys.platform == "win32", "Linux packaging")
+@unittest.skipIf(sys.platform != "linux", "Linux packaging")
 class DebBuildTests(PackagingTestCase):
     def test_real_build(self):
         out = os.path.join(self.tmp, "out")
@@ -201,7 +201,7 @@ class DebBuildTests(PackagingTestCase):
 
 
 @unittest.skipUnless(shutil.which("rpmbuild"), "rpmbuild is not installed here; the .rpm is built and checked in CI")
-@unittest.skipIf(sys.platform == "win32", "Linux packaging")
+@unittest.skipIf(sys.platform != "linux", "Linux packaging")
 class RpmBuildTests(PackagingTestCase):
     def test_real_build(self):
         out = os.path.join(self.tmp, "rpm-out")

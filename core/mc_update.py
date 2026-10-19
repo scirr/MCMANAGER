@@ -29,7 +29,14 @@ from mc_platform import plat
 
 REPO = "scirr/MCMANAGER"
 API = f"https://api.github.com/repos/{REPO}/releases"
-ASSET_NAME = "MCManager-Linux.zip"
+ASSETS = {"win32": "MCManager.zip", "darwin": "MCManager-macOS.zip"}
+
+
+def asset_for(platform=None):
+    return ASSETS.get(platform or sys.platform, "MCManager-Linux.zip")
+
+
+ASSET_NAME = asset_for()
 SUMS_NAME = "SHA256SUMS"
 SIG_NAME = "SHA256SUMS.sig"
 RELEASE_PUBLIC_KEY = bytes.fromhex("3b6de7bf90729201ba040a923be3e278c0fb1e8ece57daab3bd40900d7a44099")

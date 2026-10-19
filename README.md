@@ -84,6 +84,8 @@ MC_Manager/
 │   ├── mc_setup.py     # Java check
 │   ├── mc_platform.py  # platform contract: the `plat` object every system call goes through
 │   ├── platform_linux.py # Linux implementation (/proc, systemd, ufw/firewalld, termios)
+│   ├── platform_macos.py # macOS implementation (ps/lsof, launchd, Application Firewall)
+│   ├── plat_posix.py   # POSIX functions shared by the Linux and macOS implementations
 │   ├── platform_windows.py, plat_win_*.py # Windows implementation
 │   ├── webhook_templates.json
 │   └── tests/

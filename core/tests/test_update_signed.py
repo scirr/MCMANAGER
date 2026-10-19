@@ -143,3 +143,10 @@ class TestInstall(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestAssetPerPlatform(unittest.TestCase):
+    def test_each_system_downloads_its_own_package(self):
+        self.assertEqual(mc_update.asset_for("win32"), "MCManager.zip")
+        self.assertEqual(mc_update.asset_for("darwin"), "MCManager-macOS.zip")
+        self.assertEqual(mc_update.asset_for("linux"), "MCManager-Linux.zip")
