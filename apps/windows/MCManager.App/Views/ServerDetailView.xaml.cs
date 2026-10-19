@@ -89,7 +89,7 @@ public sealed partial class ServerDetailView : UserControl
 
     private async void OnRestoreClick(object sender, RoutedEventArgs e)
     {
-        if (_viewModel is null || sender is not FrameworkElement { Tag: string id })
+        if (_viewModel is null || !_viewModel.Backups.CanAct || sender is not FrameworkElement { Tag: string id })
         {
             return;
         }

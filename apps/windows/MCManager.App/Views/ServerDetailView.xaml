@@ -138,7 +138,7 @@
                                             <TextBlock Text="{x:Bind app:Strings.EncryptedLabel(Encrypted)}" />
                                         </StackPanel>
                                     </StackPanel>
-                                    <Button x:Uid="RestoreButton" Grid.Column="1" IsEnabled="{x:Bind ViewModel.Backups.CanAct, Mode=OneWay}" Tag="{x:Bind Id}" Click="OnRestoreClick" />
+                                    <Button x:Uid="RestoreButton" Grid.Column="1" Tag="{x:Bind Id}" Click="OnRestoreClick" />
                                 </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>
