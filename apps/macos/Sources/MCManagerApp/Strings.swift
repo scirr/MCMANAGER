@@ -90,6 +90,24 @@ func modeLabel(_ mode: String) -> String {
     }
 }
 
+func joinModeLabel(_ mode: String) -> String {
+    switch mode {
+    case "kick": return tr("Refuse while it wakes (kick)")
+    case "hold": return tr("Hold until it is up (hold)")
+    default: return mode
+    }
+}
+
+func placementLabel(_ placement: String) -> String {
+    switch placement {
+    case "default": return tr("Default")
+    case "first": return tr("After built-in packs")
+    case "last": return tr("Last")
+    case "before_vanilla": return tr("Before vanilla")
+    default: return placement
+    }
+}
+
 func javaChoiceLabel(_ choice: String) -> String {
     choice == SettingsViewModel.systemJava ? tr("System Java") : "Java " + choice
 }
@@ -120,9 +138,7 @@ func settingLabel(_ key: String) -> String {
     case "internal_port": return tr("Internal port")
     case "metrics_bind": return tr("Metrics address")
     case "metrics_allow_remote": return tr("Metrics from remote (0/1)")
-    case "sleep_freeze": return tr("Sleep: freeze (0/1)")
     case "sleep_hold_timeout": return tr("Sleep: hold timeout (s)")
-    case "sleep_join_mode": return tr("Sleep: join mode (kick/hold)")
     case "sleep_proxy_protocol": return tr("Sleep: proxy protocol (auto/on/off)")
     case "mcrcon_pass": return tr("RCON password")
     case "webhook_url": return tr("Webhook URL")

@@ -202,9 +202,7 @@
   <data name="Setting_internal_port" xml:space="preserve"><value>Port interne</value></data>
   <data name="Setting_metrics_bind" xml:space="preserve"><value>Adresse des métriques</value></data>
   <data name="Setting_metrics_allow_remote" xml:space="preserve"><value>Métriques à distance (0/1)</value></data>
-  <data name="Setting_sleep_freeze" xml:space="preserve"><value>Veille : gel (0/1)</value></data>
   <data name="Setting_sleep_hold_timeout" xml:space="preserve"><value>Veille : délai de mise en attente (s)</value></data>
-  <data name="Setting_sleep_join_mode" xml:space="preserve"><value>Veille : mode de connexion (kick/hold)</value></data>
   <data name="Setting_sleep_proxy_protocol" xml:space="preserve"><value>Veille : protocole proxy (auto/on/off)</value></data>
   <data name="Setting_mcrcon_pass" xml:space="preserve"><value>Mot de passe RCON</value></data>
   <data name="Setting_webhook_url" xml:space="preserve"><value>URL du webhook</value></data>
@@ -270,4 +268,20 @@
   <data name="Error_job_failed" xml:space="preserve"><value>L'opération a échoué</value></data>
   <data name="Error_job_cancelled" xml:space="preserve"><value>L'opération a été annulée</value></data>
   <data name="Error_bad_answer" xml:space="preserve"><value>Réponse inattendue de MC Manager</value></data>
+  <data name="DatapackPlacementBox.Header" xml:space="preserve"><value>Position à l'activation</value></data>
+  <data name="DatapackPlacementBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Position à l'activation</value></data>
+  <data name="SleepLabel.Text" xml:space="preserve"><value>Mise en veille</value></data>
+  <data name="SleepHint.Text" xml:space="preserve"><value>Le serveur s'arrête après un temps sans joueur et se réveille quand un joueur connu se connecte. Mode de connexion : kick refuse la connexion pendant le réveil, hold la garde jusqu'au démarrage.</value></data>
+  <data name="SleepEnabledBox.Content" xml:space="preserve"><value>Veille quand le serveur est inactif</value></data>
+  <data name="SleepMinutesBox.Header" xml:space="preserve"><value>Minutes d'inactivité avant la veille (au moins 5)</value></data>
+  <data name="SleepMinutesBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Minutes d'inactivité avant la veille</value></data>
+  <data name="SleepJoinBox.Header" xml:space="preserve"><value>Mode de connexion</value></data>
+  <data name="SleepJoinBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Mode de connexion</value></data>
+  <data name="SleepFreezeBox.Content" xml:space="preserve"><value>Geler au lieu d'arrêter</value></data>
+  <data name="SleepFreezeHint.Text" xml:space="preserve"><value>Le gel demande le mode de connexion hold et n'existe pas sur un serveur Windows.</value></data>
+  <data name="Error_invalid_value" xml:space="preserve"><value>Valeur invalide</value></data>
+  <data name="Error_sleep_after_too_short" xml:space="preserve"><value>L'inactivité doit durer au moins 5 minutes</value></data>
+  <data name="Error_sleep_needs_rcon" xml:space="preserve"><value>La veille a besoin de RCON pour compter les joueurs : définissez d'abord un mot de passe RCON</value></data>
+  <data name="Error_sleep_hold_timeout_range" xml:space="preserve"><value>L'attente doit durer entre 10 et 600 secondes</value></data>
+  <data name="Error_unsupported_on_windows" xml:space="preserve"><value>Indisponible sur un serveur Windows</value></data>
 </root>

@@ -92,6 +92,45 @@ public class McClientTabsTests
     }
 
     [Fact]
+    public async Task Datapack_placement_is_sent_only_when_enabling()
+    {
+        var first = FakeHandler.Json(HttpStatusCode.OK, """{"code": "enabled", "ok": true, "pack": "a.zip", "restart_required": false, "schema": 1}""");
+        await first.Client().SetDatapackEnabledAsync("survie", "a.zip", true, "first");
+        Assert.Equal("""{"enabled":true,"first":true}""", first.Requests[0].Body);
+
+        var vanilla = FakeHandler.Json(HttpStatusCode.OK, """{"code": "enabled", "ok": true, "pack": "a.zip", "restart_required": false, "schema": 1}""");
+        await vanilla.Client().SetDatapackEnabledAsync("survie", "a.zip", true, "before_vanilla");
+        Assert.Equal("""{"enabled":true,"before_vanilla":true}""", vanilla.Requests[0].Body);
+
+        var off = FakeHandler.Json(HttpStatusCode.OK, """{"code": "disabled", "ok": true, "pack": "a.zip", "restart_required": false, "schema": 1}""");
+        await off.Client().SetDatapackEnabledAsync("survie", "a.zip", false, "last");
+        Assert.Equal("""{"enabled":false}""", off.Requests[0].Body);
+    }
+
+    [Fact]
+    public async Task Sleep_settings_read_and_write()
+    {
+        var get = FakeHandler.Json(HttpStatusCode.OK, """
+        {"after_s": 7200, "allow": ["Steve"], "code": "sleep_status", "enabled": true, "freeze": false, "hold_timeout_s": 120, "internal_port": null, "join_mode": "kick", "ok": true, "proxy_protocol": null, "schema": 1, "server": "survie", "state": "running"}
+        """);
+        var sleep = await get.Client().GetSleepSettingsAsync("survie");
+        Assert.True(sleep.Enabled);
+        Assert.Equal(7200, sleep.AfterS);
+        Assert.Equal("kick", sleep.JoinMode);
+        Assert.Equal(120, sleep.HoldTimeoutS);
+        Assert.Equal("/v1/servers/survie/sleep", get.Requests[0].Path);
+
+        var put = FakeHandler.Json(HttpStatusCode.OK, """
+        {"after_s": 3600, "allow": [], "code": "sleep_updated", "enabled": true, "freeze": true, "hold_timeout_s": 120, "join_mode": "hold", "notes": ["Restart the server to apply the hold mode."], "ok": true, "schema": 1, "server": "survie"}
+        """);
+        var saved = await put.Client().SetSleepSettingsAsync("survie", new SleepSettingsRequest { Enabled = true, AfterS = 3600, JoinMode = "hold", Freeze = true });
+        Assert.True(saved.Freeze);
+        Assert.Single(saved.Notes);
+        Assert.Equal(HttpMethod.Put, put.Requests[0].Method);
+        Assert.Equal("""{"enabled":true,"after_s":3600,"join_mode":"hold","freeze":true}""", put.Requests[0].Body);
+    }
+
+    [Fact]
     public async Task Worlds_and_pregen()
     {
         var worlds = FakeHandler.Json(HttpStatusCode.OK, """

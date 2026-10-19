@@ -14,6 +14,9 @@ public struct DatapackItem: Equatable, Identifiable, Sendable {
 @MainActor
 @Observable
 public final class DatapacksViewModel {
+    public static let placements = ["default", "first", "last", "before_vanilla"]
+
+    public var placement = "default"
     public private(set) var items: [DatapackItem] = []
     public private(set) var serverRunning = false
     public let tab: TabRunner
@@ -46,7 +49,8 @@ public final class DatapacksViewModel {
         guard let file, !file.isEmpty, !tab.isBusy else { return }
         tab.setBusy(true)
         await tab.write {
-            let set = try await self.client.setDatapackEnabled(self.server, pack: file, enabled: enabled)
+            let set = try await self.client.setDatapackEnabled(self.server, pack: file, enabled: enabled,
+                                                              placement: enabled && self.placement != "default" ? self.placement : nil)
             if set.restartRequired == true { self.tab.restartRequired = true }
         }
         tab.setBusy(false)

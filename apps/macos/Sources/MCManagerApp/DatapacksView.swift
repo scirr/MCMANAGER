@@ -2,11 +2,19 @@ import MCManagerKit
 import SwiftUI
 
 struct DatapacksView: View {
-    let model: DatapacksViewModel
+    @Bindable var model: DatapacksViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
+                if !model.tab.isReadOnly {
+                    Picker(tr("Position when enabling"), selection: $model.placement) {
+                        ForEach(DatapacksViewModel.placements, id: \.self) { placement in
+                            Text(verbatim: placementLabel(placement)).tag(placement)
+                        }
+                    }
+                    .frame(maxWidth: 320)
+                }
                 Spacer()
                 IconButton(title: tr("Refresh"), symbol: "arrow.clockwise") {
                     Task { await model.refresh() }
@@ -20,11 +28,13 @@ struct DatapacksView: View {
                         Text(verbatim: status(item)).font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Button(item.enabled ? tr("Disable") : tr("Enable")) {
-                        Task { await model.setEnabled(item.file, enabled: !item.enabled) }
+                    if !model.tab.isReadOnly {
+                        Button(item.enabled ? tr("Disable") : tr("Enable")) {
+                            Task { await model.setEnabled(item.file, enabled: !item.enabled) }
+                        }
+                        .disabled(!item.canToggle || model.tab.isBusy)
+                        .accessibilityLabel((item.enabled ? tr("Disable") : tr("Enable")) + " " + item.packId)
                     }
-                    .disabled(!item.canToggle || !model.tab.canAct)
-                    .accessibilityLabel((item.enabled ? tr("Disable") : tr("Enable")) + " " + item.packId)
                 }
             }
             .overlay {

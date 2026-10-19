@@ -5,7 +5,7 @@ using MCManager.Client;
 
 namespace MCManager.ViewModels;
 
-public sealed record ModItem(string File, string Name, string Version, string Source, bool AddsBlocks, bool InModpack);
+public sealed record ModItem(string File, string Name, string Version, string Source, bool AddsBlocks, bool InModpack, bool CanWrite = true);
 
 public sealed partial class ModsViewModel : TabViewModel
 {
@@ -19,6 +19,8 @@ public sealed partial class ModsViewModel : TabViewModel
     public ObservableCollection<ModItem> Items { get; } = new();
 
     public bool IsEmpty => Items.Count == 0;
+
+    protected override void ReadOnlyChanged() => Replace(Items, item => item with { CanWrite = !IsReadOnly });
 
     [ObservableProperty]
     private string _newReference = "";
@@ -41,7 +43,8 @@ public sealed partial class ModsViewModel : TabViewModel
                     mod.Version ?? "",
                     mod.Source ?? "",
                     mod.AddsBlocks,
-                    mod.Modpack));
+                    mod.Modpack,
+                    !IsReadOnly));
             }
             OnPropertyChanged(nameof(IsEmpty));
         });

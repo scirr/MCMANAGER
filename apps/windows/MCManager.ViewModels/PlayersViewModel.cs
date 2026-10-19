@@ -5,6 +5,8 @@ using MCManager.Client;
 
 namespace MCManager.ViewModels;
 
+public sealed record PlayerRow(string Name, string Detail, bool CanWrite);
+
 public sealed partial class PlayersViewModel : ObservableObject
 {
     public static readonly IReadOnlyList<string> Kinds = new[] { "whitelist", "op", "ban", "banip" };
@@ -18,11 +20,52 @@ public sealed partial class PlayersViewModel : ObservableObject
         _client = client;
         _errors = errors;
         _server = server;
+        Online.CollectionChanged += (_, _) => Rebuild();
+        Entries.CollectionChanged += (_, _) => Rebuild();
     }
 
     public ObservableCollection<string> Online { get; } = new();
 
     public ObservableCollection<PlayerListEntry> Entries { get; } = new();
+
+    public ObservableCollection<PlayerRow> OnlineRows { get; } = new();
+
+    public ObservableCollection<PlayerRow> EntryRows { get; } = new();
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanWrite))]
+    private bool _isReadOnly;
+
+    public bool CanWrite => !IsReadOnly;
+
+    partial void OnIsReadOnlyChanged(bool value) => Rebuild();
+
+    private void Rebuild()
+    {
+        OnlineRows.Clear();
+        foreach (var name in Online)
+        {
+            OnlineRows.Add(new PlayerRow(name, "", !IsReadOnly));
+        }
+        EntryRows.Clear();
+        foreach (var entry in Entries)
+        {
+            EntryRows.Add(new PlayerRow(entry.Subject, entry.Reason ?? "", !IsReadOnly));
+        }
+    }
+
+    private Task<bool> WriteAsync(Func<Task> action) => _errors.TryAsync(async () =>
+    {
+        try
+        {
+            await action();
+        }
+        catch (ApiException ex) when (ex.Status == 403)
+        {
+            IsReadOnly = true;
+            throw;
+        }
+    });
 
     [ObservableProperty]
     private string _onlineText = "-";
@@ -93,7 +136,7 @@ public sealed partial class PlayersViewModel : ObservableObject
             return;
         }
         var reason = Reason.Trim();
-        var ok = await _errors.TryAsync(async () =>
+        var ok = await WriteAsync(async () =>
             await _client.AddPlayerListEntryAsync(_server, SelectedKind, subject, reason.Length == 0 ? null : reason));
         if (ok)
         {
@@ -110,7 +153,7 @@ public sealed partial class PlayersViewModel : ObservableObject
         {
             return;
         }
-        if (await _errors.TryAsync(async () => await _client.RemovePlayerListEntryAsync(_server, SelectedKind, subject)))
+        if (await WriteAsync(async () => await _client.RemovePlayerListEntryAsync(_server, SelectedKind, subject)))
         {
             await LoadListAsync();
         }
@@ -123,7 +166,7 @@ public sealed partial class PlayersViewModel : ObservableObject
         {
             return;
         }
-        if (await _errors.TryAsync(async () => await _client.KickPlayerAsync(_server, player)))
+        if (await WriteAsync(async () => await _client.KickPlayerAsync(_server, player)))
         {
             await LoadOnlineAsync();
         }

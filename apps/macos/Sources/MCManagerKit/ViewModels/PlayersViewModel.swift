@@ -12,6 +12,7 @@ public final class PlayersViewModel {
     public var selectedKind = "whitelist"
     public var newSubject = ""
     public var reason = ""
+    public private(set) var isReadOnly = false
 
     @ObservationIgnored private let client: McClientProtocol
     @ObservationIgnored private let errors: ErrorReporter
@@ -21,6 +22,17 @@ public final class PlayersViewModel {
         self.client = client
         self.errors = errors
         self.server = server
+    }
+
+    private func write(_ work: () async throws -> Void) async -> Bool {
+        await errors.attempt {
+            do {
+                try await work()
+            } catch let error as ApiError where error.status == 403 {
+                isReadOnly = true
+                throw error
+            }
+        }
     }
 
     public func refresh() async {
@@ -56,7 +68,7 @@ public final class PlayersViewModel {
         let subject = newSubject.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !subject.isEmpty else { return }
         let text = reason.trimmingCharacters(in: .whitespacesAndNewlines)
-        let done = await errors.attempt {
+        let done = await write {
             _ = try await client.addToList(server, kind: selectedKind, subject: subject, reason: text.isEmpty ? nil : text)
         }
         if done {
@@ -68,7 +80,7 @@ public final class PlayersViewModel {
 
     public func remove(_ subject: String) async {
         guard !subject.isEmpty else { return }
-        let done = await errors.attempt {
+        let done = await write {
             _ = try await client.removeFromList(server, kind: selectedKind, subject: subject)
         }
         if done { await loadList() }
@@ -76,7 +88,7 @@ public final class PlayersViewModel {
 
     public func kick(_ player: String) async {
         guard !player.isEmpty else { return }
-        let done = await errors.attempt {
+        let done = await write {
             _ = try await client.kick(server, player: player, reason: nil)
         }
         if done { await loadOnline() }

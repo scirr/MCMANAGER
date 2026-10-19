@@ -263,6 +263,10 @@ final class TabsTests: XCTestCase {
     private func settingsModel(_ transport: FakeTransport, _ errors: ErrorReporter) -> SettingsViewModel {
         transport.on("GET", "/v1/servers/survie/config", json: configJSON)
         transport.on("GET", "/v1/servers/survie", json: #"{"name":"survie","mode":"always-on","state":"running"}"#)
+        transport.on("GET", "/v1/servers/survie/sleep", json: """
+        {"ok":true,"code":"sleep_status","enabled":false,"after_s":7200,"allow":[],"join_mode":"kick",\
+        "hold_timeout_s":120,"freeze":false,"state":"running"}
+        """)
         transport.on("GET", "/v1/servers/survie/java", json: """
         {"ok":true,"runtimes":{"21":"/j/21","17":"/j/17"},"servers":[{"java":21,"minecraft":"1.21.1","server":"survie"}]}
         """)
@@ -278,13 +282,15 @@ final class TabsTests: XCTestCase {
         let byKey = Dictionary(uniqueKeysWithValues: model.items.map { ($0.key, $0) })
         XCTAssertEqual(byKey["nom_serveur"]?.value, "survie")
         XCTAssertEqual(byKey["port"]?.value, "25565")
-        XCTAssertEqual(byKey["sleep_freeze"]?.value, "1")
+        XCTAssertNil(byKey["sleep_freeze"])
+        XCTAssertNil(byKey["sleep_join_mode"])
         XCTAssertEqual(byKey["domaine"]?.value, "")
         XCTAssertEqual(byKey["mcrcon_pass"]?.isSecret, true)
         XCTAssertEqual(byKey["mcrcon_pass"]?.isSet, true)
         XCTAssertEqual(byKey["mcrcon_pass"]?.value, "")
         XCTAssertEqual(byKey["webhook_url"]?.isSet, false)
-        XCTAssertNil(byKey["cpu_affinity"])
+        XCTAssertEqual(byKey["cpu_affinity"]?.value, "")
+        XCTAssertEqual(byKey["internal_port"]?.isChanged, false)
         XCTAssertEqual(model.openTime, "07:30")
         XCTAssertEqual(model.closeTime, "23:00")
         XCTAssertEqual(model.mode, "always-on")
@@ -343,6 +349,112 @@ final class TabsTests: XCTestCase {
         await model.saveJava()
         XCTAssertTrue(model.tab.restartRequired)
         XCTAssertTrue(transport.lastBodyOf("PUT", "/v1/servers/survie/java").contains("\"choice\":\"17\""))
+    }
+
+    func testSettingsOfferKnownKeysAbsentFromTheConfig() async {
+        let transport = FakeTransport()
+        let errors = ErrorReporter()
+        let model = settingsModel(transport, errors)
+        transport.on("PUT", "/v1/servers/survie/config/internal_port", json: #"{"ok":true,"key":"internal_port","restart_required":true}"#)
+        await model.refresh()
+        let absent = model.items.first { $0.key == "internal_port" }
+        XCTAssertEqual(absent?.value, "")
+        absent?.value = "25570"
+        await model.save()
+        XCTAssertNil(errors.current)
+        XCTAssertEqual(transport.requests.filter { $0.method == "PUT" }.map(\.path), ["/v1/servers/survie/config/internal_port"])
+    }
+
+    func testSleepIsLoadedInMinutesAndSendsOnlyWhatChanged() async {
+        let transport = FakeTransport()
+        let errors = ErrorReporter()
+        let model = settingsModel(transport, errors)
+        transport.on("PUT", "/v1/servers/survie/sleep", json: """
+        {"ok":true,"code":"sleep_updated","enabled":true,"after_s":1800,"allow":[],"join_mode":"kick","hold_timeout_s":120,\
+        "freeze":false,"notes":[]}
+        """)
+        await model.refresh()
+        XCTAssertFalse(model.sleepEnabled)
+        XCTAssertEqual(model.sleepMinutes, "120")
+        XCTAssertEqual(model.sleepJoinMode, "kick")
+        model.sleepEnabled = true
+        model.sleepMinutes = " 30 "
+        await model.saveSleep()
+        XCTAssertNil(errors.current)
+        let body = transport.lastBodyOf("PUT", "/v1/servers/survie/sleep")
+        XCTAssertTrue(body.contains("\"enabled\":true"))
+        XCTAssertTrue(body.contains("\"after_s\":1800"))
+        XCTAssertFalse(body.contains("join_mode"))
+        XCTAssertFalse(body.contains("freeze"))
+        XCTAssertEqual(model.tab.lastDone, "sleep")
+        XCTAssertFalse(model.tab.restartRequired)
+        XCTAssertEqual(model.sleepMinutes, "30")
+    }
+
+    func testSleepSendsJoinModeAndFreezeWhenChanged() async {
+        let transport = FakeTransport()
+        let errors = ErrorReporter()
+        let model = settingsModel(transport, errors)
+        transport.on("PUT", "/v1/servers/survie/sleep", json: """
+        {"ok":true,"code":"sleep_updated","enabled":false,"after_s":7200,"allow":[],"join_mode":"hold","hold_timeout_s":120,\
+        "freeze":true,"notes":["Restart the server to apply the hold mode."]}
+        """)
+        await model.refresh()
+        model.sleepJoinMode = "hold"
+        model.sleepFreeze = true
+        await model.saveSleep()
+        let body = transport.lastBodyOf("PUT", "/v1/servers/survie/sleep")
+        XCTAssertTrue(body.contains("\"join_mode\":\"hold\""))
+        XCTAssertTrue(body.contains("\"freeze\":true"))
+        XCTAssertTrue(model.tab.restartRequired)
+    }
+
+    func testSleepRejectsABadDelayBeforeCalling() async {
+        let transport = FakeTransport()
+        let errors = ErrorReporter()
+        let model = settingsModel(transport, errors)
+        await model.refresh()
+        model.sleepMinutes = "4"
+        await model.saveSleep()
+        XCTAssertEqual(errors.current?.code, "sleep_after_too_short")
+        errors.dismiss()
+        model.sleepMinutes = "abc"
+        await model.saveSleep()
+        XCTAssertEqual(errors.current?.code, "invalid_value")
+        XCTAssertFalse(transport.requests.contains { $0.method == "PUT" })
+    }
+
+    func testSleepFreezeRefusedOnAWindowsServerIsReportedByCode() async {
+        let transport = FakeTransport()
+        let errors = ErrorReporter()
+        let model = settingsModel(transport, errors)
+        transport.on("PUT", "/v1/servers/survie/sleep", status: 501,
+                     json: #"{"ok":false,"code":"unsupported_on_windows","message":"No."}"#)
+        await model.refresh()
+        model.sleepFreeze = true
+        await model.saveSleep()
+        XCTAssertEqual(errors.current?.code, "unsupported_on_windows")
+        XCTAssertEqual(model.tab.lastDone, "")
+    }
+
+    func testDatapackPlacementIsSentOnlyWhenEnabling() async {
+        let (transport, errors, client) = make()
+        transport.on("GET", "/v1/servers/survie/datapacks", json: """
+        {"ok":true,"running":true,"packs":[{"id":"vein","file":"vein.zip","enabled":false,"worldgen":false}]}
+        """)
+        transport.on("PUT", "/v1/servers/survie/datapacks/vein.zip", json: #"{"ok":true,"pack":"vein.zip","restart_required":false}"#)
+        let model = DatapacksViewModel(client: client, errors: errors, server: "survie")
+        await model.refresh()
+        await model.setEnabled("vein.zip", enabled: true)
+        XCTAssertFalse(transport.lastBodyOf("PUT", "/v1/servers/survie/datapacks/vein.zip").contains("first"))
+        model.placement = "first"
+        await model.setEnabled("vein.zip", enabled: true)
+        XCTAssertTrue(transport.lastBodyOf("PUT", "/v1/servers/survie/datapacks/vein.zip").contains("\"first\":true"))
+        model.placement = "before_vanilla"
+        await model.setEnabled("vein.zip", enabled: true)
+        XCTAssertTrue(transport.lastBodyOf("PUT", "/v1/servers/survie/datapacks/vein.zip").contains("\"before_vanilla\":true"))
+        await model.setEnabled("vein.zip", enabled: false)
+        XCTAssertEqual(transport.lastBodyOf("PUT", "/v1/servers/survie/datapacks/vein.zip"), #"{"enabled":false}"#)
     }
 
     func testClockParsing() {

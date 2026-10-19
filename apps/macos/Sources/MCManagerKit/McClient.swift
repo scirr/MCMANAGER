@@ -23,7 +23,7 @@ public protocol McClientProtocol: Sendable {
     func removeMod(_ name: String, mod: String, confirmBlocks: Bool) async throws -> ModRemoved
     func updateMods(_ name: String, mod: String?) async throws -> Job
     func listDatapacks(_ name: String) async throws -> DatapackList
-    func setDatapackEnabled(_ name: String, pack: String, enabled: Bool) async throws -> DatapackSet
+    func setDatapackEnabled(_ name: String, pack: String, enabled: Bool, placement: String?) async throws -> DatapackSet
     func listWorlds(_ name: String) async throws -> WorldList
     func pregenStatus(_ name: String) async throws -> PregenProgress
     func startPregen(_ name: String, radius: Int, center: String?) async throws -> Pregen
@@ -37,6 +37,8 @@ public protocol McClientProtocol: Sendable {
     func setConfigValue(_ name: String, key: String, value: String) async throws -> ConfigSet
     func setMode(_ name: String, mode: String) async throws -> OperationResult
     func setSchedule(_ name: String, schedule: ScheduleRequest) async throws -> OperationResult
+    func sleepSettings(_ name: String) async throws -> SleepSettings
+    func setSleepSettings(_ name: String, request: SleepSettingsRequest) async throws -> SleepSettings
     func serverJava(_ name: String) async throws -> JavaRuntimes
     func setServerJava(_ name: String, choice: String) async throws -> JavaUsed
     func createServer(_ request: CreateServerRequest) async throws -> Job
@@ -179,8 +181,13 @@ public struct McClient: McClientProtocol {
         try await call("GET", Self.serverPath(name) + "/datapacks")
     }
 
-    public func setDatapackEnabled(_ name: String, pack: String, enabled: Bool) async throws -> DatapackSet {
-        try await call("PUT", Self.serverPath(name) + "/datapacks/" + Self.ref(pack), body: DatapackSetRequest(enabled: enabled))
+    public func setDatapackEnabled(_ name: String, pack: String, enabled: Bool, placement: String? = nil) async throws -> DatapackSet {
+        let request = DatapackSetRequest(
+            enabled: enabled,
+            first: enabled && placement == "first" ? true : nil,
+            last: enabled && placement == "last" ? true : nil,
+            beforeVanilla: enabled && placement == "before_vanilla" ? true : nil)
+        return try await call("PUT", Self.serverPath(name) + "/datapacks/" + Self.ref(pack), body: request)
     }
 
     public func listWorlds(_ name: String) async throws -> WorldList {
@@ -235,6 +242,14 @@ public struct McClient: McClientProtocol {
 
     public func setSchedule(_ name: String, schedule: ScheduleRequest) async throws -> OperationResult {
         try await call("PUT", Self.serverPath(name) + "/schedule", body: schedule)
+    }
+
+    public func sleepSettings(_ name: String) async throws -> SleepSettings {
+        try await call("GET", Self.serverPath(name) + "/sleep")
+    }
+
+    public func setSleepSettings(_ name: String, request: SleepSettingsRequest) async throws -> SleepSettings {
+        try await call("PUT", Self.serverPath(name) + "/sleep", body: request)
     }
 
     public func serverJava(_ name: String) async throws -> JavaRuntimes {

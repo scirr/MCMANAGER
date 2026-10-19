@@ -37,9 +37,11 @@ struct ModsView: View {
                         Text(verbatim: details(item)).font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
-                    IconButton(title: String(format: tr("Remove the mod %@"), item.name), symbol: "trash",
-                               role: .destructive, enabled: model.tab.canAct) {
-                        pending = item
+                    if !model.tab.isReadOnly {
+                        IconButton(title: String(format: tr("Remove the mod %@"), item.name), symbol: "trash",
+                                   role: .destructive, enabled: !model.tab.isBusy) {
+                            pending = item
+                        }
                     }
                 }
             }

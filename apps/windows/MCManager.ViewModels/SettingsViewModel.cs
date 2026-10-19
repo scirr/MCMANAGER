@@ -41,7 +41,7 @@ public sealed partial class SettingsViewModel : TabViewModel
         "nom_serveur", "port", "rcon_port", "ram_allocation", "cpu_affinity", "jar_name", "domaine",
         "dossier_backup", "backup_retention_days", "backup_keep", "stop_timeout",
         "internal_port", "metrics_bind", "metrics_allow_remote",
-        "sleep_freeze", "sleep_hold_timeout", "sleep_join_mode", "sleep_proxy_protocol",
+        "sleep_hold_timeout", "sleep_proxy_protocol",
         "mcrcon_pass", "webhook_url", "curseforge_api_key", "backup_encrypt_key_file",
     };
 
@@ -51,6 +51,10 @@ public sealed partial class SettingsViewModel : TabViewModel
     };
 
     public static readonly IReadOnlyList<string> Modes = new[] { "schedule", "always-on", "maintenance" };
+
+    public static readonly IReadOnlyList<string> JoinModes = new[] { "kick", "hold" };
+
+    public const int SleepMinimumMinutes = 5;
 
     public const string SystemJava = "system";
 
@@ -74,6 +78,20 @@ public sealed partial class SettingsViewModel : TabViewModel
 
     [ObservableProperty]
     private string _javaChoice = "";
+
+    [ObservableProperty]
+    private bool _sleepEnabled;
+
+    [ObservableProperty]
+    private string _sleepMinutes = "";
+
+    [ObservableProperty]
+    private string _sleepJoinMode = "kick";
+
+    [ObservableProperty]
+    private bool _sleepFreeze;
+
+    private SleepSettings _loadedSleep = new();
 
     private string _loadedJava = "";
 
@@ -120,9 +138,10 @@ public sealed partial class SettingsViewModel : TabViewModel
                 {
                     Items.Add(new SettingItem(key, true, configured.Contains(key), ""));
                 }
-                else if (document.Config.TryGetValue(key, out var value))
+                else
                 {
-                    Items.Add(new SettingItem(key, false, true, Text(value)));
+                    var present = document.Config.TryGetValue(key, out var value);
+                    Items.Add(new SettingItem(key, false, present, present ? Text(value) : ""));
                 }
             }
             OpenTime = Clock(Int(document.Config, "heure_ouverture"), Int(document.Config, "minute_ouverture"));
@@ -136,9 +155,51 @@ public sealed partial class SettingsViewModel : TabViewModel
             {
                 JavaChoices.Add(major);
             }
+            ApplySleep(await Api.GetSleepSettingsAsync(Server));
             _loadedJava = java.Servers.FirstOrDefault(s => s.Server == Server)?.JavaText ?? SystemJava;
             JavaChoice = _loadedJava;
         });
+    }
+
+    private void ApplySleep(SleepSettings sleep)
+    {
+        _loadedSleep = sleep;
+        SleepEnabled = sleep.Enabled;
+        SleepMinutes = (sleep.AfterS / 60).ToString(CultureInfo.InvariantCulture);
+        SleepJoinMode = JoinModes.Contains(sleep.JoinMode) ? sleep.JoinMode : "kick";
+        SleepFreeze = sleep.Freeze;
+    }
+
+    [RelayCommand]
+    public async Task SaveSleepAsync()
+    {
+        if (!int.TryParse(SleepMinutes.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var minutes))
+        {
+            Errors.Show("invalid_value", "");
+            return;
+        }
+        if (minutes < SleepMinimumMinutes)
+        {
+            Errors.Show("sleep_after_too_short", "");
+            return;
+        }
+        var request = new SleepSettingsRequest
+        {
+            Enabled = SleepEnabled,
+            AfterS = minutes * 60,
+            JoinMode = SleepJoinMode != _loadedSleep.JoinMode ? SleepJoinMode : null,
+            Freeze = SleepFreeze != _loadedSleep.Freeze ? SleepFreeze : null,
+        };
+        SleepSettings? saved = null;
+        if (await WriteAsync(async () => saved = await Api.SetSleepSettingsAsync(Server, request)) && saved is not null)
+        {
+            ApplySleep(saved);
+            if (saved.Notes.Count > 0)
+            {
+                RestartRequired = true;
+            }
+            LastDone = "sleep";
+        }
     }
 
     [RelayCommand]

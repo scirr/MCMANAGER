@@ -221,6 +221,7 @@ public sealed record DatapackSetRequest
     public bool Enabled { get; init; }
     public bool? First { get; init; }
     public bool? Last { get; init; }
+    public bool? BeforeVanilla { get; init; }
 }
 
 public sealed record DatapackSet
@@ -358,6 +359,27 @@ public sealed record ScheduleRequest
     public int OpenMinute { get; init; }
     public int CloseHour { get; init; }
     public int CloseMinute { get; init; }
+}
+
+public sealed record SleepSettings
+{
+    public bool Ok { get; init; }
+    public string Code { get; init; } = "";
+    public bool Enabled { get; init; }
+    public int AfterS { get; init; }
+    public string JoinMode { get; init; } = "kick";
+    public int HoldTimeoutS { get; init; }
+    public bool Freeze { get; init; }
+    public List<string> Allow { get; init; } = new();
+    public List<string> Notes { get; init; } = new();
+}
+
+public sealed record SleepSettingsRequest
+{
+    public bool? Enabled { get; init; }
+    public int? AfterS { get; init; }
+    public string? JoinMode { get; init; }
+    public bool? Freeze { get; init; }
 }
 
 public sealed record JavaServerChoice

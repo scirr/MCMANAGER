@@ -59,6 +59,7 @@ class TestI18n(unittest.TestCase):
         keys += ["secret_" + key for key in panels.SECRET_KEYS]
         keys += ["setting_" + key for key in panels.SETTING_KINDS]
         keys += ["settings_" + name for name, _fields in panels.SETTING_GROUPS]
+        keys += ["sleep_join_" + mode for mode in panels.JOIN_MODES]
         keys += ["pack_problem_nested", "pack_problem_not_a_pack", "pack_enable_name", "pack_disable_name",
                  "task_enable_name", "task_disable_name", "dimension_overworld", "dimension_nether", "dimension_end"]
         self.assertEqual([key for key in keys if key not in i18n.TEXTS["en"]], [])
@@ -68,7 +69,7 @@ class TestI18n(unittest.TestCase):
                      "pack_nested", "pack_not_a_pack", "pack_broken_worldgen", "task_not_found", "task_name_taken",
                      "invalid_cron", "invalid_warn", "command_required", "warn_not_allowed", "chunky_missing",
                      "pregen_offline", "invalid_radius", "invalid_center", "overworld_protected", "unknown_dimension",
-                     "confirmation_required", "invalid_value", "key_not_found", "config_conflict", "java_bad_choice",
+                     "confirmation_required", "sleep_after_too_short", "sleep_needs_rcon", "unsupported_on_windows", "invalid_value", "key_not_found", "config_conflict", "java_bad_choice",
                      "invalid_time", "name_required", "unknown_loader", "eula_required", "folder_not_empty",
                      "job_failed", "server_offline", "stop_first", "server_running"):
             self.assertNotIn("(", i18n.error_text(code), code)

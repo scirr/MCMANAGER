@@ -40,25 +40,29 @@ struct TasksView: View {
             TabStatusView(tab: model.tab)
             List(model.items) { item in
                 HStack {
-                    Toggle(isOn: Binding(
-                        get: { item.enabled },
-                        set: { value in Task { await model.setEnabled(item.id, enabled: value) } }
-                    )) {
-                        EmptyView()
+                    if !model.tab.isReadOnly {
+                        Toggle(isOn: Binding(
+                            get: { item.enabled },
+                            set: { value in Task { await model.setEnabled(item.id, enabled: value) } }
+                        )) {
+                            EmptyView()
+                        }
+                        .labelsHidden()
+                        .disabled(model.tab.isBusy)
+                        .accessibilityLabel(String(format: tr("Enable the task %@"), title(item)))
                     }
-                    .labelsHidden()
-                    .disabled(!model.tab.canAct)
-                    .accessibilityLabel(String(format: tr("Enable the task %@"), title(item)))
                     VStack(alignment: .leading) {
                         Text(verbatim: title(item))
                         Text(verbatim: details(item)).font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Button(tr("Run now")) { Task { await model.run(item.id) } }
-                        .disabled(!model.tab.canAct)
-                    IconButton(title: String(format: tr("Delete the task %@"), title(item)), symbol: "trash",
-                               role: .destructive, enabled: model.tab.canAct) {
-                        pending = item
+                    if !model.tab.isReadOnly {
+                        Button(tr("Run now")) { Task { await model.run(item.id) } }
+                            .disabled(model.tab.isBusy)
+                        IconButton(title: String(format: tr("Delete the task %@"), title(item)), symbol: "trash",
+                                   role: .destructive, enabled: !model.tab.isBusy) {
+                            pending = item
+                        }
                     }
                 }
             }

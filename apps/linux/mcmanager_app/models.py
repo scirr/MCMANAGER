@@ -257,6 +257,7 @@ class BackupsModel(Observable):
         self.progress = 0
         self.error = None
         self.message = None
+        self.read_only = False
 
     def load(self):
         self.runner.run(lambda: self.client.list_backups(self.name), self._loaded)
@@ -299,6 +300,7 @@ class BackupsModel(Observable):
         self.busy = None
         if error:
             self.error = error_text(error.code)
+            self.read_only = self.read_only or error.code == "forbidden"
             self.notify()
             return
         self.message = t("backup_%s_done" % kind)
@@ -316,6 +318,7 @@ class PlayersModel(Observable):
         self.busy = None
         self.error = None
         self.message = None
+        self.read_only = False
 
     def load(self):
         for kind in PLAYER_LISTS:
@@ -358,6 +361,7 @@ class PlayersModel(Observable):
         self.busy = None
         if error:
             self.error = error_text(error.code)
+            self.read_only = self.read_only or error.code == "forbidden"
             self.notify()
             return
         self.message = t(message, name=subject)

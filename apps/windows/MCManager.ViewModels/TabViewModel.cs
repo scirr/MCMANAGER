@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MCManager.Client;
 
@@ -40,6 +41,20 @@ public abstract partial class TabViewModel : ObservableObject
     private bool _restartRequired;
 
     partial void OnIsBusyChanged(bool value) => BusyChanged();
+
+    partial void OnIsReadOnlyChanged(bool value) => ReadOnlyChanged();
+
+    protected virtual void ReadOnlyChanged()
+    {
+    }
+
+    protected static void Replace<T>(ObservableCollection<T> items, Func<T, T> change)
+    {
+        for (var i = 0; i < items.Count; i++)
+        {
+            items[i] = change(items[i]);
+        }
+    }
 
     protected virtual void BusyChanged()
     {

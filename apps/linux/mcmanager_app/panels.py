@@ -16,7 +16,10 @@ SETTING_GROUPS = (
     ("performance", (("ram_allocation", "text"), ("cpu_affinity", "text"), ("jar_name", "text"),
                      ("stop_timeout", "int"))),
     ("backup", (("dossier_backup", "text"), ("backup_retention_days", "int"), ("backup_keep", "int"))),
+    ("advanced", (("internal_port", "int"), ("metrics_bind", "text"), ("metrics_allow_remote", "flag"))),
 )
+JOIN_MODES = ("kick", "hold")
+SLEEP_MINIMUM_S = 300
 SETTING_KINDS = {key: kind for _group, fields in SETTING_GROUPS for key, kind in fields}
 SECRET_KEYS = ("mcrcon_pass", "webhook_url", "curseforge_api_key", "backup_encrypt_key_file")
 RAM_PATTERN = re.compile(r"^\d+[MG]$", re.IGNORECASE)
@@ -361,9 +364,11 @@ class SettingsModel(PanelModel):
         self.open_time = self.close_time = "00:00"
         self.java = ""
         self.java_choices = []
+        self.sleep = {}
 
     def load(self):
         self._fetch(lambda: self.client.config(self.name), self._loaded)
+        self._fetch(lambda: self.client.sleep_settings(self.name), self._sleep_loaded)
         self._fetch(lambda: self.client.server_java(self.name), self._java_loaded)
 
     def _loaded(self, document):
@@ -375,6 +380,10 @@ class SettingsModel(PanelModel):
         self.close_time = clock(config.get("heure_fermeture"), config.get("minute_fermeture"))
         if not self.java and config.get("java_major"):
             self.java = str(config["java_major"])
+
+    def _sleep_loaded(self, document):
+        self.sleep = {"enabled": bool(document.get("enabled")), "minutes": str(int(document.get("after_s") or 0) // 60),
+                      "join_mode": document.get("join_mode") or "kick", "freeze": bool(document.get("freeze"))}
 
     def _java_loaded(self, document):
         self.java_choices = ["system"] + sorted(document.get("runtimes") or {}, key=lambda v: (len(v), v))
@@ -392,6 +401,10 @@ class SettingsModel(PanelModel):
         value = text
         if kind == "int":
             if not text.lstrip("-").isdigit():
+                return self._refuse("invalid_value")
+            value = int(text)
+        elif kind == "flag":
+            if text not in ("0", "1"):
                 return self._refuse("invalid_value")
             value = int(text)
         elif key == "ram_allocation" and not RAM_PATTERN.match(text):
@@ -419,6 +432,22 @@ class SettingsModel(PanelModel):
             return self._refuse("invalid_time")
         return self._start("schedule", lambda: self.client.set_schedule(self.name, *first, *second),
                            "schedule_saved", then=lambda _r: self.load())
+
+    def set_sleep(self, enabled, minutes, join_mode, freeze):
+        minutes = str(minutes).strip()
+        if not minutes.isdigit():
+            return self._refuse("invalid_value")
+        if int(minutes) * 60 < SLEEP_MINIMUM_S:
+            return self._refuse("sleep_after_too_short")
+        if join_mode not in JOIN_MODES:
+            return self._refuse("invalid_value")
+        fields = {"enabled": bool(enabled), "after_s": int(minutes) * 60}
+        if join_mode != self.sleep.get("join_mode"):
+            fields["join_mode"] = join_mode
+        if bool(freeze) != self.sleep.get("freeze"):
+            fields["freeze"] = bool(freeze)
+        return self._start("sleep", lambda: self.client.set_sleep(self.name, **fields), "sleep_saved",
+                           then=lambda _r: self.load())
 
     def set_java(self, choice):
         if choice not in self.java_choices or choice == self.java:

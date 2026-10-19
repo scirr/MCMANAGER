@@ -62,7 +62,12 @@ public struct DatapackList: Codable, Equatable, Sendable {
     public var packs: [DatapackEntry]
 }
 
-struct DatapackSetRequest: Codable { var enabled: Bool }
+struct DatapackSetRequest: Codable {
+    var enabled: Bool
+    var first: Bool?
+    var last: Bool?
+    var beforeVanilla: Bool?
+}
 
 public struct DatapackSet: Codable, Equatable, Sendable {
     public var pack: String?
@@ -216,6 +221,29 @@ public struct ScheduleRequest: Codable, Equatable, Sendable {
         self.openMinute = openMinute
         self.closeHour = closeHour
         self.closeMinute = closeMinute
+    }
+}
+
+public struct SleepSettings: Codable, Equatable, Sendable {
+    public var enabled: Bool
+    public var afterS: Int
+    public var joinMode: String?
+    public var holdTimeoutS: Int?
+    public var freeze: Bool?
+    public var notes: [String]?
+}
+
+public struct SleepSettingsRequest: Codable, Equatable, Sendable {
+    public var enabled: Bool?
+    public var afterS: Int?
+    public var joinMode: String?
+    public var freeze: Bool?
+
+    public init(enabled: Bool? = nil, afterS: Int? = nil, joinMode: String? = nil, freeze: Bool? = nil) {
+        self.enabled = enabled
+        self.afterS = afterS
+        self.joinMode = joinMode
+        self.freeze = freeze
     }
 }
 

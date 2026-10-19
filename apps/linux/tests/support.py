@@ -47,6 +47,8 @@ class FakeClient:
         self.tasks = []
         self.config_doc = {"config": {"port": 25565}, "secrets_set": ["mcrcon_pass"]}
         self.java_doc = {"runtimes": {}, "servers": []}
+        self.sleep_doc = {"enabled": False, "after_s": 7200, "allow": [], "join_mode": "kick", "hold_timeout_s": 120,
+                          "freeze": False}
         self.result = {}
 
     def _check(self, name):
@@ -176,6 +178,13 @@ class FakeClient:
 
     def set_schedule(self, name, *times):
         return self._record("set_schedule", *times)
+
+    def sleep_settings(self, name):
+        self._check("sleep_settings")
+        return self.sleep_doc
+
+    def set_sleep(self, name, **fields):
+        return self._record("set_sleep", fields)
 
     def server_java(self, name):
         self._check("server_java")

@@ -145,6 +145,74 @@ public class TabsTests
     }
 
     [Fact]
+    public async Task Datapacks_placement_is_sent_only_when_enabling()
+    {
+        var client = new FakeClient { PacksRunning = true };
+        client.Packs.Add(new DatapackEntry { Id = "file/a.zip", File = "a.zip", Enabled = false });
+        var vm = new DatapacksViewModel(client, new ErrorReporter(), "survie");
+        await vm.RefreshAsync();
+
+        await vm.SetEnabledAsync("a.zip", true);
+        vm.Placement = "last";
+        await vm.SetEnabledAsync("a.zip", false);
+        await vm.SetEnabledAsync("a.zip", true);
+
+        Assert.Equal(new[] { "datapack a.zip True", "datapack a.zip False", "datapack a.zip True last" },
+            client.Calls.Where(c => c.StartsWith("datapack ")).ToArray());
+    }
+
+    [Fact]
+    public async Task A_forbidden_write_hides_the_buttons_of_every_row()
+    {
+        var client = new FakeClient { PacksRunning = true };
+        client.Mods.Add(new ModEntry { File = "a.jar" });
+        client.Packs.Add(new DatapackEntry { Id = "file/a.zip", File = "a.zip", Enabled = false });
+        client.Dimensions.Add(new WorldDimension { Id = "nether", SizeBytes = 1 });
+        client.Tasks.Add(new TaskEntry { Id = 1, Name = "t", Cron = "0 4 * * *", Action = "restart", Enabled = true });
+        client.Backups.Add(new BackupEntry { Id = "b", File = "b.zip", Type = "midi", Created = "2026-10-08T12:00:03", Size = 1 });
+        client.Lists["whitelist"] = new List<PlayerListEntry> { new() { Name = "Notch" } };
+        client.Online["survie"] = new PlayersOnline { Ok = true, Online = 1, Players = { "Steve" } };
+        var errors = new ErrorReporter();
+        var mods = new ModsViewModel(client, errors, "survie");
+        var packs = new DatapacksViewModel(client, errors, "survie");
+        var world = new WorldViewModel(client, errors, "survie");
+        var tasks = new TasksViewModel(client, errors, "survie");
+        var backups = new BackupsViewModel(client, errors, "survie");
+        var players = new PlayersViewModel(client, errors, "survie");
+        await mods.RefreshAsync();
+        await packs.RefreshAsync();
+        await world.RefreshAsync();
+        await tasks.RefreshAsync();
+        await backups.RefreshAsync();
+        await players.RefreshAsync();
+        Assert.True(mods.Items[0].CanWrite);
+        Assert.True(packs.Items[0].CanWrite);
+        Assert.True(world.Dimensions[0].CanWrite);
+        Assert.True(tasks.Items[0].CanWrite);
+        Assert.True(backups.Items[0].CanWrite);
+        Assert.True(players.OnlineRows[0].CanWrite);
+        Assert.True(players.EntryRows[0].CanWrite);
+        client.Failure = new ApiException("forbidden", "no", 403);
+
+        await mods.RemoveAsync("a.jar", true);
+        await packs.SetEnabledAsync("a.zip", true);
+        await world.StartPregenAsync();
+        await tasks.SetEnabledAsync(1, false);
+        await backups.CreateAsync();
+        await players.KickAsync("Steve");
+
+        Assert.False(mods.Items[0].CanWrite);
+        Assert.False(packs.Items[0].CanWrite);
+        Assert.False(world.Dimensions[0].CanWrite);
+        Assert.False(tasks.Items[0].CanWrite);
+        Assert.False(backups.Items[0].CanWrite);
+        Assert.False(players.OnlineRows[0].CanWrite);
+        Assert.False(players.EntryRows[0].CanWrite);
+        Assert.False(backups.CanAct);
+        Assert.False(players.CanWrite);
+    }
+
+    [Fact]
     public async Task World_lists_dimensions_and_pregen_progress()
     {
         var client = new FakeClient { PregenReply = "11.2%" };
@@ -338,6 +406,84 @@ public class TabsTests
         Assert.DoesNotContain("config-set nom_serveur=Survie", client.Calls);
         Assert.True(vm.RestartRequired);
         Assert.Equal("save", vm.LastDone);
+    }
+
+    [Fact]
+    public async Task Settings_offer_known_keys_that_are_absent_from_the_config()
+    {
+        var client = new FakeClient();
+        client.Config["nom_serveur"] = Json("\"Survie\"");
+        var vm = new SettingsViewModel(client, new ErrorReporter(), "survie");
+        await vm.RefreshAsync();
+
+        var absent = vm.Items.First(i => i.Key == "internal_port");
+        Assert.Equal("", absent.Value);
+        Assert.False(absent.IsChanged);
+        Assert.DoesNotContain(vm.Items, i => i.Key is "sleep_freeze" or "sleep_join_mode");
+
+        absent.Value = "25570";
+        await vm.SaveAsync();
+
+        Assert.Equal(new[] { "config-set internal_port=25570" }, client.Calls.Where(c => c.StartsWith("config-set")).ToArray());
+    }
+
+    [Fact]
+    public async Task Settings_sleep_is_loaded_in_minutes_and_sends_only_what_changed()
+    {
+        var client = new FakeClient { Sleep = new SleepSettings { Ok = true, Enabled = false, AfterS = 7200, JoinMode = "kick" } };
+        var vm = new SettingsViewModel(client, new ErrorReporter(), "survie");
+        await vm.RefreshAsync();
+        Assert.False(vm.SleepEnabled);
+        Assert.Equal("120", vm.SleepMinutes);
+        Assert.Equal("kick", vm.SleepJoinMode);
+
+        vm.SleepEnabled = true;
+        vm.SleepMinutes = " 30 ";
+        await vm.SaveSleepAsync();
+
+        Assert.Contains("sleep-set True 1800  ", client.Calls);
+        Assert.Equal("sleep", vm.LastDone);
+        Assert.Equal("30", vm.SleepMinutes);
+
+        vm.SleepJoinMode = "hold";
+        vm.SleepFreeze = true;
+        await vm.SaveSleepAsync();
+
+        Assert.Contains("sleep-set True 1800 hold True", client.Calls);
+    }
+
+    [Fact]
+    public async Task Settings_sleep_rejects_a_bad_delay_before_calling_the_api()
+    {
+        var client = new FakeClient();
+        var errors = new ErrorReporter();
+        var vm = new SettingsViewModel(client, errors, "survie");
+        await vm.RefreshAsync();
+        client.Calls.Clear();
+
+        vm.SleepMinutes = "4";
+        await vm.SaveSleepAsync();
+        Assert.Equal("sleep_after_too_short", errors.Code);
+        vm.SleepMinutes = "abc";
+        await vm.SaveSleepAsync();
+        Assert.Equal("invalid_value", errors.Code);
+        Assert.Empty(client.Calls);
+    }
+
+    [Fact]
+    public async Task Settings_sleep_freeze_refused_on_a_windows_server_is_reported_by_code()
+    {
+        var client = new FakeClient();
+        var errors = new ErrorReporter();
+        var vm = new SettingsViewModel(client, errors, "survie");
+        await vm.RefreshAsync();
+        client.Failure = new ApiException("unsupported_on_windows", "", 501);
+        vm.SleepFreeze = true;
+
+        await vm.SaveSleepAsync();
+
+        Assert.Equal("unsupported_on_windows", errors.Code);
+        Assert.Equal("", vm.LastDone);
     }
 
     [Fact]

@@ -20,9 +20,11 @@ struct WorldView: View {
                     Text(verbatim: dimensionLabel(dimension.id))
                     Spacer()
                     Text(verbatim: dimension.sizeText).monospacedDigit().foregroundStyle(.secondary)
-                    Button(tr("Reset"), role: .destructive) { pending = dimension }
-                        .disabled(!model.tab.canAct)
-                        .accessibilityLabel(String(format: tr("Reset %@"), dimensionLabel(dimension.id)))
+                    if !model.tab.isReadOnly {
+                        Button(tr("Reset"), role: .destructive) { pending = dimension }
+                            .disabled(model.tab.isBusy)
+                            .accessibilityLabel(String(format: tr("Reset %@"), dimensionLabel(dimension.id)))
+                    }
                 }
             }
             .frame(minHeight: 80)

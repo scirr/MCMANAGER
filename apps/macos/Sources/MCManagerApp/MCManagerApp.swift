@@ -10,6 +10,7 @@ final class AppModel {
     let connection: ConnectionViewModel
     private(set) var list: ServerListViewModel?
     private(set) var serviceMissing = false
+    private(set) var connectionFailed = false
     var createWizard: CreateServerViewModel?
     var pairingWizard: PairingWizardViewModel?
     @ObservationIgnored private var client: McClientProtocol?
@@ -32,12 +33,13 @@ final class AppModel {
         details = [:]
         client = nil
         serviceMissing = false
+        connectionFailed = false
         let made: McClientProtocol?
         do {
             made = try connection.makeClient()
         } catch {
             errors.report(error)
-            serviceMissing = true
+            connectionFailed = true
             return
         }
         guard let made else {

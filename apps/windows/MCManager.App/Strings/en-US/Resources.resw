@@ -202,9 +202,7 @@
   <data name="Setting_internal_port" xml:space="preserve"><value>Internal port</value></data>
   <data name="Setting_metrics_bind" xml:space="preserve"><value>Metrics address</value></data>
   <data name="Setting_metrics_allow_remote" xml:space="preserve"><value>Metrics from remote (0/1)</value></data>
-  <data name="Setting_sleep_freeze" xml:space="preserve"><value>Sleep: freeze (0/1)</value></data>
   <data name="Setting_sleep_hold_timeout" xml:space="preserve"><value>Sleep: hold timeout (s)</value></data>
-  <data name="Setting_sleep_join_mode" xml:space="preserve"><value>Sleep: join mode (kick/hold)</value></data>
   <data name="Setting_sleep_proxy_protocol" xml:space="preserve"><value>Sleep: proxy protocol (auto/on/off)</value></data>
   <data name="Setting_mcrcon_pass" xml:space="preserve"><value>RCON password</value></data>
   <data name="Setting_webhook_url" xml:space="preserve"><value>Webhook URL</value></data>
@@ -270,4 +268,20 @@
   <data name="Error_job_failed" xml:space="preserve"><value>The operation failed</value></data>
   <data name="Error_job_cancelled" xml:space="preserve"><value>The operation was cancelled</value></data>
   <data name="Error_bad_answer" xml:space="preserve"><value>Unexpected answer from MC Manager</value></data>
+  <data name="DatapackPlacementBox.Header" xml:space="preserve"><value>Position when enabling</value></data>
+  <data name="DatapackPlacementBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Position when enabling</value></data>
+  <data name="SleepLabel.Text" xml:space="preserve"><value>Sleep</value></data>
+  <data name="SleepHint.Text" xml:space="preserve"><value>The server stops after a period without players and wakes when a known player joins. Join mode: kick refuses the connection while the server wakes, hold keeps it until the server is up.</value></data>
+  <data name="SleepEnabledBox.Content" xml:space="preserve"><value>Sleep when idle</value></data>
+  <data name="SleepMinutesBox.Header" xml:space="preserve"><value>Idle minutes before sleeping (at least 5)</value></data>
+  <data name="SleepMinutesBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Idle minutes before sleeping</value></data>
+  <data name="SleepJoinBox.Header" xml:space="preserve"><value>Join mode</value></data>
+  <data name="SleepJoinBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Join mode</value></data>
+  <data name="SleepFreezeBox.Content" xml:space="preserve"><value>Freeze instead of stopping</value></data>
+  <data name="SleepFreezeHint.Text" xml:space="preserve"><value>Freezing needs the hold join mode and is not available on a Windows server.</value></data>
+  <data name="Error_invalid_value" xml:space="preserve"><value>Invalid value</value></data>
+  <data name="Error_sleep_after_too_short" xml:space="preserve"><value>The idle time must be at least 5 minutes</value></data>
+  <data name="Error_sleep_needs_rcon" xml:space="preserve"><value>Sleep needs RCON to count players: set a RCON password first</value></data>
+  <data name="Error_sleep_hold_timeout_range" xml:space="preserve"><value>The hold time must be between 10 and 600 seconds</value></data>
+  <data name="Error_unsupported_on_windows" xml:space="preserve"><value>Not available on a Windows server</value></data>
 </root>

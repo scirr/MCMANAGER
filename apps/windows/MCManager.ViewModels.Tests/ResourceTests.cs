@@ -57,6 +57,7 @@ public class ResourceTests
         {
             "forbidden", "invalid_radius", "cron_required", "command_required", "invalid_time",
             "name_required", "invalid_ram", "invalid_port", "defines_blocks", "eula_required",
+            "invalid_value", "sleep_after_too_short", "sleep_needs_rcon", "unsupported_on_windows",
         })
         {
             Assert.True(en.ContainsKey("Error_" + code), code);

@@ -30,9 +30,11 @@ struct BackupsView: View {
                     }
                     Spacer()
                     Text(verbatim: item.sizeText).monospacedDigit().foregroundStyle(.secondary)
-                    Button(tr("Restore")) { pending = item }
-                        .disabled(!model.tab.canAct)
-                        .accessibilityLabel(String(format: tr("Restore the backup of %@"), item.date))
+                    if !model.tab.isReadOnly {
+                        Button(tr("Restore")) { pending = item }
+                            .disabled(model.tab.isBusy)
+                            .accessibilityLabel(String(format: tr("Restore the backup of %@"), item.date))
+                    }
                 }
             }
             .overlay {
