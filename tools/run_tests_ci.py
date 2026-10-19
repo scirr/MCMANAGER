@@ -11,6 +11,11 @@ def _escape(text):
 
 
 def main():
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     start = sys.argv[1] if len(sys.argv) > 1 else "tests"
     sys.path.insert(0, os.getcwd())
     suite = unittest.defaultTestLoader.discover(start)
@@ -28,6 +33,8 @@ def main():
         lines = [line for line in trace.strip().splitlines() if line.strip()]
         tail = "\n".join(lines[-12:])
         print(f"::error title={kind}: {test.id()}::{_escape(tail)}")
+    if not result.wasSuccessful() and not unique:
+        print("::error title=suite::the run failed without a test failure (crash or skipped teardown)")
     return 0 if result.wasSuccessful() else 1
 
 
