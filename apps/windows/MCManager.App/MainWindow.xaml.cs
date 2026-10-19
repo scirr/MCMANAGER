@@ -26,6 +26,9 @@ public sealed partial class MainWindow : Window
 
         ServersPage.ServerOpened += OnServerOpened;
         DetailPage.BackRequested += OnBackRequested;
+        ServersPage.CreateRequested += OnCreateRequested;
+        CreatePage.BackRequested += OnBackRequested;
+        CreatePage.Created += OnServerCreated;
         ConnectionPage.ViewModel = _connection;
         ConnectionPage.ConnectRequested += OnConnectRequested;
         Closed += OnClosed;
@@ -43,6 +46,7 @@ public sealed partial class MainWindow : Window
     {
         _polling.Cancel();
         DetailPage.Detach();
+        CreatePage.Detach();
         _viewModel.CloseDetail();
         _remoteClient?.Dispose();
         _remoteClient = null;
@@ -98,9 +102,11 @@ public sealed partial class MainWindow : Window
         if (args.SelectedItemContainer?.Tag as string == "connection")
         {
             DetailPage.Detach();
+            CreatePage.Detach();
             _viewModel.CloseDetail();
             DetailPage.Visibility = Visibility.Collapsed;
             ServersPage.Visibility = Visibility.Collapsed;
+            CreatePage.Visibility = Visibility.Collapsed;
             ConnectionPage.Visibility = Visibility.Visible;
             return;
         }
@@ -119,6 +125,23 @@ public sealed partial class MainWindow : Window
         DetailPage.Visibility = Visibility.Visible;
     }
 
+    private void OnCreateRequested()
+    {
+        var wizard = _viewModel.NewServer();
+        if (wizard is null)
+        {
+            return;
+        }
+        CreatePage.Attach(wizard);
+        ServersPage.Visibility = Visibility.Collapsed;
+        CreatePage.Visibility = Visibility.Visible;
+    }
+
+    private void OnServerCreated(string name)
+    {
+        ShowList();
+    }
+
     private void OnBackRequested()
     {
         ShowList();
@@ -127,8 +150,10 @@ public sealed partial class MainWindow : Window
     private void ShowList()
     {
         DetailPage.Detach();
+        CreatePage.Detach();
         _viewModel.CloseDetail();
         DetailPage.Visibility = Visibility.Collapsed;
+        CreatePage.Visibility = Visibility.Collapsed;
         ConnectionPage.Visibility = Visibility.Collapsed;
         ServersPage.Visibility = Visibility.Visible;
         if (_viewModel.ServerList is not null)
@@ -141,6 +166,7 @@ public sealed partial class MainWindow : Window
     {
         _polling.Cancel();
         DetailPage.Detach();
+        CreatePage.Detach();
         _viewModel.CloseDetail();
         _remoteClient?.Dispose();
     }

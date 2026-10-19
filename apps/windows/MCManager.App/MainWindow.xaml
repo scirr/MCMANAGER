@@ -39,6 +39,7 @@
             <Grid>
                 <views:ServersView x:Name="ServersPage" />
                 <views:ServerDetailView x:Name="DetailPage" Visibility="Collapsed" />
+                <views:CreateServerView x:Name="CreatePage" Visibility="Collapsed" />
                 <views:ConnectionView x:Name="ConnectionPage" Visibility="Collapsed" />
             </Grid>
         </NavigationView>

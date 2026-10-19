@@ -14,6 +14,8 @@ public sealed partial class ServersView : UserControl
 
     public event Action<string>? ServerOpened;
 
+    public event Action? CreateRequested;
+
     public ServerListViewModel? ViewModel
     {
         get => _viewModel;
@@ -22,6 +24,11 @@ public sealed partial class ServersView : UserControl
             _viewModel = value;
             Bindings.Update();
         }
+    }
+
+    private void OnCreateClick(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        CreateRequested?.Invoke();
     }
 
     private void OnItemClick(object sender, ItemClickEventArgs e)

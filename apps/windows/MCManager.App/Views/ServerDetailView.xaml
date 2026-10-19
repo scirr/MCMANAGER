@@ -145,6 +145,223 @@
                     </ListView>
                 </Grid>
             </PivotItem>
+            <PivotItem x:Uid="ModsTab">
+                <Grid RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.Mods.CanWrite, Mode=OneWay}">
+                        <TextBox x:Name="ModReferenceBox" x:Uid="ModReferenceBox" Text="{x:Bind ViewModel.Mods.NewReference, Mode=TwoWay}" MinWidth="280" />
+                        <ComboBox x:Name="ModSourceBox" x:Uid="ModSourceBox" SelectedItem="{x:Bind ViewModel.Mods.SelectedSource, Mode=TwoWay}" MinWidth="140" />
+                        <Button x:Name="ModAddButton" x:Uid="ModAddButton" IsEnabled="{x:Bind ViewModel.Mods.CanAct, Mode=OneWay}" Command="{x:Bind ViewModel.Mods.AddCommand, Mode=OneWay}" />
+                        <Button x:Name="ModUpdateButton" x:Uid="ModUpdateButton" IsEnabled="{x:Bind ViewModel.Mods.CanAct, Mode=OneWay}" Command="{x:Bind ViewModel.Mods.UpdateAllCommand, Mode=OneWay}" />
+                        <Button x:Name="ModsRefreshButton" x:Uid="RefreshButton" Command="{x:Bind ViewModel.Mods.RefreshCommand, Mode=OneWay}">
+                            <SymbolIcon Symbol="Refresh" />
+                        </Button>
+                    </StackPanel>
+                    <StackPanel Grid.Row="1" Spacing="4">
+                        <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ViewModel.Mods.Progress, Mode=OneWay}" Visibility="{x:Bind ViewModel.Mods.IsBusy, Mode=OneWay}" />
+                        <TextBlock x:Uid="RestartHint" Visibility="{x:Bind ViewModel.Mods.RestartRequired, Mode=OneWay}" />
+                    </StackPanel>
+                    <TextBlock x:Uid="ModsEmpty" Grid.Row="2" Visibility="{x:Bind ViewModel.Mods.IsEmpty, Mode=OneWay}" />
+                    <ListView x:Name="ModsListView" x:Uid="ModsListView" Grid.Row="3" ItemsSource="{x:Bind ViewModel.Mods.Items, Mode=OneWay}" SelectionMode="None">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ModItem">
+                                <Grid ColumnSpacing="12" Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="{x:Bind Name}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8" Opacity="0.7">
+                                            <TextBlock Text="{x:Bind Version}" />
+                                            <TextBlock Text="{x:Bind Source}" />
+                                            <TextBlock Text="{x:Bind app:Strings.ModFlags(AddsBlocks)}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Button x:Uid="ModRemoveButton" Grid.Column="1" Tag="{x:Bind File}" Click="OnModRemoveClick">
+                                        <SymbolIcon Symbol="Delete" />
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </PivotItem>
+            <PivotItem x:Uid="DatapacksTab">
+                <Grid RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="DatapacksRefreshButton" x:Uid="RefreshButton" Command="{x:Bind ViewModel.Datapacks.RefreshCommand, Mode=OneWay}">
+                            <SymbolIcon Symbol="Refresh" />
+                        </Button>
+                        <TextBlock x:Uid="RestartHint" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.Datapacks.RestartRequired, Mode=OneWay}" />
+                    </StackPanel>
+                    <TextBlock x:Uid="DatapacksEmpty" Grid.Row="1" Visibility="{x:Bind ViewModel.Datapacks.IsEmpty, Mode=OneWay}" />
+                    <ListView x:Name="DatapacksListView" x:Uid="DatapacksListView" Grid.Row="2" ItemsSource="{x:Bind ViewModel.Datapacks.Items, Mode=OneWay}" SelectionMode="None">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DatapackItem">
+                                <Grid ColumnSpacing="12" Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="{x:Bind File}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8" Opacity="0.7">
+                                            <TextBlock Text="{x:Bind app:Strings.EnabledState(Enabled)}" />
+                                            <TextBlock Text="{x:Bind app:Strings.DatapackProblem(Problem)}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="{x:Bind app:Strings.ToggleLabel(Enabled)}" IsEnabled="{x:Bind CanToggle}" Tag="{x:Bind File}" Click="OnDatapackToggleClick" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </PivotItem>
+            <PivotItem x:Uid="WorldTab">
+                <ScrollViewer>
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock x:Uid="WorldSizeLabel" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <TextBlock Text="{x:Bind ViewModel.World.TotalSizeText, Mode=OneWay}" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <Button x:Name="WorldRefreshButton" x:Uid="RefreshButton" Command="{x:Bind ViewModel.World.RefreshCommand, Mode=OneWay}">
+                                <SymbolIcon Symbol="Refresh" />
+                            </Button>
+                        </StackPanel>
+                        <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ViewModel.World.Progress, Mode=OneWay}" Visibility="{x:Bind ViewModel.World.IsBusy, Mode=OneWay}" />
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.World.Dimensions, Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DimensionItem">
+                                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,2">
+                                        <TextBlock Text="{x:Bind app:Strings.Dimension(Id)}" VerticalAlignment="Center" MinWidth="160" />
+                                        <TextBlock Text="{x:Bind SizeText}" VerticalAlignment="Center" MinWidth="80" Opacity="0.7" />
+                                        <Button x:Uid="ResetDimensionButton" Tag="{x:Bind Id}" Click="OnResetDimensionClick" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock x:Uid="PregenLabel" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <TextBlock Text="{x:Bind ViewModel.World.PregenText, Mode=OneWay}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                        <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.World.CanWrite, Mode=OneWay}">
+                            <TextBox x:Name="PregenRadiusBox" x:Uid="PregenRadiusBox" Text="{x:Bind ViewModel.World.RadiusText, Mode=TwoWay}" MinWidth="140" />
+                            <TextBox x:Name="PregenCenterBox" x:Uid="PregenCenterBox" Text="{x:Bind ViewModel.World.CenterText, Mode=TwoWay}" MinWidth="140" />
+                            <Button x:Name="PregenStartButton" x:Uid="PregenStartButton" Command="{x:Bind ViewModel.World.StartPregenCommand, Mode=OneWay}" />
+                            <Button x:Name="PregenRefreshButton" x:Uid="RefreshButton" Command="{x:Bind ViewModel.World.RefreshPregenCommand, Mode=OneWay}">
+                                <SymbolIcon Symbol="Refresh" />
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </PivotItem>
+            <PivotItem x:Uid="TasksTab">
+                <Grid RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.Tasks.CanWrite, Mode=OneWay}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="TaskNameBox" x:Uid="TaskNameBox" Text="{x:Bind ViewModel.Tasks.NewName, Mode=TwoWay}" MinWidth="160" />
+                            <TextBox x:Name="TaskCronBox" x:Uid="TaskCronBox" Text="{x:Bind ViewModel.Tasks.NewCron, Mode=TwoWay}" MinWidth="160" />
+                            <ComboBox x:Name="TaskActionBox" x:Uid="TaskActionBox" SelectedItem="{x:Bind ViewModel.Tasks.NewAction, Mode=TwoWay}" MinWidth="140" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBox x:Name="TaskCommandBox" x:Uid="TaskCommandBox" Text="{x:Bind ViewModel.Tasks.NewCommand, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.Tasks.NeedsCommand, Mode=OneWay}" MinWidth="240" />
+                            <TextBox x:Name="TaskWarnBox" x:Uid="TaskWarnBox" Text="{x:Bind ViewModel.Tasks.NewWarn, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.Tasks.AllowsWarn, Mode=OneWay}" MinWidth="140" />
+                            <Button x:Name="TaskAddButton" x:Uid="TaskAddButton" Command="{x:Bind ViewModel.Tasks.CreateCommand, Mode=OneWay}" />
+                            <Button x:Name="TasksRefreshButton" x:Uid="RefreshButton" Command="{x:Bind ViewModel.Tasks.RefreshCommand, Mode=OneWay}">
+                                <SymbolIcon Symbol="Refresh" />
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                    <ProgressBar Grid.Row="1" Minimum="0" Maximum="100" Value="{x:Bind ViewModel.Tasks.Progress, Mode=OneWay}" Visibility="{x:Bind ViewModel.Tasks.IsBusy, Mode=OneWay}" />
+                    <TextBlock x:Uid="TasksEmpty" Grid.Row="2" Visibility="{x:Bind ViewModel.Tasks.IsEmpty, Mode=OneWay}" />
+                    <ListView x:Name="TasksListView" x:Uid="TasksListView" Grid.Row="3" ItemsSource="{x:Bind ViewModel.Tasks.Items, Mode=OneWay}" SelectionMode="None">
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:TaskItem">
+                                <Grid ColumnSpacing="8" Margin="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{x:Bind app:Strings.TaskAction(Kind)}" />
+                                            <TextBlock Text="{x:Bind Cron}" Opacity="0.7" />
+                                            <TextBlock Text="{x:Bind app:Strings.EnabledState(Enabled)}" Opacity="0.7" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="8" Opacity="0.7">
+                                            <TextBlock Text="{x:Bind app:Strings.NextRun(NextRun)}" />
+                                            <TextBlock Text="{x:Bind app:Strings.LastResult(LastResult)}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="{x:Bind app:Strings.ToggleLabel(Enabled)}" Tag="{x:Bind Id}" Click="OnTaskToggleClick" />
+                                    <Button x:Uid="TaskRunButton" Grid.Column="2" Tag="{x:Bind Id}" Click="OnTaskRunClick" />
+                                    <Button x:Uid="TaskDeleteButton" Grid.Column="3" Tag="{x:Bind Id}" Click="OnTaskDeleteClick">
+                                        <SymbolIcon Symbol="Delete" />
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </PivotItem>
+            <PivotItem x:Uid="SettingsTab">
+                <ScrollViewer>
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock x:Uid="ModeLabel" VerticalAlignment="Center" MinWidth="160" />
+                            <ComboBox x:Name="ModeBox" x:Uid="ModeBox" SelectedItem="{x:Bind ViewModel.Settings.Mode, Mode=OneWay}" SelectionChanged="OnModeChanged" MinWidth="160" />
+                            <Button x:Name="SettingsRefreshButton" x:Uid="RefreshButton" Command="{x:Bind ViewModel.Settings.RefreshCommand, Mode=OneWay}">
+                                <SymbolIcon Symbol="Refresh" />
+                            </Button>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock x:Uid="ScheduleLabel" VerticalAlignment="Center" MinWidth="160" />
+                            <TextBox x:Name="OpenTimeBox" x:Uid="OpenTimeBox" Text="{x:Bind ViewModel.Settings.OpenTime, Mode=TwoWay}" Width="100" />
+                            <TextBox x:Name="CloseTimeBox" x:Uid="CloseTimeBox" Text="{x:Bind ViewModel.Settings.CloseTime, Mode=TwoWay}" Width="100" />
+                            <Button x:Name="ScheduleSaveButton" x:Uid="SaveButton" Command="{x:Bind ViewModel.Settings.SaveScheduleCommand, Mode=OneWay}" Visibility="{x:Bind ViewModel.Settings.CanWrite, Mode=OneWay}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock x:Uid="JavaLabel" VerticalAlignment="Center" MinWidth="160" />
+                            <ComboBox x:Name="JavaBox" x:Uid="JavaBox" ItemsSource="{x:Bind ViewModel.Settings.JavaChoices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Settings.JavaChoice, Mode=TwoWay}" MinWidth="140" />
+                            <Button x:Name="JavaSaveButton" x:Uid="SaveButton" Command="{x:Bind ViewModel.Settings.SaveJavaCommand, Mode=OneWay}" Visibility="{x:Bind ViewModel.Settings.CanWrite, Mode=OneWay}" />
+                        </StackPanel>
+                        <TextBlock x:Uid="SettingsLabel" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Settings.Items, Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:SettingItem">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2">
+                                        <TextBlock Text="{x:Bind app:Strings.Setting(Key)}" VerticalAlignment="Center" MinWidth="240" />
+                                        <TextBox Text="{x:Bind Value, Mode=TwoWay}" Visibility="{x:Bind IsPlain}" MinWidth="240" />
+                                        <PasswordBox Password="{x:Bind Value, Mode=TwoWay}" Visibility="{x:Bind IsSecret}" MinWidth="240" />
+                                        <TextBlock Text="{x:Bind app:Strings.SecretState(IsSecret, IsSet)}" VerticalAlignment="Center" Opacity="0.7" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Button x:Name="SettingsSaveButton" x:Uid="SaveButton" Command="{x:Bind ViewModel.Settings.SaveCommand, Mode=OneWay}" Visibility="{x:Bind ViewModel.Settings.CanWrite, Mode=OneWay}" />
+                            <TextBlock x:Uid="RestartHint" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.Settings.RestartRequired, Mode=OneWay}" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </PivotItem>
         </Pivot>
     </Grid>
 </UserControl>

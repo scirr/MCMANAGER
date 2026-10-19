@@ -20,6 +20,11 @@ public sealed partial class ServerDetailViewModel : ObservableObject, IDisposabl
         Console = new ConsoleViewModel(client, errors, name);
         Players = new PlayersViewModel(client, errors, name);
         Backups = new BackupsViewModel(client, errors, name);
+        Mods = new ModsViewModel(client, errors, name);
+        Datapacks = new DatapacksViewModel(client, errors, name);
+        World = new WorldViewModel(client, errors, name);
+        Tasks = new TasksViewModel(client, errors, name);
+        Settings = new SettingsViewModel(client, errors, name);
     }
 
     public string Name { get; }
@@ -29,6 +34,16 @@ public sealed partial class ServerDetailViewModel : ObservableObject, IDisposabl
     public PlayersViewModel Players { get; }
 
     public BackupsViewModel Backups { get; }
+
+    public ModsViewModel Mods { get; }
+
+    public DatapacksViewModel Datapacks { get; }
+
+    public WorldViewModel World { get; }
+
+    public TasksViewModel Tasks { get; }
+
+    public SettingsViewModel Settings { get; }
 
     public TimeSpan JobPollInterval { get; set; } = TimeSpan.FromSeconds(1);
 

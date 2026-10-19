@@ -35,7 +35,7 @@ internal sealed class FakeClient : IMcClient
     public Task<ServerSnapshot> GetServerAsync(string server, CancellationToken ct = default)
     {
         Record("get " + server);
-        return Task.FromResult(new ServerSnapshot { Name = server, State = State, Version = "1.21.1", Loader = "Fabric", RssKb = 2097152 });
+        return Task.FromResult(new ServerSnapshot { Name = server, State = State, Version = "1.21.1", Loader = "Fabric", RssKb = 2097152, Mode = Mode });
     }
 
     public Task<OperationResult> StartServerAsync(string server, CancellationToken ct = default)
@@ -141,6 +141,181 @@ internal sealed class FakeClient : IMcClient
     {
         Record($"restore {backup} {confirm}");
         return Task.FromResult(new Job { Id = "jr", State = "running" });
+    }
+
+    public List<ModEntry> Mods { get; } = new();
+    public List<DatapackEntry> Packs { get; } = new();
+    public bool PacksRunning { get; set; }
+    public List<WorldDimension> Dimensions { get; } = new();
+    public string PregenReply { get; set; } = "";
+    public ApiException? PregenFailure { get; set; }
+    public List<TaskEntry> Tasks { get; } = new();
+    public Dictionary<string, System.Text.Json.JsonElement> Config { get; } = new();
+    public List<string> Secrets { get; } = new();
+    public Dictionary<string, string> JavaRuntimesFound { get; } = new();
+    public string ServerJava { get; set; } = "system";
+    public string Mode { get; set; } = "schedule";
+    public bool RestartNeeded { get; set; }
+    public Queue<Job> StartedJobs { get; } = new();
+    public CreateServerRequest? Created { get; private set; }
+
+    private Job NextJob(string call)
+    {
+        Record(call);
+        return StartedJobs.Count > 0 ? StartedJobs.Dequeue() : new Job { Id = "jx", State = "running" };
+    }
+
+    public Task<IReadOnlyList<ModEntry>> ListModsAsync(string server, CancellationToken ct = default)
+    {
+        Record("mods " + server);
+        return Task.FromResult<IReadOnlyList<ModEntry>>(Mods.ToList());
+    }
+
+    public Task<Job> AddModAsync(string server, string reference, string? source = null, CancellationToken ct = default)
+        => Task.FromResult(NextJob($"add-mod {reference} {source}".TrimEnd()));
+
+    public Task<ModRemoved> RemoveModAsync(string server, string mod, bool confirmBlocks = false, CancellationToken ct = default)
+    {
+        Record($"remove-mod {mod} {confirmBlocks}");
+        Mods.RemoveAll(m => m.File == mod);
+        return Task.FromResult(new ModRemoved { Ok = true, Code = "removed", File = mod, RestartRequired = true });
+    }
+
+    public Task<Job> UpdateModsAsync(string server, string? name = null, CancellationToken ct = default)
+        => Task.FromResult(NextJob("update-mods"));
+
+    public Task<DatapackList> ListDatapacksAsync(string server, CancellationToken ct = default)
+    {
+        Record("datapacks");
+        return Task.FromResult(new DatapackList { Ok = true, Running = PacksRunning, Packs = Packs.ToList() });
+    }
+
+    public Task<DatapackSet> SetDatapackEnabledAsync(string server, string pack, bool enabled, CancellationToken ct = default)
+    {
+        Record($"datapack {pack} {enabled}");
+        var index = Packs.FindIndex(p => p.File == pack);
+        if (index >= 0)
+        {
+            Packs[index] = Packs[index] with { Enabled = enabled };
+        }
+        return Task.FromResult(new DatapackSet { Ok = true, Pack = pack, RestartRequired = RestartNeeded });
+    }
+
+    public Task<WorldList> ListWorldsAsync(string server, CancellationToken ct = default)
+    {
+        Record("worlds");
+        return Task.FromResult(new WorldList { Ok = true, Level = "world", SizeBytes = Dimensions.Sum(d => d.SizeBytes), Dimensions = Dimensions.ToList() });
+    }
+
+    public Task<PregenProgress> GetPregenStatusAsync(string server, CancellationToken ct = default)
+    {
+        Calls.Add("pregen-status");
+        if (PregenFailure is not null)
+        {
+            throw PregenFailure;
+        }
+        return Task.FromResult(new PregenProgress { Ok = true, Progress = PregenReply });
+    }
+
+    public Task<Pregen> StartPregenAsync(string server, int radius, string? center = null, CancellationToken ct = default)
+    {
+        Record($"pregen {radius} {center}".TrimEnd());
+        return Task.FromResult(new Pregen { Ok = true, Radius = radius, Progress = "Task running." });
+    }
+
+    public Task<Job> ResetDimensionAsync(string server, string dimension, bool confirmed, bool includeOverworld, CancellationToken ct = default)
+        => Task.FromResult(NextJob($"reset {dimension} {confirmed} {includeOverworld}"));
+
+    public Task<IReadOnlyList<TaskEntry>> ListTasksAsync(string server, CancellationToken ct = default)
+    {
+        Record("tasks");
+        return Task.FromResult<IReadOnlyList<TaskEntry>>(Tasks.ToList());
+    }
+
+    public Task<TaskCreated> CreateTaskAsync(string server, TaskCreateRequest request, CancellationToken ct = default)
+    {
+        Record($"task-create {request.Action} {request.Cron} {request.Name} {request.Command} {request.Warn}");
+        var task = new TaskEntry { Id = Tasks.Count + 1, Name = request.Name ?? "t", Cron = request.Cron, Action = request.Action, Enabled = true };
+        Tasks.Add(task);
+        return Task.FromResult(new TaskCreated { Ok = true, Task = task });
+    }
+
+    public Task<TaskCreated> UpdateTaskAsync(string server, int task, bool enabled, CancellationToken ct = default)
+    {
+        Record($"task-update {task} {enabled}");
+        var index = Tasks.FindIndex(t => t.Id == task);
+        Tasks[index] = Tasks[index] with { Enabled = enabled };
+        return Task.FromResult(new TaskCreated { Ok = true, Task = Tasks[index] });
+    }
+
+    public Task<TaskCreated> DeleteTaskAsync(string server, int task, CancellationToken ct = default)
+    {
+        Record($"task-delete {task}");
+        Tasks.RemoveAll(t => t.Id == task);
+        return Task.FromResult(new TaskCreated { Ok = true });
+    }
+
+    public Task<Job> RunTaskAsync(string server, int task, bool skipWarn = false, CancellationToken ct = default)
+        => Task.FromResult(NextJob($"task-run {task}"));
+
+    public Task<ConfigDocument> GetServerConfigAsync(string server, CancellationToken ct = default)
+    {
+        Record("config");
+        return Task.FromResult(new ConfigDocument { Ok = true, Config = new Dictionary<string, System.Text.Json.JsonElement>(Config), SecretsSet = Secrets.ToList() });
+    }
+
+    public Task<ConfigSet> SetConfigValueAsync(string server, string key, string value, CancellationToken ct = default)
+    {
+        Record($"config-set {key}={value}");
+        return Task.FromResult(new ConfigSet { Ok = true, Key = key, RestartRequired = RestartNeeded });
+    }
+
+    public Task<OperationResult> SetServerModeAsync(string server, string mode, CancellationToken ct = default)
+    {
+        Record("mode " + mode);
+        Mode = mode;
+        return Task.FromResult(Ok("mode_set"));
+    }
+
+    public Task<OperationResult> SetServerScheduleAsync(string server, ScheduleRequest schedule, CancellationToken ct = default)
+    {
+        Record($"schedule {schedule.OpenHour}:{schedule.OpenMinute}-{schedule.CloseHour}:{schedule.CloseMinute}");
+        return Task.FromResult(Ok("schedule_updated"));
+    }
+
+    public Task<JavaRuntimes> ListServerJavaAsync(string server, CancellationToken ct = default)
+    {
+        Record("java-list");
+        return Task.FromResult(JavaState(server));
+    }
+
+    private JavaRuntimes JavaState(string server) => new()
+    {
+        Ok = true,
+        Runtimes = new Dictionary<string, string>(JavaRuntimesFound),
+        Servers = new List<JavaServerChoice>
+        {
+            new() { Server = server, Java = System.Text.Json.JsonDocument.Parse("\"" + ServerJava + "\"").RootElement },
+        },
+    };
+
+    public Task<JavaUsed> SetServerJavaAsync(string server, string choice, CancellationToken ct = default)
+    {
+        Record("java-set " + choice);
+        ServerJava = choice;
+        return Task.FromResult(new JavaUsed { Ok = true, RestartRequired = RestartNeeded });
+    }
+
+    public Task<JavaRuntimes> ListJavaAsync(CancellationToken ct = default)
+    {
+        Record("java-all");
+        return Task.FromResult(JavaState(""));
+    }
+
+    public Task<Job> CreateServerAsync(CreateServerRequest request, CancellationToken ct = default)
+    {
+        Created = request;
+        return Task.FromResult(NextJob("create-server " + request.Name));
     }
 
     public Task<IReadOnlyList<Job>> ListJobsAsync(string? state = null, CancellationToken ct = default)

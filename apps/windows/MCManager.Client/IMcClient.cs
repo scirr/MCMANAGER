@@ -37,4 +37,50 @@ public interface IMcClient
     Task<IReadOnlyList<Job>> ListJobsAsync(string? state = null, CancellationToken ct = default);
 
     Task<Job> GetJobAsync(string id, CancellationToken ct = default);
+
+    Task<IReadOnlyList<ModEntry>> ListModsAsync(string server, CancellationToken ct = default);
+
+    Task<Job> AddModAsync(string server, string reference, string? source = null, CancellationToken ct = default);
+
+    Task<ModRemoved> RemoveModAsync(string server, string mod, bool confirmBlocks = false, CancellationToken ct = default);
+
+    Task<Job> UpdateModsAsync(string server, string? name = null, CancellationToken ct = default);
+
+    Task<DatapackList> ListDatapacksAsync(string server, CancellationToken ct = default);
+
+    Task<DatapackSet> SetDatapackEnabledAsync(string server, string pack, bool enabled, CancellationToken ct = default);
+
+    Task<WorldList> ListWorldsAsync(string server, CancellationToken ct = default);
+
+    Task<PregenProgress> GetPregenStatusAsync(string server, CancellationToken ct = default);
+
+    Task<Pregen> StartPregenAsync(string server, int radius, string? center = null, CancellationToken ct = default);
+
+    Task<Job> ResetDimensionAsync(string server, string dimension, bool confirmed, bool includeOverworld, CancellationToken ct = default);
+
+    Task<IReadOnlyList<TaskEntry>> ListTasksAsync(string server, CancellationToken ct = default);
+
+    Task<TaskCreated> CreateTaskAsync(string server, TaskCreateRequest request, CancellationToken ct = default);
+
+    Task<TaskCreated> UpdateTaskAsync(string server, int task, bool enabled, CancellationToken ct = default);
+
+    Task<TaskCreated> DeleteTaskAsync(string server, int task, CancellationToken ct = default);
+
+    Task<Job> RunTaskAsync(string server, int task, bool skipWarn = false, CancellationToken ct = default);
+
+    Task<ConfigDocument> GetServerConfigAsync(string server, CancellationToken ct = default);
+
+    Task<ConfigSet> SetConfigValueAsync(string server, string key, string value, CancellationToken ct = default);
+
+    Task<OperationResult> SetServerModeAsync(string server, string mode, CancellationToken ct = default);
+
+    Task<OperationResult> SetServerScheduleAsync(string server, ScheduleRequest schedule, CancellationToken ct = default);
+
+    Task<JavaRuntimes> ListServerJavaAsync(string server, CancellationToken ct = default);
+
+    Task<JavaUsed> SetServerJavaAsync(string server, string choice, CancellationToken ct = default);
+
+    Task<JavaRuntimes> ListJavaAsync(CancellationToken ct = default);
+
+    Task<Job> CreateServerAsync(CreateServerRequest request, CancellationToken ct = default);
 }
