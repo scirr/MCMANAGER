@@ -7,6 +7,8 @@ from gi.repository import Adw, GLib, Gtk  # noqa: E402
 from ..i18n import t  # noqa: E402
 from ..models import ACTIONS, PLAYER_LISTS, BackupsModel, ConsoleModel, PlayersModel, ServerDetailModel, players_text  # noqa: E402
 from .common import make_runner  # noqa: E402
+from .content_tabs import DatapacksTab, ModsTab, WorldTab  # noqa: E402
+from .manage_tabs import SettingsTab, TasksTab  # noqa: E402
 
 
 class ConsoleTab(Gtk.Box):
@@ -192,29 +194,8 @@ class BackupsTab(Adw.PreferencesPage):
             self.model.message = None
 
 
-class SettingsTab(Adw.PreferencesPage):
-    def __init__(self):
-        super().__init__()
-        self.group = Adw.PreferencesGroup()
-        self.add(self.group)
-        self.rows = []
-
-    def show(self, config, secrets):
-        for widget in self.rows:
-            self.group.remove(widget)
-        self.rows = []
-        entries = sorted(config.items())
-        if not entries:
-            entries = [(t("settings_empty"), "")]
-        for key, value in entries:
-            widget = Adw.ActionRow(title=str(key), subtitle=str(value), subtitle_selectable=True)
-            self.group.add(widget)
-            self.rows.append(widget)
-        self.group.set_description(t("secrets_set", names=", ".join(secrets)) if secrets else "")
-
-
 class ServerDetailPage(Adw.NavigationPage):
-    """Server sheet: action buttons and the Console, Players, Backups and Settings tabs."""
+    """Server sheet: action buttons and the Console, Players, Backups, Mods, Datapacks, World, Tasks and Settings tabs."""
 
     def __init__(self, client, list_model, name, toast):
         super().__init__(title=name, tag="detail")
@@ -223,7 +204,11 @@ class ServerDetailPage(Adw.NavigationPage):
         self.console = ConsoleTab(ConsoleModel(client, name, make_runner()), toast)
         self.players = PlayersTab(client, name, toast)
         self.backups = BackupsTab(client, name, toast)
-        self.settings = SettingsTab()
+        self.mods = ModsTab(client, name, toast)
+        self.datapacks = DatapacksTab(client, name, toast)
+        self.world = WorldTab(client, name, toast)
+        self.tasks = TasksTab(client, name, toast)
+        self.settings = SettingsTab(client, name, toast)
         self.buttons = {}
         header = Adw.HeaderBar()
         for action in ACTIONS:
@@ -237,6 +222,10 @@ class ServerDetailPage(Adw.NavigationPage):
         self.stack.add_titled_with_icon(self.console, "console", t("tab_console"), "utilities-terminal-symbolic")
         self.stack.add_titled_with_icon(self.players, "players", t("tab_players"), "system-users-symbolic")
         self.stack.add_titled_with_icon(self.backups, "backups", t("tab_backups"), "document-save-symbolic")
+        self.stack.add_titled_with_icon(self.mods, "mods", t("tab_mods"), "application-x-addon-symbolic")
+        self.stack.add_titled_with_icon(self.datapacks, "datapacks", t("tab_datapacks"), "package-x-generic-symbolic")
+        self.stack.add_titled_with_icon(self.world, "world", t("tab_world"), "applications-science-symbolic")
+        self.stack.add_titled_with_icon(self.tasks, "tasks", t("tab_tasks"), "alarm-symbolic")
         self.stack.add_titled_with_icon(self.settings, "settings", t("tab_settings"), "emblem-system-symbolic")
         switcher = Adw.ViewSwitcherBar(stack=self.stack, reveal=True)
         view = Adw.ToolbarView()
@@ -246,7 +235,6 @@ class ServerDetailPage(Adw.NavigationPage):
         self.set_child(view)
         self.model.subscribe(self.refresh)
         list_model.subscribe(self.refresh)
-        self.model.load_config()
         self.console.console.start()
         self.connect("hidden", lambda _p: self.close())
 
@@ -262,7 +250,6 @@ class ServerDetailPage(Adw.NavigationPage):
             button.set_visible(action != "wake" or state == "sleeping")
         self.spinner.set_spinning(bool(self.model.busy))
         self.players.show(row)
-        self.settings.show(self.model.config, self.model.secrets_set)
         for message in (self.model.error, self.model.message):
             if message:
                 self.toast(message)

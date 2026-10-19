@@ -67,6 +67,41 @@ class TestViews(unittest.TestCase):
         page.close()
         self.assertTrue(self.client.streams[0].stopped)
 
+    def test_new_tabs_follow_their_models(self):
+        from mcmanager_app.ui import common, content_tabs, create, manage_tabs
+        for module in (common, content_tabs, manage_tabs, create):
+            module.make_runner = sync_runner
+        self.client.mods = [{"file": "a.jar", "name": "A", "source": "modrinth", "adds_blocks": False}]
+        self.client.packs = [{"id": "file/p.zip", "file": "p.zip", "enabled": False, "order": None,
+                              "worldgen": False, "problem": None}]
+        self.client.dimensions = [{"id": "overworld", "paths": [], "size_bytes": 10}]
+        self.client.tasks = [{"id": 1, "name": "n", "cron": "0 4 * * *", "action": "restart", "enabled": True,
+                              "warn": [60], "next_run": None, "last_result": None}]
+        toasts = []
+        mods = content_tabs.ModsTab(self.client, "a", toasts.append)
+        self.assertEqual(mods.rows[0].get_title(), "A")
+        packs = content_tabs.DatapacksTab(self.client, "a", toasts.append)
+        self.assertEqual(packs.rows[0].get_title(), "p.zip")
+        world = content_tabs.WorldTab(self.client, "a", toasts.append)
+        self.assertEqual(world.rows[0].get_title(), "Overworld")
+        tasks = manage_tabs.TasksTab(self.client, "a", toasts.append)
+        self.assertEqual(tasks.rows[0].get_title(), "n")
+        settings = manage_tabs.SettingsTab(self.client, "a", toasts.append)
+        self.assertEqual(settings.entries["port"].get_text(), "25565")
+        for tab in (mods, packs, world, tasks, settings):
+            tab.model.read_only = True
+            tab.model.notify()
+
+    def test_creation_dialog_reports_the_new_server(self):
+        from mcmanager_app.ui import common, create
+        common.make_runner = create.make_runner = sync_runner
+        created = []
+        dialog = create.CreateServerDialog(self.client, lambda message: None, created.append)
+        dialog.name.set_text("s")
+        dialog.eula.set_active(True)
+        dialog.send()
+        self.assertEqual(created, ["s"])
+
     def test_welcome_pages_build(self):
         from mcmanager_app.models import ConnectionModel
         from mcmanager_app.ui.welcome import RemotePage, WelcomePage
