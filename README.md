@@ -92,6 +92,7 @@ MC_Manager/
 │
 ├── packaging/linux/    # .deb and .rpm builder (build_packages.py)
 ├── apps/linux/         # Desktop app (GTK 4 + libadwaita), Flatpak manifest
+├── apps/macos/         # Desktop app (SwiftUI), Swift package
 │
 ├── Linux/              # Linux packaging (systemd service)
 │   ├── build_release.py
@@ -177,6 +178,23 @@ cd apps/windows
 dotnet test MCManager.Client.Tests
 dotnet test MCManager.ViewModels.Tests
 dotnet build MCManager.App -c Release -p:Platform=x64   # Windows only
+```
+
+### Desktop app (macOS)
+
+`apps/macos/` holds a SwiftUI app (Swift 5.10, macOS 14+) built with SwiftPM, no Xcode project. It never reads MC Manager files: it talks to the local `/v1` API through the Unix socket `run/api.sock`, found by `MCMANAGER_RUN_DIR` or by the `WorkingDirectory` of the `io.github.scirr.mcmanager` LaunchAgent. It shows the server list (state, RAM), start/stop/restart/resume, the live console and the player lists (whitelist, ops, bans, kick). Texts follow the system language (English or French).
+
+| Target | Role |
+|---|---|
+| `MCManagerKit` | Socket client, models, `ApiError`, observable view models (no UI) |
+| `MCManagerApp` | SwiftUI window, FR/EN `Localizable.xcstrings` |
+| `MCManagerKitTests` | XCTest on a fake transport |
+
+```
+cd apps/macos
+swift build
+swift test
+swift run MCManagerApp
 ```
 
 ---

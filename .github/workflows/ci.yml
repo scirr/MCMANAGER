@@ -174,3 +174,29 @@ jobs:
             Select-String -Path build.log -Pattern ': error ' | Select-Object -First 10 | ForEach-Object { "::error::" + $_.Line.Trim() }
             exit 1
           }
+
+  app-macos:
+    name: macOS app (SwiftPM build and tests)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build
+        working-directory: apps/macos
+        shell: bash
+        run: |
+          set -o pipefail
+          swift build 2>&1 | tee build.log || {
+            grep ' error: ' build.log | sort -u | head -10 | while read -r line; do echo "::error::$line"; done
+            exit 1
+          }
+      - name: Test
+        working-directory: apps/macos
+        shell: bash
+        run: |
+          set -o pipefail
+          swift test 2>&1 | tee test.log || {
+            grep -E ' error: |failed' test.log | sort -u | head -10 | while read -r line; do echo "::error::$line"; done
+            exit 1
+          }
