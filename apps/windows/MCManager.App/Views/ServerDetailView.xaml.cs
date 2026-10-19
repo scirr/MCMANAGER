@@ -15,6 +15,9 @@ public sealed partial class ServerDetailView : UserControl
     {
         InitializeComponent();
         KindBox.ItemsSource = PlayersViewModel.Kinds;
+        ModSourceBox.ItemsSource = ModsViewModel.Sources;
+        TaskActionBox.ItemsSource = TasksViewModel.Actions;
+        ModeBox.ItemsSource = SettingsViewModel.Modes;
         _timer.Tick += OnTick;
     }
 
@@ -32,6 +35,11 @@ public sealed partial class ServerDetailView : UserControl
         _ = viewModel.RefreshAsync();
         _ = viewModel.Players.LoadListAsync();
         _ = viewModel.Backups.RefreshAsync();
+        _ = viewModel.Mods.RefreshAsync();
+        _ = viewModel.Datapacks.RefreshAsync();
+        _ = viewModel.World.RefreshAsync();
+        _ = viewModel.Tasks.RefreshAsync();
+        _ = viewModel.Settings.RefreshAsync();
         _timer.Start();
     }
 
@@ -87,6 +95,20 @@ public sealed partial class ServerDetailView : UserControl
         }
     }
 
+    private async Task<bool> ConfirmAsync(string title, string body, string confirm)
+    {
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = title,
+            Content = body,
+            PrimaryButtonText = confirm,
+            CloseButtonText = Strings.Get("RestoreDialogCancel"),
+            DefaultButton = ContentDialogButton.Close,
+        };
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+    }
+
     private async void OnRestoreClick(object sender, RoutedEventArgs e)
     {
         if (_viewModel is null || !_viewModel.Backups.CanAct || sender is not FrameworkElement { Tag: string id })
@@ -98,17 +120,98 @@ public sealed partial class ServerDetailView : UserControl
         {
             return;
         }
-        var dialog = new ContentDialog
+        var confirmed = await ConfirmAsync(
+            Strings.Get("RestoreDialogTitle"), string.Format(Strings.Get("RestoreDialogBody"), item.Date), Strings.Get("RestoreDialogConfirm"));
+        await _viewModel.Backups.RestoreAsync(item.Id, confirmed);
+    }
+
+    private async void OnModRemoveClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || sender is not FrameworkElement { Tag: string file })
         {
-            XamlRoot = XamlRoot,
-            Title = Strings.Get("RestoreDialogTitle"),
-            Content = string.Format(Strings.Get("RestoreDialogBody"), item.Date),
-            PrimaryButtonText = Strings.Get("RestoreDialogConfirm"),
-            CloseButtonText = Strings.Get("RestoreDialogCancel"),
-            DefaultButton = ContentDialogButton.Close,
-        };
-        var answer = await dialog.ShowAsync();
-        await _viewModel.Backups.RestoreAsync(item.Id, answer == ContentDialogResult.Primary);
+            return;
+        }
+        var item = _viewModel.Mods.Items.FirstOrDefault(entry => entry.File == file);
+        if (item is null)
+        {
+            return;
+        }
+        var body = string.Format(Strings.Get("ModRemoveDialogBody"), item.Name);
+        if (item.AddsBlocks)
+        {
+            body += "\n\n" + Strings.Get("ModRemoveBlocksWarning");
+        }
+        var confirmed = await ConfirmAsync(Strings.Get("ModRemoveDialogTitle"), body, Strings.Get("ModRemoveDialogConfirm"));
+        await _viewModel.Mods.RemoveAsync(item.File, confirmed);
+    }
+
+    private void OnDatapackToggleClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || sender is not FrameworkElement { Tag: string file })
+        {
+            return;
+        }
+        var item = _viewModel.Datapacks.Items.FirstOrDefault(entry => entry.File == file);
+        if (item is not null)
+        {
+            _ = _viewModel.Datapacks.SetEnabledAsync(item.File, !item.Enabled);
+        }
+    }
+
+    private async void OnResetDimensionClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || !_viewModel.World.CanAct || sender is not FrameworkElement { Tag: string id })
+        {
+            return;
+        }
+        var body = string.Format(Strings.Get("ResetDialogBody"), Strings.Dimension(id));
+        var confirmed = await ConfirmAsync(Strings.Get("ResetDialogTitle"), body, Strings.Get("ResetDialogConfirm"));
+        await _viewModel.World.ResetAsync(id, confirmed);
+    }
+
+    private void OnTaskToggleClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || sender is not FrameworkElement { Tag: int id })
+        {
+            return;
+        }
+        var item = _viewModel.Tasks.Items.FirstOrDefault(entry => entry.Id == id);
+        if (item is not null)
+        {
+            _ = _viewModel.Tasks.SetEnabledAsync(item.Id, !item.Enabled);
+        }
+    }
+
+    private void OnTaskRunClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null && _viewModel.Tasks.CanAct && sender is FrameworkElement { Tag: int id })
+        {
+            _ = _viewModel.Tasks.RunAsync(id);
+        }
+    }
+
+    private async void OnTaskDeleteClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || sender is not FrameworkElement { Tag: int id })
+        {
+            return;
+        }
+        var item = _viewModel.Tasks.Items.FirstOrDefault(entry => entry.Id == id);
+        if (item is null)
+        {
+            return;
+        }
+        var confirmed = await ConfirmAsync(
+            Strings.Get("TaskDeleteDialogTitle"), string.Format(Strings.Get("TaskDeleteDialogBody"), item.Name), Strings.Get("TaskDeleteDialogConfirm"));
+        await _viewModel.Tasks.DeleteAsync(item.Id, confirmed);
+    }
+
+    private void OnModeChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_viewModel is not null && ModeBox.SelectedItem is string mode)
+        {
+            _ = _viewModel.Settings.SetModeAsync(mode);
+        }
     }
 
     private void OnRemoveClick(object sender, RoutedEventArgs e)

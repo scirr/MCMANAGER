@@ -34,6 +34,9 @@ public sealed partial class MainViewModel : ObservableObject
         Detail = new ServerDetailViewModel(_client, Errors, name);
     }
 
+    public CreateServerViewModel? NewServer()
+        => _client is null ? null : new CreateServerViewModel(_client, Errors);
+
     [RelayCommand]
     public void CloseDetail()
     {

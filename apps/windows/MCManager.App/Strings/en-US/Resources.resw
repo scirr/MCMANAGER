@@ -105,4 +105,169 @@
   <data name="Error_fingerprint_missing" xml:space="preserve"><value>No pinned fingerprint: connection refused</value></data>
   <data name="Error_remote_unreachable" xml:space="preserve"><value>The remote MC Manager is unreachable</value></data>
   <data name="Error_bad_name" xml:space="preserve"><value>Enter a device name</value></data>
+  <data name="ModsTab.Header" xml:space="preserve"><value>Mods</value></data>
+  <data name="DatapacksTab.Header" xml:space="preserve"><value>Datapacks</value></data>
+  <data name="WorldTab.Header" xml:space="preserve"><value>World</value></data>
+  <data name="TasksTab.Header" xml:space="preserve"><value>Tasks</value></data>
+  <data name="SettingsTab.Header" xml:space="preserve"><value>Settings</value></data>
+  <data name="RestartHint.Text" xml:space="preserve"><value>Restart the server to apply the changes.</value></data>
+  <data name="ModReferenceBox.PlaceholderText" xml:space="preserve"><value>Mod name, URL or .jar path</value></data>
+  <data name="ModReferenceBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Mod name, URL or .jar path</value></data>
+  <data name="ModSourceBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Source</value></data>
+  <data name="ModAddButton.Content" xml:space="preserve"><value>Add</value></data>
+  <data name="ModUpdateButton.Content" xml:space="preserve"><value>Update all</value></data>
+  <data name="ModsEmpty.Text" xml:space="preserve"><value>No mod installed.</value></data>
+  <data name="ModsListView.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Mods</value></data>
+  <data name="ModRemoveButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Remove mod</value></data>
+  <data name="ModRemoveButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Remove mod</value></data>
+  <data name="ModAddsBlocks" xml:space="preserve"><value>adds blocks</value></data>
+  <data name="ModRemoveDialogTitle" xml:space="preserve"><value>Remove this mod?</value></data>
+  <data name="ModRemoveDialogBody" xml:space="preserve"><value>{0} will be moved to the quarantine folder; nothing is deleted.</value></data>
+  <data name="ModRemoveDialogConfirm" xml:space="preserve"><value>Remove</value></data>
+  <data name="ModRemoveBlocksWarning" xml:space="preserve"><value>This mod adds blocks to the world. Removing it turns them into air and the world saves that change.</value></data>
+  <data name="DatapacksEmpty.Text" xml:space="preserve"><value>No datapack found.</value></data>
+  <data name="DatapacksListView.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Datapacks</value></data>
+  <data name="StateEnabled" xml:space="preserve"><value>enabled</value></data>
+  <data name="StateDisabled" xml:space="preserve"><value>disabled</value></data>
+  <data name="ActionEnable" xml:space="preserve"><value>Enable</value></data>
+  <data name="ActionDisable" xml:space="preserve"><value>Disable</value></data>
+  <data name="DatapackProblem_nested" xml:space="preserve"><value>nested folder: not usable</value></data>
+  <data name="DatapackProblem_not_a_pack" xml:space="preserve"><value>not a datapack</value></data>
+  <data name="WorldSizeLabel.Text" xml:space="preserve"><value>Total size</value></data>
+  <data name="ResetDimensionButton.Content" xml:space="preserve"><value>Reset</value></data>
+  <data name="Dimension_overworld" xml:space="preserve"><value>Overworld</value></data>
+  <data name="Dimension_nether" xml:space="preserve"><value>Nether</value></data>
+  <data name="Dimension_end" xml:space="preserve"><value>End</value></data>
+  <data name="Dimension_the_nether" xml:space="preserve"><value>Nether</value></data>
+  <data name="Dimension_the_end" xml:space="preserve"><value>End</value></data>
+  <data name="ResetDialogTitle" xml:space="preserve"><value>Reset this dimension?</value></data>
+  <data name="ResetDialogBody" xml:space="preserve"><value>{0} will be deleted and regenerated. This cannot be undone.</value></data>
+  <data name="ResetDialogConfirm" xml:space="preserve"><value>Reset</value></data>
+  <data name="PregenLabel.Text" xml:space="preserve"><value>Pre-generation</value></data>
+  <data name="PregenRadiusBox.PlaceholderText" xml:space="preserve"><value>Radius (blocks)</value></data>
+  <data name="PregenRadiusBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Radius (blocks)</value></data>
+  <data name="PregenCenterBox.PlaceholderText" xml:space="preserve"><value>Center x,z (optional)</value></data>
+  <data name="PregenCenterBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Center x,z (optional)</value></data>
+  <data name="PregenStartButton.Content" xml:space="preserve"><value>Start</value></data>
+  <data name="TaskNameBox.PlaceholderText" xml:space="preserve"><value>Name (optional)</value></data>
+  <data name="TaskNameBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Name (optional)</value></data>
+  <data name="TaskCronBox.PlaceholderText" xml:space="preserve"><value>Schedule (cron)</value></data>
+  <data name="TaskCronBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Schedule (cron)</value></data>
+  <data name="TaskActionBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Action</value></data>
+  <data name="TaskCommandBox.PlaceholderText" xml:space="preserve"><value>Console command</value></data>
+  <data name="TaskCommandBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Console command</value></data>
+  <data name="TaskWarnBox.PlaceholderText" xml:space="preserve"><value>Warnings, e.g. 5m,1m</value></data>
+  <data name="TaskWarnBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Warnings, e.g. 5m,1m</value></data>
+  <data name="TaskAddButton.Content" xml:space="preserve"><value>Add task</value></data>
+  <data name="TasksEmpty.Text" xml:space="preserve"><value>No scheduled task.</value></data>
+  <data name="TasksListView.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Tasks</value></data>
+  <data name="TaskRunButton.Content" xml:space="preserve"><value>Run now</value></data>
+  <data name="TaskDeleteButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Delete task</value></data>
+  <data name="TaskDeleteButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Delete task</value></data>
+  <data name="TaskAction_restart" xml:space="preserve"><value>Restart</value></data>
+  <data name="TaskAction_backup" xml:space="preserve"><value>Backup</value></data>
+  <data name="TaskAction_command" xml:space="preserve"><value>Command</value></data>
+  <data name="TaskAction_stop" xml:space="preserve"><value>Stop</value></data>
+  <data name="TaskAction_start" xml:space="preserve"><value>Start</value></data>
+  <data name="TaskNextRun" xml:space="preserve"><value>next: {0}</value></data>
+  <data name="TaskLastOk" xml:space="preserve"><value>last run: ok</value></data>
+  <data name="TaskLastFailed" xml:space="preserve"><value>last run failed: {0}</value></data>
+  <data name="TaskDeleteDialogTitle" xml:space="preserve"><value>Delete this task?</value></data>
+  <data name="TaskDeleteDialogBody" xml:space="preserve"><value>The task {0} will be deleted.</value></data>
+  <data name="TaskDeleteDialogConfirm" xml:space="preserve"><value>Delete</value></data>
+  <data name="ModeLabel.Text" xml:space="preserve"><value>Mode</value></data>
+  <data name="ModeBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Mode</value></data>
+  <data name="ScheduleLabel.Text" xml:space="preserve"><value>Opening hours</value></data>
+  <data name="OpenTimeBox.PlaceholderText" xml:space="preserve"><value>Opens (HH:MM)</value></data>
+  <data name="OpenTimeBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Opens (HH:MM)</value></data>
+  <data name="CloseTimeBox.PlaceholderText" xml:space="preserve"><value>Closes (HH:MM)</value></data>
+  <data name="CloseTimeBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Closes (HH:MM)</value></data>
+  <data name="JavaLabel.Text" xml:space="preserve"><value>Java</value></data>
+  <data name="JavaBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Java</value></data>
+  <data name="SaveButton.Content" xml:space="preserve"><value>Save</value></data>
+  <data name="SettingsLabel.Text" xml:space="preserve"><value>Server settings</value></data>
+  <data name="SecretIsSet" xml:space="preserve"><value>configured (hidden, type to replace)</value></data>
+  <data name="SecretNotSet" xml:space="preserve"><value>not set</value></data>
+  <data name="Setting_nom_serveur" xml:space="preserve"><value>Server name</value></data>
+  <data name="Setting_port" xml:space="preserve"><value>Port</value></data>
+  <data name="Setting_rcon_port" xml:space="preserve"><value>RCON port</value></data>
+  <data name="Setting_ram_allocation" xml:space="preserve"><value>Memory (e.g. 4G)</value></data>
+  <data name="Setting_cpu_affinity" xml:space="preserve"><value>CPU affinity</value></data>
+  <data name="Setting_jar_name" xml:space="preserve"><value>Server jar</value></data>
+  <data name="Setting_domaine" xml:space="preserve"><value>Domain</value></data>
+  <data name="Setting_dossier_backup" xml:space="preserve"><value>Backup folder</value></data>
+  <data name="Setting_backup_retention_days" xml:space="preserve"><value>Backup retention (days)</value></data>
+  <data name="Setting_backup_keep" xml:space="preserve"><value>Backups kept</value></data>
+  <data name="Setting_stop_timeout" xml:space="preserve"><value>Stop timeout (s)</value></data>
+  <data name="Setting_internal_port" xml:space="preserve"><value>Internal port</value></data>
+  <data name="Setting_metrics_bind" xml:space="preserve"><value>Metrics address</value></data>
+  <data name="Setting_metrics_allow_remote" xml:space="preserve"><value>Metrics from remote (0/1)</value></data>
+  <data name="Setting_sleep_freeze" xml:space="preserve"><value>Sleep: freeze (0/1)</value></data>
+  <data name="Setting_sleep_hold_timeout" xml:space="preserve"><value>Sleep: hold timeout (s)</value></data>
+  <data name="Setting_sleep_join_mode" xml:space="preserve"><value>Sleep: join mode (kick/hold)</value></data>
+  <data name="Setting_sleep_proxy_protocol" xml:space="preserve"><value>Sleep: proxy protocol (auto/on/off)</value></data>
+  <data name="Setting_mcrcon_pass" xml:space="preserve"><value>RCON password</value></data>
+  <data name="Setting_webhook_url" xml:space="preserve"><value>Webhook URL</value></data>
+  <data name="Setting_curseforge_api_key" xml:space="preserve"><value>CurseForge API key</value></data>
+  <data name="Setting_backup_encrypt_key_file" xml:space="preserve"><value>Backup encryption key file</value></data>
+  <data name="CreateServerButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>New server</value></data>
+  <data name="CreateServerButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>New server</value></data>
+  <data name="CreateTitle.Text" xml:space="preserve"><value>New server</value></data>
+  <data name="CreateNameBox.PlaceholderText" xml:space="preserve"><value>Server name</value></data>
+  <data name="CreateNameBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Server name</value></data>
+  <data name="CreateLoaderBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Server software</value></data>
+  <data name="CreateVersionBox.PlaceholderText" xml:space="preserve"><value>Minecraft version (empty: latest)</value></data>
+  <data name="CreateVersionBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Minecraft version (empty: latest)</value></data>
+  <data name="CreateRamBox.PlaceholderText" xml:space="preserve"><value>Memory (e.g. 4G)</value></data>
+  <data name="CreateRamBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Memory (e.g. 4G)</value></data>
+  <data name="CreatePortBox.PlaceholderText" xml:space="preserve"><value>Port (empty: automatic)</value></data>
+  <data name="CreatePortBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Port (empty: automatic)</value></data>
+  <data name="CreateRconPortBox.PlaceholderText" xml:space="preserve"><value>RCON port (empty: automatic)</value></data>
+  <data name="CreateRconPortBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>RCON port (empty: automatic)</value></data>
+  <data name="EulaText.Text" xml:space="preserve"><value>Creating the server downloads its files. You must accept the Minecraft EULA (https://aka.ms/MinecraftEULA).</value></data>
+  <data name="EulaBox.Content" xml:space="preserve"><value>I accept the Minecraft EULA</value></data>
+  <data name="WizardBackButton.Content" xml:space="preserve"><value>Previous</value></data>
+  <data name="WizardNextButton.Content" xml:space="preserve"><value>Next</value></data>
+  <data name="WizardCreateButton.Content" xml:space="preserve"><value>Create the server</value></data>
+  <data name="WizardStep_0" xml:space="preserve"><value>Step 1 of 3: name and software</value></data>
+  <data name="WizardStep_1" xml:space="preserve"><value>Step 2 of 3: resources</value></data>
+  <data name="WizardStep_2" xml:space="preserve"><value>Step 3 of 3: summary and EULA</value></data>
+  <data name="Error_forbidden" xml:space="preserve"><value>This device is not allowed to do this</value></data>
+  <data name="Error_invalid_radius" xml:space="preserve"><value>Enter a radius in blocks (a positive number)</value></data>
+  <data name="Error_cron_required" xml:space="preserve"><value>Enter the schedule (cron)</value></data>
+  <data name="Error_command_required" xml:space="preserve"><value>Enter the console command</value></data>
+  <data name="Error_invalid_time" xml:space="preserve"><value>Enter the times as HH:MM</value></data>
+  <data name="Error_name_required" xml:space="preserve"><value>Enter a server name</value></data>
+  <data name="Error_invalid_ram" xml:space="preserve"><value>Memory must look like 4G or 2048M</value></data>
+  <data name="Error_invalid_port" xml:space="preserve"><value>Ports must be between 1024 and 65535</value></data>
+  <data name="Error_invalid_cron" xml:space="preserve"><value>Invalid cron schedule</value></data>
+  <data name="Error_invalid_warn" xml:space="preserve"><value>Invalid warning durations</value></data>
+  <data name="Error_defines_blocks" xml:space="preserve"><value>This mod adds blocks: confirm its removal</value></data>
+  <data name="Error_mod_not_found" xml:space="preserve"><value>Mod not found</value></data>
+  <data name="Error_mod_ambiguous" xml:space="preserve"><value>Several mods match</value></data>
+  <data name="Error_mod_exists" xml:space="preserve"><value>This mod is already installed</value></data>
+  <data name="Error_eula_required" xml:space="preserve"><value>The Minecraft EULA must be accepted</value></data>
+  <data name="Error_unknown_loader" xml:space="preserve"><value>Unknown server software</value></data>
+  <data name="Error_unknown_minecraft_version" xml:space="preserve"><value>Unknown Minecraft version</value></data>
+  <data name="Error_folder_not_empty" xml:space="preserve"><value>The target folder is not empty</value></data>
+  <data name="Error_port_taken" xml:space="preserve"><value>This port is already in use</value></data>
+  <data name="Error_version_lookup_failed" xml:space="preserve"><value>Could not look up the latest version</value></data>
+  <data name="Error_server_offline" xml:space="preserve"><value>The server is not running</value></data>
+  <data name="Error_pregen_offline" xml:space="preserve"><value>Pre-generation needs the server running</value></data>
+  <data name="Error_overworld_protected" xml:space="preserve"><value>The overworld is protected</value></data>
+  <data name="Error_unknown_dimension" xml:space="preserve"><value>Unknown dimension</value></data>
+  <data name="Error_pack_not_found" xml:space="preserve"><value>Datapack not found</value></data>
+  <data name="Error_pack_nested" xml:space="preserve"><value>The datapack is nested in a folder</value></data>
+  <data name="Error_pack_not_a_pack" xml:space="preserve"><value>This is not a datapack</value></data>
+  <data name="Error_task_not_found" xml:space="preserve"><value>Task not found</value></data>
+  <data name="Error_task_name_taken" xml:space="preserve"><value>A task already has this name</value></data>
+  <data name="Error_task_busy" xml:space="preserve"><value>The task is already running</value></data>
+  <data name="Error_task_error" xml:space="preserve"><value>The task failed</value></data>
+  <data name="Error_task_backup_failed" xml:space="preserve"><value>The scheduled backup failed</value></data>
+  <data name="Error_task_server_offline" xml:space="preserve"><value>The server was not running</value></data>
+  <data name="Error_java_not_installed" xml:space="preserve"><value>This Java version is not installed</value></data>
+  <data name="Error_java_bad_choice" xml:space="preserve"><value>Invalid Java choice</value></data>
+  <data name="Error_job_failed" xml:space="preserve"><value>The operation failed</value></data>
+  <data name="Error_job_cancelled" xml:space="preserve"><value>The operation was cancelled</value></data>
+  <data name="Error_bad_answer" xml:space="preserve"><value>Unexpected answer from MC Manager</value></data>
 </root>

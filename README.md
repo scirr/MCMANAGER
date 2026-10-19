@@ -164,7 +164,7 @@ On first launch, choose **This machine** or **A remote server** (address, finger
 
 ### Desktop app (Windows)
 
-`apps/windows/` holds a WinUI 3 app (C#, .NET 8, Windows App SDK 1.6, unpackaged, no MSIX). It never reads MC Manager files: it reads the port and the token the daemon writes to `run/api.token` and talks to the local `/v1` API on `127.0.0.1`. It shows the server list (state, players, RAM), start/stop/restart/resume, the live console and the player lists (whitelist, ops, bans, kick). Texts follow the system language (English or French).
+`apps/windows/` holds a WinUI 3 app (C#, .NET 8, Windows App SDK 1.6, unpackaged, no MSIX). It never reads MC Manager files: it reads the port and the token the daemon writes to `run/api.token` and talks to the local `/v1` API on `127.0.0.1`. It shows the server list (state, players, RAM), start/stop/restart/resume, the live console, the player lists (whitelist, ops, bans, kick), backups, mods, datapacks, worlds (sizes, pre-generation, dimension reset), scheduled tasks and the server settings (mode, hours, Java, configuration keys; secret values are write-only), plus a wizard to create a server. Texts follow the system language (English or French).
 
 | Project | Role |
 |---|---|

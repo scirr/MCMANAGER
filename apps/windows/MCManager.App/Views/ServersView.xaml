@@ -15,10 +15,14 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBlock x:Uid="ServersTitle" Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center" />
             <Button x:Name="RefreshButton" x:Uid="RefreshButton" Grid.Column="1" Command="{x:Bind ViewModel.RefreshCommand, Mode=OneWay}">
                 <SymbolIcon Symbol="Refresh" />
+            </Button>
+            <Button x:Name="CreateServerButton" x:Uid="CreateServerButton" Grid.Column="2" Margin="8,0,0,0" Click="OnCreateClick">
+                <SymbolIcon Symbol="Add" />
             </Button>
         </Grid>
         <ProgressBar Grid.Row="1" IsIndeterminate="{x:Bind ViewModel.IsLoading, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />

@@ -86,6 +86,83 @@ public sealed class McClient : IMcClient, IDisposable
         => SendAsync(HttpMethod.Post, ServerPath(server) + "/backups/" + Ref(backup) + "/restore",
             new BackupRestoreRequest { Confirm = confirm }, McJson.Default.Job, ct);
 
+    public async Task<IReadOnlyList<ModEntry>> ListModsAsync(string server, CancellationToken ct = default)
+        => (await SendAsync(HttpMethod.Get, ServerPath(server) + "/mods", null, McJson.Default.ModList, ct)).Mods;
+
+    public Task<Job> AddModAsync(string server, string reference, string? source = null, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, ServerPath(server) + "/mods",
+            new ModAddRequest { Ref = reference, Source = source }, McJson.Default.Job, ct);
+
+    public Task<ModRemoved> RemoveModAsync(string server, string mod, bool confirmBlocks = false, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Delete, ServerPath(server) + "/mods/" + Ref(mod) + (confirmBlocks ? "?confirm_blocks=true" : ""),
+            null, McJson.Default.ModRemoved, ct);
+
+    public Task<Job> UpdateModsAsync(string server, string? name = null, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, ServerPath(server) + "/mods/update", new ModUpdateRequest { Name = name }, McJson.Default.Job, ct);
+
+    public Task<DatapackList> ListDatapacksAsync(string server, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Get, ServerPath(server) + "/datapacks", null, McJson.Default.DatapackList, ct);
+
+    public Task<DatapackSet> SetDatapackEnabledAsync(string server, string pack, bool enabled, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Put, ServerPath(server) + "/datapacks/" + Ref(pack),
+            new DatapackSetRequest { Enabled = enabled }, McJson.Default.DatapackSet, ct);
+
+    public Task<WorldList> ListWorldsAsync(string server, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Get, ServerPath(server) + "/worlds", null, McJson.Default.WorldList, ct);
+
+    public Task<PregenProgress> GetPregenStatusAsync(string server, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Get, ServerPath(server) + "/worlds/pregen", null, McJson.Default.PregenProgress, ct);
+
+    public Task<Pregen> StartPregenAsync(string server, int radius, string? center = null, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, ServerPath(server) + "/worlds/pregen",
+            new PregenRequest { Radius = radius, Center = center }, McJson.Default.Pregen, ct);
+
+    public Task<Job> ResetDimensionAsync(string server, string dimension, bool confirmed, bool includeOverworld, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, ServerPath(server) + "/worlds/" + Ref(dimension) + "/reset",
+            new WorldResetRequest { Confirmed = confirmed, IncludeOverworld = includeOverworld ? true : null }, McJson.Default.Job, ct);
+
+    public async Task<IReadOnlyList<TaskEntry>> ListTasksAsync(string server, CancellationToken ct = default)
+        => (await SendAsync(HttpMethod.Get, ServerPath(server) + "/tasks", null, McJson.Default.TaskList, ct)).Tasks;
+
+    public Task<TaskCreated> CreateTaskAsync(string server, TaskCreateRequest request, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, ServerPath(server) + "/tasks", request, McJson.Default.TaskCreated, ct);
+
+    public Task<TaskCreated> UpdateTaskAsync(string server, int task, bool enabled, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Patch, ServerPath(server) + "/tasks/" + task,
+            new TaskPatchRequest { Enabled = enabled }, McJson.Default.TaskCreated, ct);
+
+    public Task<TaskCreated> DeleteTaskAsync(string server, int task, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Delete, ServerPath(server) + "/tasks/" + task, null, McJson.Default.TaskCreated, ct);
+
+    public Task<Job> RunTaskAsync(string server, int task, bool skipWarn = false, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, ServerPath(server) + "/tasks/" + task + "/run",
+            new TaskRunRequest { SkipWarn = skipWarn ? true : null }, McJson.Default.Job, ct);
+
+    public Task<ConfigDocument> GetServerConfigAsync(string server, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Get, ServerPath(server) + "/config", null, McJson.Default.ConfigDocument, ct);
+
+    public Task<ConfigSet> SetConfigValueAsync(string server, string key, string value, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Put, ServerPath(server) + "/config/" + Ref(key),
+            new ConfigSetRequest { Value = value }, McJson.Default.ConfigSet, ct);
+
+    public Task<OperationResult> SetServerModeAsync(string server, string mode, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Put, ServerPath(server) + "/mode", new ModeRequest { Mode = mode }, McJson.Default.OperationResult, ct);
+
+    public Task<OperationResult> SetServerScheduleAsync(string server, ScheduleRequest schedule, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Put, ServerPath(server) + "/schedule", schedule, McJson.Default.OperationResult, ct);
+
+    public Task<JavaRuntimes> ListServerJavaAsync(string server, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Get, ServerPath(server) + "/java", null, McJson.Default.JavaRuntimes, ct);
+
+    public Task<JavaUsed> SetServerJavaAsync(string server, string choice, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Put, ServerPath(server) + "/java", new JavaUseRequest { Choice = choice }, McJson.Default.JavaUsed, ct);
+
+    public Task<JavaRuntimes> ListJavaAsync(CancellationToken ct = default)
+        => SendAsync(HttpMethod.Get, "/v1/java", null, McJson.Default.JavaRuntimes, ct);
+
+    public Task<Job> CreateServerAsync(CreateServerRequest request, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, "/v1/servers", request, McJson.Default.Job, ct);
+
     public async Task<IReadOnlyList<Job>> ListJobsAsync(string? state = null, CancellationToken ct = default)
     {
         var path = state is null ? "/v1/jobs" : "/v1/jobs?state=" + Ref(state);
