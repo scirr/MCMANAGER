@@ -136,3 +136,39 @@ jobs:
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y --noninteractive flathub org.gnome.Platform//47 org.gnome.Sdk//47
           flatpak-builder --user --install-deps-from=flathub --force-clean --disable-rofiles-fuse --state-dir="$RUNNER_TEMP/fb-state" "$RUNNER_TEMP/fb-build" apps/linux/flatpak/io.github.scirr.MCManager.yml
+
+  app-windows-libs:
+    name: Windows app libraries (client, view models)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Client tests
+        run: dotnet test apps/windows/MCManager.Client.Tests -c Release
+      - name: View model tests
+        run: dotnet test apps/windows/MCManager.ViewModels.Tests -c Release
+
+  app-windows:
+    name: Windows app (WinUI 3 build)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build
+        working-directory: apps/windows
+        shell: pwsh
+        run: |
+          $msbuild = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
+          & $msbuild MCManager.App\MCManager.App.csproj -restore -m -p:Configuration=Release -p:Platform=x64 -nologo -v:minimal 2>&1 | Tee-Object -FilePath build.log
+          if ($LASTEXITCODE -ne 0) {
+            Select-String -Path build.log -Pattern ': error ' | Select-Object -First 10 | ForEach-Object { "::error::" + $_.Line.Trim() }
+            exit 1
+          }

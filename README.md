@@ -159,6 +159,24 @@ cd apps/linux && python3 -m mcmanager_app
 
 On first launch, choose **This machine** or **A remote server** (address, fingerprint check, 8-digit code from `mc remote pair`). Tests: `cd apps/linux && python3 -m unittest discover tests` (the view tests run only where GTK is installed). A Flatpak manifest is in `apps/linux/flatpak/`; it opens only the daemon's `run/` folder.
 
+### Desktop app (Windows)
+
+`apps/windows/` holds a WinUI 3 app (C#, .NET 8, Windows App SDK 1.6, unpackaged, no MSIX). It never reads MC Manager files: it reads the port and the token the daemon writes to `run/api.token` and talks to the local `/v1` API on `127.0.0.1`. It shows the server list (state, players, RAM), start/stop/restart/resume, the live console and the player lists (whitelist, ops, bans, kick). Texts follow the system language (English or French).
+
+| Project | Role |
+|---|---|
+| `MCManager.Client` | Typed API client, local API discovery, `ApiException` (net8.0, no UI) |
+| `MCManager.ViewModels` | MVVM view models (CommunityToolkit.Mvvm), testable without Windows |
+| `MCManager.App` | WinUI 3 windows and views, FR/EN `.resw` strings |
+| `MCManager.Client.Tests`, `MCManager.ViewModels.Tests` | xunit tests, run on Linux |
+
+```
+cd apps/windows
+dotnet test MCManager.Client.Tests
+dotnet test MCManager.ViewModels.Tests
+dotnet build MCManager.App -c Release -p:Platform=x64   # Windows only
+```
+
 ---
 
 ## 🖥️ CLI Commands

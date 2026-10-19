@@ -1,0 +1,66 @@
+<UserControl
+    x:Class="MCManager.App.Views.ServersView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:MCManager.ViewModels"
+    xmlns:app="using:MCManager.App">
+    <Grid Padding="24" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Uid="ServersTitle" Style="{StaticResource TitleTextBlockStyle}" VerticalAlignment="Center" />
+            <Button x:Name="RefreshButton" x:Uid="RefreshButton" Grid.Column="1" Command="{x:Bind ViewModel.RefreshCommand, Mode=OneWay}">
+                <SymbolIcon Symbol="Refresh" />
+            </Button>
+        </Grid>
+        <ProgressBar Grid.Row="1" IsIndeterminate="{x:Bind ViewModel.IsLoading, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />
+        <Grid Grid.Row="2" Padding="12,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="100" />
+                <ColumnDefinition Width="100" />
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Uid="ColName" Style="{StaticResource CaptionTextBlockStyle}" />
+            <TextBlock x:Uid="ColState" Grid.Column="1" Style="{StaticResource CaptionTextBlockStyle}" />
+            <TextBlock x:Uid="ColPlayers" Grid.Column="2" Style="{StaticResource CaptionTextBlockStyle}" />
+            <TextBlock x:Uid="ColRam" Grid.Column="3" Style="{StaticResource CaptionTextBlockStyle}" />
+        </Grid>
+        <ListView
+            x:Name="ServerList"
+            Grid.Row="3"
+            ItemsSource="{x:Bind ViewModel.Servers, Mode=OneWay}"
+            SelectionMode="None"
+            IsItemClickEnabled="True"
+            ItemClick="OnItemClick">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="vm:ServerItemViewModel">
+                    <Grid MinHeight="48" Padding="0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="140" />
+                            <ColumnDefinition Width="100" />
+                            <ColumnDefinition Width="100" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" />
+                            <TextBlock Text="{x:Bind Version, Mode=OneWay}" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{x:Bind app:Strings.State(State), Mode=OneWay}" />
+                        <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind PlayersText, Mode=OneWay}" />
+                        <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{x:Bind RamText, Mode=OneWay}" />
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+        <TextBlock x:Uid="ServersEmpty" Grid.Row="3" HorizontalAlignment="Center" Margin="0,48,0,0" Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}" />
+    </Grid>
+</UserControl>

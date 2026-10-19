@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="AppTitle" xml:space="preserve"><value>MC Manager</value></data>
+  <data name="NavServers.Content" xml:space="preserve"><value>Servers</value></data>
+  <data name="ServersTitle.Text" xml:space="preserve"><value>Servers</value></data>
+  <data name="ColName.Text" xml:space="preserve"><value>Server</value></data>
+  <data name="ColState.Text" xml:space="preserve"><value>State</value></data>
+  <data name="ColPlayers.Text" xml:space="preserve"><value>Players</value></data>
+  <data name="ColRam.Text" xml:space="preserve"><value>RAM</value></data>
+  <data name="ServersEmpty.Text" xml:space="preserve"><value>No server registered.</value></data>
+  <data name="DaemonNotFound" xml:space="preserve"><value>The MC Manager daemon was not found. Start it, then refresh.</value></data>
+  <data name="ErrorBar.Title" xml:space="preserve"><value>Error</value></data>
+  <data name="ConsoleTab.Header" xml:space="preserve"><value>Console</value></data>
+  <data name="PlayersTab.Header" xml:space="preserve"><value>Players</value></data>
+  <data name="ConsoleInput.PlaceholderText" xml:space="preserve"><value>Command (without the slash)</value></data>
+  <data name="ConsoleInput.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Console command</value></data>
+  <data name="ConsoleList.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Console output</value></data>
+  <data name="OnlineLabel.Text" xml:space="preserve"><value>Online now</value></data>
+  <data name="ListLabel.Text" xml:space="preserve"><value>Lists</value></data>
+  <data name="KindBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>List</value></data>
+  <data name="SubjectBox.PlaceholderText" xml:space="preserve"><value>Player or address</value></data>
+  <data name="SubjectBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Player or address</value></data>
+  <data name="ReasonBox.PlaceholderText" xml:space="preserve"><value>Reason (bans)</value></data>
+  <data name="ReasonBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Reason</value></data>
+  <data name="RefreshButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Refresh</value></data>
+  <data name="RefreshButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Refresh</value></data>
+  <data name="BackButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Back to servers</value></data>
+  <data name="BackButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Back to servers</value></data>
+  <data name="StartButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Start</value></data>
+  <data name="StartButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Start</value></data>
+  <data name="StopButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Stop</value></data>
+  <data name="StopButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Stop</value></data>
+  <data name="RestartButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Restart</value></data>
+  <data name="RestartButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Restart</value></data>
+  <data name="ResumeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Resume</value></data>
+  <data name="ResumeButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Resume</value></data>
+  <data name="DetailRefreshButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Refresh</value></data>
+  <data name="DetailRefreshButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Refresh</value></data>
+  <data name="SendButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Send command</value></data>
+  <data name="SendButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Send command</value></data>
+  <data name="AddButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Add to the list</value></data>
+  <data name="AddButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Add to the list</value></data>
+  <data name="RemoveButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Remove from the list</value></data>
+  <data name="RemoveButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Remove from the list</value></data>
+  <data name="KickButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Kick player</value></data>
+  <data name="KickButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Kick player</value></data>
+  <data name="State_running" xml:space="preserve"><value>Running</value></data>
+  <data name="State_starting" xml:space="preserve"><value>Starting</value></data>
+  <data name="State_crashed" xml:space="preserve"><value>Crashed</value></data>
+  <data name="State_stopped" xml:space="preserve"><value>Stopped</value></data>
+  <data name="State_closed" xml:space="preserve"><value>Closed</value></data>
+  <data name="State_stopped_by_user" xml:space="preserve"><value>Stopped by user</value></data>
+  <data name="State_sleeping" xml:space="preserve"><value>Sleeping</value></data>
+  <data name="State_maintenance" xml:space="preserve"><value>Maintenance</value></data>
+  <data name="State_error" xml:space="preserve"><value>Error</value></data>
+</root>
