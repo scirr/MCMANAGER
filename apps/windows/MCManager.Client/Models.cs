@@ -102,6 +102,29 @@ public sealed record Job
     public bool IsFinished => State is "succeeded" or "failed" or "cancelled";
 }
 
+public sealed record BackupEntry
+{
+    public string Id { get; init; } = "";
+    public string File { get; init; } = "";
+    public string Type { get; init; } = "";
+    public string Created { get; init; } = "";
+    public long CreatedTs { get; init; }
+    public long Size { get; init; }
+    public bool Encrypted { get; init; }
+}
+
+public sealed record BackupList
+{
+    public bool Ok { get; init; }
+    public string Code { get; init; } = "";
+    public List<BackupEntry> Backups { get; init; } = new();
+}
+
+public sealed record BackupRestoreRequest
+{
+    public bool Confirm { get; init; }
+}
+
 public sealed record JobList
 {
     public bool Ok { get; init; }

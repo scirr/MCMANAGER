@@ -34,6 +34,21 @@ internal static class Strings
         return fallback ?? key;
     }
 
+    public static string Origin(string? type)
+    {
+        if (string.IsNullOrEmpty(type))
+        {
+            return "";
+        }
+        return Get("BackupOrigin_" + type.Replace('-', '_'), type);
+    }
+
+    public static string BackupDetails(string size, string? type, bool encrypted)
+    {
+        var text = size + " - " + Origin(type);
+        return encrypted ? text + " - " + Get("BackupEncrypted") : text;
+    }
+
     public static string State(string? state)
     {
         if (string.IsNullOrEmpty(state))

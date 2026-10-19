@@ -57,4 +57,27 @@
   <data name="State_sleeping" xml:space="preserve"><value>Sleeping</value></data>
   <data name="State_maintenance" xml:space="preserve"><value>Maintenance</value></data>
   <data name="State_error" xml:space="preserve"><value>Error</value></data>
+  <data name="BackupsTab.Header" xml:space="preserve"><value>Backups</value></data>
+  <data name="BackupNowButton.Content" xml:space="preserve"><value>Back up now</value></data>
+  <data name="RestoreButton.Content" xml:space="preserve"><value>Restore</value></data>
+  <data name="BackupList.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Backups</value></data>
+  <data name="RestoreDialogTitle" xml:space="preserve"><value>Restore this backup?</value></data>
+  <data name="RestoreDialogBody" xml:space="preserve"><value>The server will be stopped and the current world replaced by the backup of {0}. A safety copy is kept first.</value></data>
+  <data name="RestoreDialogConfirm" xml:space="preserve"><value>Restore</value></data>
+  <data name="RestoreDialogCancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="BackupEncrypted" xml:space="preserve"><value>encrypted</value></data>
+  <data name="BackupOrigin_midi" xml:space="preserve"><value>Noon (automatic)</value></data>
+  <data name="BackupOrigin_minuit" xml:space="preserve"><value>Midnight (automatic)</value></data>
+  <data name="BackupOrigin_manual" xml:space="preserve"><value>Manual</value></data>
+  <data name="BackupOrigin_pre_restore" xml:space="preserve"><value>Before a restore</value></data>
+  <data name="BackupOrigin_upgrade" xml:space="preserve"><value>Before an update</value></data>
+  <data name="Error_backup_not_found" xml:space="preserve"><value>Backup not found</value></data>
+  <data name="Error_backup_failed" xml:space="preserve"><value>The backup failed</value></data>
+  <data name="Error_stop_first" xml:space="preserve"><value>Stop the server first</value></data>
+  <data name="Error_server_running" xml:space="preserve"><value>The server is running: stop it first</value></data>
+  <data name="Error_confirm_required" xml:space="preserve"><value>Confirmation required</value></data>
+  <data name="Error_encrypt_key_missing" xml:space="preserve"><value>The encryption key file is missing</value></data>
+  <data name="Error_daemon_timeout" xml:space="preserve"><value>The operation took too long</value></data>
+  <data name="Error_unauthorized" xml:space="preserve"><value>Access refused: pair this device again</value></data>
+  <data name="Error_daemon_unreachable" xml:space="preserve"><value>MC Manager cannot be reached</value></data>
 </root>

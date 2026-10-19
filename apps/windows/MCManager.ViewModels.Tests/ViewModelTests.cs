@@ -158,6 +158,73 @@ public class ViewModelTests
         Assert.Equal("boom", errors.Message);
     }
 
+    private static BackupEntry Backup(string id) => new()
+    {
+        Id = id, File = id + ".zip", Type = "midi", Created = "2026-10-08T12:00:03", Size = 1288490188,
+    };
+
+    [Fact]
+    public async Task Backups_refresh_lists_date_size_and_origin()
+    {
+        var client = new FakeClient();
+        client.Backups.Add(Backup("a_midi"));
+        var vm = new BackupsViewModel(client, new ErrorReporter(), "survie");
+
+        await vm.RefreshAsync();
+
+        var item = Assert.Single(vm.Items);
+        Assert.Equal("2026-10-08 12:00:03", item.Date);
+        Assert.Equal("1.2 GB", item.SizeText);
+        Assert.Equal("midi", item.Origin);
+        Assert.False(vm.IsEmpty);
+    }
+
+    [Fact]
+    public async Task Backups_create_follows_the_job_progress_then_reloads()
+    {
+        var client = new FakeClient();
+        client.JobStates.Enqueue(new Job { Id = "jb", State = "running", Progress = 40 });
+        client.JobStates.Enqueue(new Job { Id = "jb", State = "succeeded", Progress = 100 });
+        var vm = new BackupsViewModel(client, new ErrorReporter(), "survie") { JobPollInterval = TimeSpan.Zero };
+
+        await vm.CreateAsync();
+
+        Assert.Equal(new[] { "create-backup survie", "job jb", "job jb", "backups survie" }, client.Calls);
+        Assert.Equal(100, vm.Progress);
+        Assert.Equal("create", vm.LastDone);
+        Assert.False(vm.IsBusy);
+    }
+
+    [Fact]
+    public async Task Backups_restore_needs_the_confirmation()
+    {
+        var client = new FakeClient();
+        client.JobStates.Enqueue(new Job { Id = "jr", State = "succeeded" });
+        var vm = new BackupsViewModel(client, new ErrorReporter(), "survie") { JobPollInterval = TimeSpan.Zero };
+
+        await vm.RestoreAsync("a_midi", false);
+        Assert.Empty(client.Calls);
+
+        await vm.RestoreAsync("a_midi", true);
+        Assert.Equal("restore a_midi True", client.Calls[0]);
+        Assert.Equal("restore", vm.LastDone);
+    }
+
+    [Fact]
+    public async Task Backups_failed_job_is_reported_by_code()
+    {
+        var client = new FakeClient();
+        client.JobStates.Enqueue(new Job { Id = "jr", State = "failed", Result = new JobResult { Code = "stop_first", Message = "stop" } });
+        var errors = new ErrorReporter();
+        var vm = new BackupsViewModel(client, errors, "survie") { JobPollInterval = TimeSpan.Zero };
+
+        await vm.RestoreAsync("a_midi", true);
+
+        Assert.Equal("stop_first", errors.Code);
+        Assert.Equal("", vm.LastDone);
+        Assert.False(vm.IsBusy);
+    }
+
     [Fact]
     public async Task Console_appends_streamed_lines_and_caps_the_buffer()
     {

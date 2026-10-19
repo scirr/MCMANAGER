@@ -76,6 +76,16 @@ public sealed class McClient : IMcClient, IDisposable
         => SendAsync(HttpMethod.Post, ServerPath(server) + "/kick",
             new KickRequest { Player = player, Reason = reason }, McJson.Default.OperationResult, ct);
 
+    public async Task<IReadOnlyList<BackupEntry>> ListBackupsAsync(string server, CancellationToken ct = default)
+        => (await SendAsync(HttpMethod.Get, ServerPath(server) + "/backups", null, McJson.Default.BackupList, ct)).Backups;
+
+    public Task<Job> CreateBackupAsync(string server, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, ServerPath(server) + "/backups", null, McJson.Default.Job, ct);
+
+    public Task<Job> RestoreBackupAsync(string server, string backup, bool confirm, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, ServerPath(server) + "/backups/" + Ref(backup) + "/restore",
+            new BackupRestoreRequest { Confirm = confirm }, McJson.Default.Job, ct);
+
     public async Task<IReadOnlyList<Job>> ListJobsAsync(string? state = null, CancellationToken ct = default)
     {
         var path = state is null ? "/v1/jobs" : "/v1/jobs?state=" + Ref(state);

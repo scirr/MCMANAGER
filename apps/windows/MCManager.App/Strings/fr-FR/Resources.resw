@@ -57,4 +57,27 @@
   <data name="State_sleeping" xml:space="preserve"><value>En veille</value></data>
   <data name="State_maintenance" xml:space="preserve"><value>Maintenance</value></data>
   <data name="State_error" xml:space="preserve"><value>Erreur</value></data>
+  <data name="BackupsTab.Header" xml:space="preserve"><value>Sauvegardes</value></data>
+  <data name="BackupNowButton.Content" xml:space="preserve"><value>Sauvegarder maintenant</value></data>
+  <data name="RestoreButton.Content" xml:space="preserve"><value>Restaurer</value></data>
+  <data name="BackupList.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Sauvegardes</value></data>
+  <data name="RestoreDialogTitle" xml:space="preserve"><value>Restaurer cette sauvegarde ?</value></data>
+  <data name="RestoreDialogBody" xml:space="preserve"><value>Le serveur sera arrêté et le monde actuel remplacé par la sauvegarde du {0}. Une copie de sécurité est conservée avant.</value></data>
+  <data name="RestoreDialogConfirm" xml:space="preserve"><value>Restaurer</value></data>
+  <data name="RestoreDialogCancel" xml:space="preserve"><value>Annuler</value></data>
+  <data name="BackupEncrypted" xml:space="preserve"><value>chiffrée</value></data>
+  <data name="BackupOrigin_midi" xml:space="preserve"><value>Midi (automatique)</value></data>
+  <data name="BackupOrigin_minuit" xml:space="preserve"><value>Minuit (automatique)</value></data>
+  <data name="BackupOrigin_manual" xml:space="preserve"><value>Manuelle</value></data>
+  <data name="BackupOrigin_pre_restore" xml:space="preserve"><value>Avant une restauration</value></data>
+  <data name="BackupOrigin_upgrade" xml:space="preserve"><value>Avant une mise à jour</value></data>
+  <data name="Error_backup_not_found" xml:space="preserve"><value>Sauvegarde introuvable</value></data>
+  <data name="Error_backup_failed" xml:space="preserve"><value>La sauvegarde a échoué</value></data>
+  <data name="Error_stop_first" xml:space="preserve"><value>Arrêtez d'abord le serveur</value></data>
+  <data name="Error_server_running" xml:space="preserve"><value>Le serveur tourne : arrêtez-le d'abord</value></data>
+  <data name="Error_confirm_required" xml:space="preserve"><value>Confirmation requise</value></data>
+  <data name="Error_encrypt_key_missing" xml:space="preserve"><value>Le fichier de clé de chiffrement est introuvable</value></data>
+  <data name="Error_daemon_timeout" xml:space="preserve"><value>L'opération a pris trop de temps</value></data>
+  <data name="Error_unauthorized" xml:space="preserve"><value>Accès refusé : appairez à nouveau cet appareil</value></data>
+  <data name="Error_daemon_unreachable" xml:space="preserve"><value>MC Manager est injoignable</value></data>
 </root>
