@@ -22,6 +22,10 @@ namespace MCManager.Client;
 [JsonSerializable(typeof(KickRequest))]
 [JsonSerializable(typeof(ErrorBody))]
 [JsonSerializable(typeof(TokenFile))]
+[JsonSerializable(typeof(PairRequest))]
+[JsonSerializable(typeof(PairResult))]
+[JsonSerializable(typeof(ProfileFile))]
+[JsonSerializable(typeof(List<RemoteSummary>))]
 internal sealed partial class McJson : JsonSerializerContext
 {
 }

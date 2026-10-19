@@ -80,4 +80,29 @@
   <data name="Error_daemon_timeout" xml:space="preserve"><value>L'opération a pris trop de temps</value></data>
   <data name="Error_unauthorized" xml:space="preserve"><value>Accès refusé : appairez à nouveau cet appareil</value></data>
   <data name="Error_daemon_unreachable" xml:space="preserve"><value>MC Manager est injoignable</value></data>
+  <data name="NavConnection.Content" xml:space="preserve"><value>Connexion</value></data>
+  <data name="ConnectionTitle.Text" xml:space="preserve"><value>Connexion</value></data>
+  <data name="ConnectionHint.Text" xml:space="preserve"><value>Choisissez cette machine ou un MC Manager distant. Un serveur distant n'est accepté que si l'empreinte de son certificat correspond à celle que vous avez confirmée à l'appairage.</value></data>
+  <data name="ConnectButton.Content" xml:space="preserve"><value>Se connecter</value></data>
+  <data name="AddRemoteButton.Content" xml:space="preserve"><value>Ajouter un distant...</value></data>
+  <data name="RemoveRemoteButton.Content" xml:space="preserve"><value>Supprimer</value></data>
+  <data name="LocalMachine" xml:space="preserve"><value>Cette machine</value></data>
+  <data name="PairTitle" xml:space="preserve"><value>Ajouter un MC Manager distant</value></data>
+  <data name="PairCancel" xml:space="preserve"><value>Annuler</value></data>
+  <data name="PairNext" xml:space="preserve"><value>Suivant</value></data>
+  <data name="PairTrust" xml:space="preserve"><value>Faire confiance à cette empreinte</value></data>
+  <data name="PairReject" xml:space="preserve"><value>Refuser</value></data>
+  <data name="PairFinish" xml:space="preserve"><value>Appairer</value></data>
+  <data name="PairStep_Address" xml:space="preserve"><value>Adresse du MC Manager distant (hôte:port)</value></data>
+  <data name="PairStep_Confirm" xml:space="preserve"><value>Comparez cette empreinte SHA-256 avec celle affichée sur le serveur (mc remote status). Ne continuez que si elles sont identiques.</value></data>
+  <data name="PairStep_Code" xml:space="preserve"><value>Code d'appairage (8 chiffres) généré sur le serveur</value></data>
+  <data name="PairStep_Name" xml:space="preserve"><value>Nom de cet appareil</value></data>
+  <data name="PairStep_Done" xml:space="preserve"><value>Appairé.</value></data>
+  <data name="Error_bad_address" xml:space="preserve"><value>Saisissez l'adresse sous la forme hôte:port</value></data>
+  <data name="Error_bad_pair_code" xml:space="preserve"><value>Code d'appairage faux, expiré ou mal formé</value></data>
+  <data name="Error_pair_locked" xml:space="preserve"><value>Trop d'échecs : l'appairage est verrouillé pendant 15 minutes</value></data>
+  <data name="Error_fingerprint_mismatch" xml:space="preserve"><value>Le certificat du serveur ne correspond pas à l'empreinte épinglée. Connexion refusée.</value></data>
+  <data name="Error_fingerprint_missing" xml:space="preserve"><value>Aucune empreinte épinglée : connexion refusée</value></data>
+  <data name="Error_remote_unreachable" xml:space="preserve"><value>Le MC Manager distant est injoignable</value></data>
+  <data name="Error_bad_name" xml:space="preserve"><value>Saisissez un nom d'appareil</value></data>
 </root>

@@ -80,4 +80,29 @@
   <data name="Error_daemon_timeout" xml:space="preserve"><value>The operation took too long</value></data>
   <data name="Error_unauthorized" xml:space="preserve"><value>Access refused: pair this device again</value></data>
   <data name="Error_daemon_unreachable" xml:space="preserve"><value>MC Manager cannot be reached</value></data>
+  <data name="NavConnection.Content" xml:space="preserve"><value>Connection</value></data>
+  <data name="ConnectionTitle.Text" xml:space="preserve"><value>Connection</value></data>
+  <data name="ConnectionHint.Text" xml:space="preserve"><value>Choose this machine or a remote MC Manager. A remote server is trusted only if its certificate fingerprint matches the one you confirmed when pairing.</value></data>
+  <data name="ConnectButton.Content" xml:space="preserve"><value>Connect</value></data>
+  <data name="AddRemoteButton.Content" xml:space="preserve"><value>Add a remote...</value></data>
+  <data name="RemoveRemoteButton.Content" xml:space="preserve"><value>Remove</value></data>
+  <data name="LocalMachine" xml:space="preserve"><value>This machine</value></data>
+  <data name="PairTitle" xml:space="preserve"><value>Add a remote MC Manager</value></data>
+  <data name="PairCancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="PairNext" xml:space="preserve"><value>Next</value></data>
+  <data name="PairTrust" xml:space="preserve"><value>Trust this fingerprint</value></data>
+  <data name="PairReject" xml:space="preserve"><value>Reject</value></data>
+  <data name="PairFinish" xml:space="preserve"><value>Pair</value></data>
+  <data name="PairStep_Address" xml:space="preserve"><value>Address of the remote MC Manager (host:port)</value></data>
+  <data name="PairStep_Confirm" xml:space="preserve"><value>Compare this SHA-256 fingerprint with the one shown on the server (mc remote status). Continue only if they are identical.</value></data>
+  <data name="PairStep_Code" xml:space="preserve"><value>Pairing code (8 digits) generated on the server</value></data>
+  <data name="PairStep_Name" xml:space="preserve"><value>Name of this device</value></data>
+  <data name="PairStep_Done" xml:space="preserve"><value>Paired.</value></data>
+  <data name="Error_bad_address" xml:space="preserve"><value>Enter the address as host:port</value></data>
+  <data name="Error_bad_pair_code" xml:space="preserve"><value>Wrong, expired or malformed pairing code</value></data>
+  <data name="Error_pair_locked" xml:space="preserve"><value>Too many failures: pairing is locked for 15 minutes</value></data>
+  <data name="Error_fingerprint_mismatch" xml:space="preserve"><value>The server certificate does not match the pinned fingerprint. Connection refused.</value></data>
+  <data name="Error_fingerprint_missing" xml:space="preserve"><value>No pinned fingerprint: connection refused</value></data>
+  <data name="Error_remote_unreachable" xml:space="preserve"><value>The remote MC Manager is unreachable</value></data>
+  <data name="Error_bad_name" xml:space="preserve"><value>Enter a device name</value></data>
 </root>

@@ -7,35 +7,79 @@ namespace MCManager.App;
 
 public sealed partial class MainWindow : Window
 {
-    private readonly MainViewModel _viewModel;
-    private readonly CancellationTokenSource _polling = new();
+    private readonly ErrorReporter _errors = new();
+    private readonly ConnectionViewModel _connection;
+    private MainViewModel _viewModel;
+    private McClient? _remoteClient;
+    private CancellationTokenSource _polling = new();
 
     public MainWindow()
     {
         InitializeComponent();
         Title = Strings.Get("AppTitle", "MC Manager");
 
-        var errors = new ErrorReporter();
-        errors.PropertyChanged += (_, _) => ShowError(errors);
-        var endpoint = ApiLocator.Discover();
-        IMcClient? client = endpoint is null ? null : McClient.Create(endpoint);
-        _viewModel = new MainViewModel(client, errors);
+        _errors.PropertyChanged += (_, _) => ShowError(_errors);
+        var store = new ProfileStore(ProfileStore.DefaultPath(), new DpapiProtector());
+        _connection = new ConnectionViewModel(
+            store, new PairingClient(), Strings.Get("LocalMachine", "This machine"), LocalClient);
+        _viewModel = new MainViewModel(null, _errors);
 
-        ServersPage.ViewModel = _viewModel.ServerList;
         ServersPage.ServerOpened += OnServerOpened;
         DetailPage.BackRequested += OnBackRequested;
+        ConnectionPage.ViewModel = _connection;
+        ConnectionPage.ConnectRequested += OnConnectRequested;
         Closed += OnClosed;
+        Connect();
         Nav.SelectedItem = ServersItem;
+    }
 
+    private static IMcClient? LocalClient()
+    {
+        var endpoint = ApiLocator.Discover();
+        return endpoint is null ? null : McClient.Create(endpoint);
+    }
+
+    private void Connect()
+    {
+        _polling.Cancel();
+        DetailPage.Detach();
+        _viewModel.CloseDetail();
+        _remoteClient?.Dispose();
+        _remoteClient = null;
+        _errors.Clear();
+        _polling = new CancellationTokenSource();
+
+        IMcClient? client = null;
+        try
+        {
+            client = _connection.CreateClient();
+        }
+        catch (ApiException ex)
+        {
+            _errors.Report(ex);
+        }
+        _remoteClient = _connection.Selected.IsLocal ? null : client as McClient;
+        _viewModel = new MainViewModel(client, _errors);
+        ServersPage.ViewModel = _viewModel.ServerList;
         if (_viewModel.ServerList is null)
         {
-            errors.Show("daemon_not_found", Strings.Get("DaemonNotFound"));
+            if (!_errors.IsOpen)
+            {
+                _errors.Show("daemon_not_found", Strings.Get("DaemonNotFound"));
+            }
         }
         else
         {
             _ = _viewModel.ServerList.RefreshAsync();
             _ = _viewModel.ServerList.PollAsync(TimeSpan.FromSeconds(5), _polling.Token);
         }
+    }
+
+    private void OnConnectRequested()
+    {
+        Connect();
+        Nav.SelectedItem = ServersItem;
+        ShowList();
     }
 
     private void ShowError(ErrorReporter errors)
@@ -46,11 +90,20 @@ public sealed partial class MainWindow : Window
 
     private void OnErrorClosed(InfoBar sender, InfoBarClosedEventArgs args)
     {
-        _viewModel.Errors.Clear();
+        _errors.Clear();
     }
 
     private void OnNavSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
+        if (args.SelectedItemContainer?.Tag as string == "connection")
+        {
+            DetailPage.Detach();
+            _viewModel.CloseDetail();
+            DetailPage.Visibility = Visibility.Collapsed;
+            ServersPage.Visibility = Visibility.Collapsed;
+            ConnectionPage.Visibility = Visibility.Visible;
+            return;
+        }
         ShowList();
     }
 
@@ -76,6 +129,7 @@ public sealed partial class MainWindow : Window
         DetailPage.Detach();
         _viewModel.CloseDetail();
         DetailPage.Visibility = Visibility.Collapsed;
+        ConnectionPage.Visibility = Visibility.Collapsed;
         ServersPage.Visibility = Visibility.Visible;
         if (_viewModel.ServerList is not null)
         {
@@ -88,5 +142,6 @@ public sealed partial class MainWindow : Window
         _polling.Cancel();
         DetailPage.Detach();
         _viewModel.CloseDetail();
+        _remoteClient?.Dispose();
     }
 }

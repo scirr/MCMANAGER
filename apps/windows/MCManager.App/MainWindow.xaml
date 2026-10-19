@@ -30,10 +30,16 @@
                         <SymbolIcon Symbol="List" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem x:Name="ConnectionItem" x:Uid="NavConnection" Tag="connection">
+                    <NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="World" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
             </NavigationView.MenuItems>
             <Grid>
                 <views:ServersView x:Name="ServersPage" />
                 <views:ServerDetailView x:Name="DetailPage" Visibility="Collapsed" />
+                <views:ConnectionView x:Name="ConnectionPage" Visibility="Collapsed" />
             </Grid>
         </NavigationView>
     </Grid>
