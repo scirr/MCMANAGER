@@ -377,17 +377,33 @@ def print_logs(target=None):
 # LANGUAGE / HELP
 # ==========================================
 
+def stdin_interactive():
+    """True only for a real keyboard. On Windows the NUL device answers isatty()
+    True, so the console mode is checked as well."""
+    try:
+        if not sys.stdin.isatty():
+            return False
+    except Exception:
+        return False
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            mode = ctypes.c_uint32()
+            return bool(kernel32.GetConsoleMode(kernel32.GetStdHandle(-10), ctypes.byref(mode)))
+        except Exception:
+            return False
+    return True
+
+
 def prompt_language_if_unset():
     """On first launch (no language chosen yet), ask FR/EN interactively."""
     if mc_lang.is_language_set():
         return
-    # Never prompt for the background service or in non-interactive contexts.
+    # Never prompt for the background service, a JSON caller or without a keyboard.
     if len(sys.argv) > 1 and sys.argv[1] == "daemon":
         return
-    try:
-        if not sys.stdin.isatty():
-            return
-    except Exception:
+    if "--json" in sys.argv or not stdin_interactive():
         return
     print(f"\033[96m{T['language_choose']}\033[0m")
     print("  1. Français")
@@ -1683,13 +1699,13 @@ def cmd_remote_add(args):
     if not as_json:
         print_info(T["remote_add_fingerprint"].format(address=address, fingerprint=presented))
     if not args.yes:
-        if as_json or not sys.stdin.isatty():
+        if as_json or not stdin_interactive():
             return _finish_checked(mc_api.result(False, "confirm_required", fingerprint=presented), as_json)
         if not mc_deploy.ask_yn(T["remote_add_confirm"], default=False):
             return EXIT_ERROR
     code = args.code
     if not code:
-        if as_json or not sys.stdin.isatty():
+        if as_json or not stdin_interactive():
             return _finish_checked(mc_api.result(False, "missing_code"), as_json)
         import getpass
         code = getpass.getpass(T["remote_add_code_prompt"]).strip()
@@ -2254,7 +2270,7 @@ def cmd_backup(args):
         _print_backup_list(res)
         return EXIT_OK
     if not args.yes:
-        if args.json or not sys.stdin.isatty():
+        if args.json or not stdin_interactive():
             return _finish_checked(mc_api.result(False, "confirm_required"), args.json)
         if not mc_deploy.ask_yn(T["backup_restore_confirm"].format(ref=operands[0], name=name), default=False):
             print_res(False, T["backup_restore_cancelled"])

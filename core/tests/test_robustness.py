@@ -79,7 +79,7 @@ class TestServerPropertiesSync(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         self.props = os.path.join(self.tmp, "server.properties")
-        with open(self.props, "w") as f:
+        with open(self.props, "w", encoding="utf-8") as f:
             f.write("#Minecraft server properties\nserver-port=25566\nmotd=Héllo\nenable-rcon=false\n")
         self.config = {"dossier_serveur": self.tmp, "port": 25565,
                        "mcrcon_pass": "secret", "rcon_port": 25575}

@@ -8,6 +8,7 @@ import sys
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import mc_lang
@@ -60,3 +61,27 @@ class LanguageTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestNoPromptWithoutKeyboard(unittest.TestCase):
+    def test_json_callers_are_never_prompted(self):
+        import mc_cli
+        with mock.patch.object(mc_cli.mc_lang, "is_language_set", return_value=False), \
+             mock.patch.object(sys, "argv", ["mc", "status", "--json"]), \
+             mock.patch("builtins.input", side_effect=AssertionError("prompted")):
+            mc_cli.prompt_language_if_unset()
+
+    def test_windows_nul_device_is_not_a_keyboard(self):
+        import ctypes
+        import mc_cli
+        fake = mock.Mock()
+        fake.kernel32.GetConsoleMode.return_value = 0
+        with mock.patch.object(sys, "platform", "win32"), \
+             mock.patch.object(sys.stdin, "isatty", return_value=True), \
+             mock.patch.object(ctypes, "windll", fake, create=True):
+            self.assertFalse(mc_cli.stdin_interactive())
+        fake.kernel32.GetConsoleMode.return_value = 1
+        with mock.patch.object(sys, "platform", "win32"), \
+             mock.patch.object(sys.stdin, "isatty", return_value=True), \
+             mock.patch.object(ctypes, "windll", fake, create=True):
+            self.assertTrue(mc_cli.stdin_interactive())
