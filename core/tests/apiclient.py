@@ -28,8 +28,8 @@ class UnixConnection(http.client.HTTPConnection):
 class Client:
     """Minimal client for the local API; address comes from mc_httpapi.address()."""
 
-    def __init__(self, folder, mode="unix"):
-        self.found = mc_httpapi.address(folder, mode)
+    def __init__(self, folder, mode=None):
+        self.found = mc_httpapi.address(folder, mode or mc_httpapi.default_mode())
         self.token = self.found.get("token")
 
     def connection(self):
