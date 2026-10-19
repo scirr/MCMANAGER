@@ -495,7 +495,7 @@ class TestAgreementWithTheCli(unittest.TestCase):
     def cli(self, env, *argv):
         res = subprocess.run([sys.executable, os.path.join(ROOT, "core", "mc_cli.py"), *argv, "--json"],
                              capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=60,
-                             env=dict(os.environ, MCMANAGER_DATA_DIR=env["data"], NO_COLOR="1"))
+                             env=dict(os.environ, MCMANAGER_DATA_DIR=env["data"], NO_COLOR="1", PYTHONUTF8="1"))
         return json.loads(res.stdout)
 
     def test_get_routes_equal_the_cli_documents(self):

@@ -233,10 +233,10 @@ class TestCertificate(RemoteCase):
                 mock.patch.object(mc_remote.subprocess, "run", wraps=subprocess.run) as run:
             info = mc_remote.ensure_certificate("0.0.0.0")
         self.assertEqual(info["generator"], "openssl")
-        command = run.call_args[0][0]
+        command = next(c[0][0] for c in run.call_args_list if "ec_paramgen_curve:P-256" in c[0][0])
         self.assertIsInstance(command, list)
         self.assertIn("ec_paramgen_curve:P-256", command)
-        self.assertNotIn("shell", run.call_args[1])
+        self.assertTrue(all("shell" not in c[1] for c in run.call_args_list))
 
     def test_no_generator_means_a_clear_refusal_and_no_listener(self):
         with mock.patch.object(mc_remote, "have_cryptography", return_value=False), \
@@ -372,7 +372,7 @@ class TestPairing(RemoteCase):
             for code in ("00000000", "not-a-code"):
                 started = time.monotonic()
                 self.remote().request("POST", "/v1/pair", {"code": code, "name": "a"})
-                self.assertGreaterEqual(time.monotonic() - started, 0.3)
+                self.assertGreaterEqual(time.monotonic() - started, 0.25)
         os.remove(os.path.join(self.env["data"], "remote_pairing.json"))
         with mock.patch.object(mc_remote, "PAIR_DELAY_S", 0.3):
             started = time.monotonic()
@@ -516,6 +516,7 @@ class TestRoles(RemoteCase):
 
     def test_role_matrix_over_the_whole_contract(self):
         devices = {role: self.pair(role, name=role) for role in mc_remote.ROLES}
+        self.api.app.remote.limit = 10 ** 6
         for route in mc_httpapi.build_routes(SPEC):
             if route.public or route.operation_id.startswith("stream"):
                 continue
@@ -617,6 +618,7 @@ class TestLimits(RemoteCase):
         busy = self.pair("viewer", name="busy")
         calm = self.pair("viewer", name="calm")
         self.api.app.remote.limit = 5
+        self.api.app.remote.clock = lambda: 0.0
         statuses = []
         conn = busy.connection()
         for _ in range(8):

@@ -24,9 +24,12 @@ class TestDeployFirewall(unittest.TestCase):
         self.ufw_allow_code = 0
         import mc_platform
         import platform_linux
-        saved = mc_platform._Lazy._impl
-        mc_platform.use(platform_linux)
-        self.addCleanup(mc_platform.use, saved)
+        impl = mc_platform._load()
+        for name in ("firewall_name", "firewall_port_open", "firewall_allow", "firewall_remove",
+                     "firewall_manual_command"):
+            patch = mock.patch.object(impl, name, getattr(platform_linux, name))
+            patch.start()
+            self.addCleanup(patch.stop)
         patches = [
             mock.patch.object(mc_servers, "REGISTRY_FILE", os.path.join(self.data, "servers.json")),
             mock.patch.object(mc_servers, "REGISTRY_DIR", self.data),

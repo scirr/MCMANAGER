@@ -144,7 +144,7 @@ class TestService(unittest.TestCase):
             self.assertEqual(pw.service_unit_drift(), ("ok", []))
         expected = drift.call_args[0][0]
         self.assertEqual(set(expected), {"Application", "AppParameters", "AppDirectory"})
-        self.assertEqual(expected["Application"], sys.executable)
+        self.assertEqual(expected["Application"], pw._service_python())
 
 
 class FakeMsvcrt:

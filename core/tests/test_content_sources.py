@@ -174,7 +174,7 @@ class TestJava(NetCase):
                                          ("jdk-21.0.5+11-jre/release", b"JAVA_VERSION=21", 0o644)]))
         res = mc_java.install(21)
         self.assertEqual((res["ok"], res["code"]), (True, "java_installed"))
-        self.assertEqual(mc_java.installed(), {21: os.path.join(self.java_dir, "21", "bin", "java")})
+        self.assertEqual(mc_java.installed(), {21: os.path.join(self.java_dir, "21", "bin/java")})
         self.assertEqual(mc_java.install(21)["code"], "java_present")
         config = {"mc_version": "1.21.1"}
         self.assertTrue(mc_java.use(config, "auto")["ok"])

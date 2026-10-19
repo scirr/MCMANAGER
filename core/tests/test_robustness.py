@@ -139,6 +139,7 @@ class TestPorts(unittest.TestCase):
         srv.close()
         self.assertFalse(mc_core._port_in_use(port))
 
+    @unittest.skipIf(sys.platform == "win32", "reads /proc")
     def test_listening_port_is_in_use_and_owner_found(self):
         srv = socket.socket()
         srv.bind(("0.0.0.0", 0))
