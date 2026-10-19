@@ -31,6 +31,9 @@ jobs:
       - name: Unit tests
         working-directory: core
         run: python ../tools/run_tests_ci.py tests
+      - name: CLI smoke test
+        if: always()
+        run: python tools/cli_smoke_ci.py core
 
   checks:
     name: Lint, security, dependencies

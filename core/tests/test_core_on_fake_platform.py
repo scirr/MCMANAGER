@@ -30,7 +30,7 @@ class FakePlatformCase(unittest.TestCase):
         self.fake = FakePlatform(**results)
         mc_platform.use(self.fake)
         for target in ("os.kill", "os.killpg", "subprocess.run", "subprocess.Popen"):
-            patcher = mock.patch(target, side_effect=AssertionError(f"{target} reached the system"))
+            patcher = mock.patch(target, side_effect=AssertionError(f"{target} reached the system"), create=True)
             patcher.start()
             self.addCleanup(patcher.stop)
         return self.fake
