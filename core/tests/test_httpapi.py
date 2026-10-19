@@ -29,7 +29,7 @@ ERROR = resolve("#/components/schemas/Error")
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
-def started(env, mode="unix", **kwargs):
+def started(env, mode=None, **kwargs):
     api = mc_httpapi.LocalApi(folder=env["run"], mode=mode, enabled=lambda: True, settle=0.3, **kwargs)
     api.sync()
     return api

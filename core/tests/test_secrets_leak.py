@@ -205,7 +205,9 @@ class TestApiLeaks(unittest.TestCase):
         registry = os.path.join(cases.data, "servers.json")
         run = tempfile.mkdtemp()
         with mock.patch.object(mc_servers, "REGISTRY_FILE", registry), \
-                mock.patch.object(mc_servers, "REGISTRY_DIR", cases.data):
+                mock.patch.object(mc_servers, "REGISTRY_DIR", cases.data), \
+                mock.patch("mc_doctor.check_host", return_value=[]), \
+                mock.patch("mc_doctor.check_server", return_value=[]):
             api = mc_httpapi.LocalApi(folder=run, enabled=lambda: True)
             api.sync()
             client = Client(run)

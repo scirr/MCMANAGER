@@ -242,9 +242,18 @@ def _copy_program(src, dest):
             plat.set_executable(target)
 
 
+def _force_remove(func, path, _exc):
+    os.chmod(path, 0o700)
+    func(path)
+
+
+def _reset_dir(folder):
+    if os.path.isdir(folder):
+        shutil.rmtree(folder, onerror=_force_remove)
+
+
 def _backup_current():
-    if os.path.isdir(PREVIOUS_DIR):
-        shutil.rmtree(PREVIOUS_DIR)
+    _reset_dir(PREVIOUS_DIR)
     _copy_program(BASE_DIR, PREVIOUS_DIR)
 
 
@@ -347,7 +356,7 @@ def rollback():
             current = os.path.join(tmp, "current")
             _copy_program(BASE_DIR, current)
             _copy_program(PREVIOUS_DIR, BASE_DIR)
-            shutil.rmtree(PREVIOUS_DIR)
+            _reset_dir(PREVIOUS_DIR)
             _copy_program(current, PREVIOUS_DIR)
         _clear_pycache()
     except Exception as e:

@@ -276,11 +276,11 @@ class TestHoldListener(unittest.TestCase):
         logins = []
         listener = self._listener(banned=mc_proxy.BannedIPs(path), on_login=lambda p: logins.append(p) or "x")
         client = self._connect(listener)
-        client.sendall(handshake() + login())
         client.settimeout(5)
         try:
+            client.sendall(handshake() + login())
             self.assertEqual(client.recv(10), b"")
-        except ConnectionResetError:
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
             pass
         self.assertEqual(logins, [])
         client.close()

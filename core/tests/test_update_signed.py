@@ -130,7 +130,7 @@ class TestInstall(unittest.TestCase):
         mc_update.perform_update()
         with mock.patch.object(mc_update, "VERSION", "9.9.9"):
             res = mc_update.rollback()
-        self.assertEqual((res["code"], res["version"]), ("rolled_back", "2.6.0"))
+        self.assertEqual((res["code"], res.get("version"), res.get("detail")), ("rolled_back", "2.6.0", None))
         self.assertIn("2.6.0", self._read("mc_lang.py"))
         self.assertIn("9.9.9", self._read("previous", "mc_lang.py"))
 

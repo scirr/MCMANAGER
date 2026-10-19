@@ -27,9 +27,9 @@ import mc_cli
 import mc_httpapi
 import mc_remote
 import mc_remoteclient
+import mc_platform
 import mc_remoteserver
 import mc_servers
-import platform_linux
 from apiclient import Client, api_environment
 from mc_remoteclient import Remote
 from test_openapi import SPEC
@@ -65,7 +65,7 @@ class RemoteCase(unittest.TestCase):
         stack.enter_context(mock.patch.object(mc_remote, "PAIR_DELAY_S", 0))
         self.firewall = {}
         for name, value in FIREWALL.items():
-            self.firewall[name] = stack.enter_context(mock.patch.object(platform_linux, name, mock.Mock(return_value=value)))
+            self.firewall[name] = stack.enter_context(mock.patch.object(mc_platform._load(), name, mock.Mock(return_value=value)))
         mc_remote._PAIRING["locks"].clear()
         mc_remote._SEEN.clear()
         mc_remote._CACHE.clear()
