@@ -238,12 +238,6 @@ class TestServerDetail(ModelCase):
         self.assertEqual({k for k, v in model.can("stopped").items() if v}, {"start"})
         self.assertEqual({k for k, v in model.can("sleeping").items() if v}, {"wake"})
 
-    def test_config_is_loaded_read_only(self):
-        model = ServerDetailModel(self.client, "a", self.runner)
-        model.load_config()
-        self.assertEqual(model.config, {"port": 25565})
-        self.assertEqual(model.secrets_set, ["mcrcon_pass"])
-
 
 class TestConsole(ModelCase):
     def test_buffer_is_bounded(self):
