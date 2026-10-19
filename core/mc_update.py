@@ -188,11 +188,11 @@ def parse_sums(text):
     return sums
 
 
-def verify_package(package_path, sums_bytes, signature, asset_name=ASSET_NAME, public_key=None):
+def verify_package(package_path, sums_bytes, signature, asset_name=None, public_key=None):
     """(ok, code): signature of SHA256SUMS first, then the package hash."""
     if not mc_sig.verify(public_key or RELEASE_PUBLIC_KEY, sums_bytes, signature):
         return False, "bad_signature"
-    expected = parse_sums(sums_bytes.decode("utf-8", "replace")).get(asset_name)
+    expected = parse_sums(sums_bytes.decode("utf-8", "replace")).get(asset_name or ASSET_NAME)
     if not expected:
         return False, "not_listed"
     digest = hashlib.sha256()
