@@ -54,6 +54,7 @@ class SharedRegistryPathTests(unittest.TestCase):
         self.assertEqual(mc_servers.resolve_path("X:\\MCData\\Servers\\s"),
                          "X:\\MCData\\Servers\\s")
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX path literals")
     def test_round_trip(self):
         original = "/mnt/shared/MCData/Servers/survie/Server"
         self.assertEqual(mc_servers.resolve_path(mc_servers.to_portable(original)),

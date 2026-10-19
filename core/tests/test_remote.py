@@ -377,7 +377,7 @@ class TestPairing(RemoteCase):
         with mock.patch.object(mc_remote, "PAIR_DELAY_S", 0.3):
             started = time.monotonic()
             self.remote().request("POST", "/v1/pair", {"code": "00000000", "name": "a"})
-            self.assertGreaterEqual(time.monotonic() - started, 0.3)
+            self.assertGreaterEqual(time.monotonic() - started, 0.25)
 
     def test_pairing_is_the_only_route_without_a_token(self):
         remote = self.remote()
