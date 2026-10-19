@@ -276,6 +276,95 @@ class ApiClient:
         path = "/v1/servers/%s/backups/%s/restore" % (self.ref(server), self.ref(backup))
         return self.call("POST", path, {"confirm": True})[1]
 
+    def list_mods(self, server):
+        return self.get("/v1/servers/%s/mods" % self.ref(server))
+
+    def add_mod(self, server, ref, source=None, server_only=False):
+        body = {"ref": ref}
+        if source:
+            body["source"] = source
+        if server_only:
+            body["server_only"] = True
+        return self.call("POST", "/v1/servers/%s/mods" % self.ref(server), body)[1]
+
+    def remove_mod(self, server, mod, confirm_blocks=False):
+        path = "/v1/servers/%s/mods/%s" % (self.ref(server), self.ref(mod))
+        return self.call("DELETE", path + ("?confirm_blocks=true" if confirm_blocks else ""))[1]
+
+    def update_mods(self, server, name=None):
+        return self.call("POST", "/v1/servers/%s/mods/update" % self.ref(server), {"name": name})[1]
+
+    def list_datapacks(self, server):
+        return self.get("/v1/servers/%s/datapacks" % self.ref(server))
+
+    def set_datapack(self, server, pack, enabled, placement=None):
+        body = {"enabled": bool(enabled)}
+        if enabled and placement:
+            body[placement] = True
+        return self.call("PUT", "/v1/servers/%s/datapacks/%s" % (self.ref(server), self.ref(pack)), body)[1]
+
+    def list_worlds(self, server):
+        return self.get("/v1/servers/%s/worlds" % self.ref(server))
+
+    def pregen_status(self, server):
+        return self.get("/v1/servers/%s/worlds/pregen" % self.ref(server))
+
+    def start_pregen(self, server, radius, center=None):
+        body = {"radius": radius}
+        if center:
+            body["center"] = center
+        return self.call("POST", "/v1/servers/%s/worlds/pregen" % self.ref(server), body)[1]
+
+    def reset_dimension(self, server, dimension, include_overworld=False):
+        path = "/v1/servers/%s/worlds/%s/reset" % (self.ref(server), self.ref(dimension))
+        return self.call("POST", path, {"confirmed": True, "include_overworld": bool(include_overworld)})[1]
+
+    def list_tasks(self, server):
+        return self.get("/v1/servers/%s/tasks" % self.ref(server))
+
+    def create_task(self, server, action, cron, name=None, command=None, warn=None):
+        body = {"action": action, "cron": cron}
+        for key, value in (("name", name), ("command", command), ("warn", warn)):
+            if value:
+                body[key] = value
+        return self.call("POST", "/v1/servers/%s/tasks" % self.ref(server), body)[1]
+
+    def update_task(self, server, task, enabled):
+        path = "/v1/servers/%s/tasks/%s" % (self.ref(server), self.ref(task))
+        return self.call("PATCH", path, {"enabled": bool(enabled)})[1]
+
+    def delete_task(self, server, task):
+        return self.call("DELETE", "/v1/servers/%s/tasks/%s" % (self.ref(server), self.ref(task)))[1]
+
+    def run_task(self, server, task, skip_warn=False):
+        path = "/v1/servers/%s/tasks/%s/run" % (self.ref(server), self.ref(task))
+        return self.call("POST", path, {"skip_warn": bool(skip_warn)})[1]
+
+    def set_config_value(self, server, key, value):
+        path = "/v1/servers/%s/config/%s" % (self.ref(server), self.ref(key))
+        return self.call("PUT", path, {"value": value})[1]
+
+    def set_mode(self, server, mode):
+        return self.call("PUT", "/v1/servers/%s/mode" % self.ref(server), {"mode": mode})[1]
+
+    def set_schedule(self, server, open_hour, open_minute, close_hour, close_minute):
+        body = {"open_hour": open_hour, "open_minute": open_minute,
+                "close_hour": close_hour, "close_minute": close_minute}
+        return self.call("PUT", "/v1/servers/%s/schedule" % self.ref(server), body)[1]
+
+    def server_java(self, server):
+        return self.get("/v1/servers/%s/java" % self.ref(server))
+
+    def set_server_java(self, server, choice):
+        return self.call("PUT", "/v1/servers/%s/java" % self.ref(server), {"choice": str(choice)})[1]
+
+    def create_server(self, name, loader, accept_eula, version=None, ram=None, port=None, rcon_port=None):
+        body = {"name": name, "loader": loader, "accept_eula": bool(accept_eula)}
+        for key, value in (("version", version), ("ram", ram), ("port", port), ("rcon_port", rcon_port)):
+            if value:
+                body[key] = value
+        return self.call("POST", "/v1/servers", body)[1]
+
     def wait_job(self, job_id, timeout=3600, step=0.5, sleep=time.sleep, now=time.time, on_progress=None):
         end = now() + timeout
         while now() < end:

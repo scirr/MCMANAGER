@@ -39,6 +39,15 @@ class FakeClient:
         self.action_status = 200
         self.streams = []
         self.backups = []
+        self.mods = []
+        self.packs = []
+        self.running = True
+        self.dimensions = []
+        self.pregen = {"progress": "idle"}
+        self.tasks = []
+        self.config_doc = {"config": {"port": 25565}, "secrets_set": ["mcrcon_pass"]}
+        self.java_doc = {"runtimes": {}, "servers": []}
+        self.result = {}
 
     def _check(self, name):
         if name in self.fail:
@@ -84,7 +93,7 @@ class FakeClient:
         if on_progress:
             on_progress(40)
         self._check("wait")
-        return {}
+        return dict(self.result)
 
     def list_backups(self, name):
         self._check("backups")
@@ -102,7 +111,81 @@ class FakeClient:
 
     def config(self, name):
         self._check("config")
-        return {"config": {"port": 25565}, "secrets_set": ["mcrcon_pass"]}
+        return self.config_doc
+
+    def _record(self, key, *call):
+        self._check(key)
+        self.calls.append((key,) + call)
+        return {"id": "j_" + key, **self.result}
+
+    def list_mods(self, name):
+        self._check("list_mods")
+        return {"mods": self.mods}
+
+    def add_mod(self, name, ref, source=None, server_only=False):
+        return self._record("add_mod", ref, source, server_only)
+
+    def remove_mod(self, name, mod, confirm_blocks=False):
+        return self._record("remove_mod", mod, confirm_blocks)
+
+    def update_mods(self, name, target=None):
+        return self._record("update_mods", target)
+
+    def list_datapacks(self, name):
+        self._check("list_datapacks")
+        return {"running": self.running, "packs": self.packs}
+
+    def set_datapack(self, name, pack, enabled, placement=None):
+        return self._record("set_datapack", pack, enabled, placement)
+
+    def list_worlds(self, name):
+        self._check("list_worlds")
+        return {"dimensions": self.dimensions, "size_bytes": sum(d.get("size_bytes", 0) for d in self.dimensions)}
+
+    def pregen_status(self, name):
+        self._check("pregen_status")
+        return self.pregen
+
+    def start_pregen(self, name, radius, center=None):
+        return self._record("start_pregen", radius, center)
+
+    def reset_dimension(self, name, dimension, include_overworld=False):
+        return self._record("reset_dimension", dimension, include_overworld)
+
+    def list_tasks(self, name):
+        self._check("list_tasks")
+        return {"tasks": self.tasks}
+
+    def create_task(self, name, action, cron, task_name=None, command=None, warn=None):
+        return self._record("create_task", action, cron, task_name, command, warn)
+
+    def update_task(self, name, task, enabled):
+        return self._record("update_task", task, enabled)
+
+    def delete_task(self, name, task):
+        return self._record("delete_task", task)
+
+    def run_task(self, name, task, skip_warn=False):
+        return self._record("run_task", task, skip_warn)
+
+    def set_config_value(self, name, key, value):
+        return self._record("set_config", key, value)
+
+    def set_mode(self, name, mode):
+        return self._record("set_mode", mode)
+
+    def set_schedule(self, name, *times):
+        return self._record("set_schedule", *times)
+
+    def server_java(self, name):
+        self._check("server_java")
+        return self.java_doc
+
+    def set_server_java(self, name, choice):
+        return self._record("set_java", choice)
+
+    def create_server(self, name, loader, accept_eula, version=None, ram=None, port=None, rcon_port=None):
+        return self._record("create_server", name, loader, version, ram, port, rcon_port)
 
     def send_command(self, name, command):
         self.calls.append((name, "cmd", command))

@@ -11,6 +11,7 @@ from .. import APP_ID, client as api  # noqa: E402
 from ..i18n import t  # noqa: E402
 from ..models import ConnectionModel, ServerListModel  # noqa: E402
 from .common import make_runner  # noqa: E402
+from .create import add_server_button  # noqa: E402
 from .detail import ServerDetailPage  # noqa: E402
 from .server_list import ServerListView, refresh_button  # noqa: E402
 from .welcome import RemotePage, WelcomePage  # noqa: E402
@@ -88,6 +89,7 @@ class MainWindow(Adw.ApplicationWindow):
         sidebar_view = Adw.ToolbarView()
         header = Adw.HeaderBar(title_widget=Gtk.Label(label=t("servers")))
         header.pack_start(refresh_button(self.list_model))
+        header.pack_start(add_server_button(client, self, self.toast, self.server_created))
         header.pack_end(self.build_menu())
         sidebar_view.add_top_bar(header)
         sidebar_view.set_content(ServerListView(self.list_model, self.select))
@@ -99,6 +101,10 @@ class MainWindow(Adw.ApplicationWindow):
         self.navigation.replace([page])
         self.list_model.refresh()
         self.list_model.start_events()
+
+    def server_created(self, name):
+        self.list_model.refresh()
+        self.select(name)
 
     def placeholder_view(self):
         view = Adw.ToolbarView()

@@ -1,3 +1,5 @@
+import glob
+import os
 import re
 import unittest
 
@@ -36,6 +38,44 @@ class TestI18n(unittest.TestCase):
         for code in ("unauthorized", "forbidden", "not_found", "server_running", "console_offline", "bad_pair_code",
                      "invalid_name", "kick_offline", "player_not_online", "rcon_failed", "backup_not_found", "backup_failed", "stop_first", "confirm_required"):
             self.assertNotIn("(", i18n.error_text(code))
+
+    def test_every_literal_key_used_by_the_sources_exists(self):
+        package = os.path.join(os.path.dirname(__file__), "..", "mcmanager_app")
+        missing = set()
+        for path in glob.glob(os.path.join(package, "**", "*.py"), recursive=True):
+            with open(path, encoding="utf-8") as handle:
+                source = handle.read()
+            for key in re.findall(r"(?<![\w.])t\(\"([a-z_0-9-]+)\"[,)]", source):
+                if key not in i18n.TEXTS["en"]:
+                    missing.add(key)
+        self.assertEqual(missing, set())
+
+    def test_computed_keys_exist(self):
+        from mcmanager_app import panels
+        keys = ["mod_source_" + (source or "auto") for source in panels.MOD_SOURCES]
+        keys += ["pack_placement_" + (item or "default") for item in panels.DATAPACK_PLACEMENTS]
+        keys += ["task_action_" + action for action in panels.TASK_ACTIONS]
+        keys += ["mode_" + mode for mode in panels.MODES]
+        keys += ["secret_" + key for key in panels.SECRET_KEYS]
+        keys += ["setting_" + key for key in panels.SETTING_KINDS]
+        keys += ["settings_" + name for name, _fields in panels.SETTING_GROUPS]
+        keys += ["pack_problem_nested", "pack_problem_not_a_pack", "pack_enable_name", "pack_disable_name",
+                 "task_enable_name", "task_disable_name", "dimension_overworld", "dimension_nether", "dimension_end"]
+        self.assertEqual([key for key in keys if key not in i18n.TEXTS["en"]], [])
+
+    def test_api_error_codes_of_the_tabs_are_translated(self):
+        for code in ("forbidden", "mod_not_found", "mod_exists", "mod_ambiguous", "defines_blocks", "pack_not_found",
+                     "pack_nested", "pack_not_a_pack", "pack_broken_worldgen", "task_not_found", "task_name_taken",
+                     "invalid_cron", "invalid_warn", "command_required", "warn_not_allowed", "chunky_missing",
+                     "pregen_offline", "invalid_radius", "invalid_center", "overworld_protected", "unknown_dimension",
+                     "confirmation_required", "invalid_value", "key_not_found", "config_conflict", "java_bad_choice",
+                     "invalid_time", "name_required", "unknown_loader", "eula_required", "folder_not_empty",
+                     "job_failed", "server_offline", "stop_first", "server_running"):
+            self.assertNotIn("(", i18n.error_text(code), code)
+
+    def test_unknown_code_falls_back_on_the_api_message(self):
+        self.assertEqual(i18n.error_text("brand_new", "Readable text"), "Readable text")
+        self.assertIn("brand_new", i18n.error_text("brand_new"))
 
 
 if __name__ == "__main__":

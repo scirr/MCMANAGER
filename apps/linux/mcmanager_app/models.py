@@ -185,8 +185,6 @@ class ServerDetailModel(Observable):
         self.busy = None
         self.error = None
         self.message = None
-        self.config = {}
-        self.secrets_set = []
 
     def run_action(self, action):
         if action not in ACTIONS:
@@ -210,17 +208,6 @@ class ServerDetailModel(Observable):
             self.error = error_text(error.code)
         else:
             self.message = t("action_%s_done" % action)
-        self.notify()
-
-    def load_config(self):
-        self.runner.run(lambda: self.client.config(self.name), self._config_loaded)
-
-    def _config_loaded(self, document, error):
-        if error:
-            self.error = error_text(error.code)
-        else:
-            self.config = document.get("config") or {}
-            self.secrets_set = document.get("secrets_set") or []
         self.notify()
 
     def can(self, state):
