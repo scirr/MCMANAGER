@@ -44,6 +44,7 @@ class SharedRegistryPathTests(unittest.TestCase):
         resolved = mc_servers.resolve_path("Servers/survie/Server")
         self.assertEqual(resolved, "/run/media/cris/DISK/MCData/Servers/survie/Server")
 
+    @unittest.skipIf(sys.platform == "win32", "Linux reading a registry written on Windows")
     def test_windows_backslashes_are_normalised(self):
         resolved = mc_servers.resolve_path("Servers\\survie\\Server")
         self.assertEqual(resolved, "/mnt/shared/MCData/Servers/survie/Server")

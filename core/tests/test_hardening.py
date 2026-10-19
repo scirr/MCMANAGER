@@ -131,16 +131,17 @@ class TestSleepLimits(unittest.TestCase):
         try:
             held = [socket.create_connection(("127.0.0.1", port), timeout=5) for _ in range(mc_sleep.MAX_PER_IP)]
             time.sleep(0.3)
-            extra = socket.create_connection(("127.0.0.1", port), timeout=5)
-            extra.settimeout(3)
             try:
+                extra = socket.create_connection(("127.0.0.1", port), timeout=5)
+                extra.settimeout(3)
                 data = extra.recv(1)
-            except (ConnectionResetError, OSError):
-                data = b""
+            except OSError:
+                extra, data = None, b""
             self.assertEqual(data, b"")          # refused at once
             for c in held:
                 c.close()
-            extra.close()
+            if extra:
+                extra.close()
         finally:
             listener.stop()
         deadline = time.monotonic() + 3
