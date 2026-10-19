@@ -10,6 +10,12 @@ public final class ServerDetailViewModel {
     public let name: String
     public let console: ConsoleViewModel
     public let players: PlayersViewModel
+    public let backups: BackupsViewModel
+    public let mods: ModsViewModel
+    public let datapacks: DatapacksViewModel
+    public let world: WorldViewModel
+    public let tasks: TasksViewModel
+    public let settings: SettingsViewModel
     public private(set) var state = ""
     public private(set) var version = ""
     public private(set) var ramText = "-"
@@ -26,6 +32,12 @@ public final class ServerDetailViewModel {
         self.name = name
         console = ConsoleViewModel(client: client, errors: errors, server: name)
         players = PlayersViewModel(client: client, errors: errors, server: name)
+        backups = BackupsViewModel(client: client, errors: errors, server: name)
+        mods = ModsViewModel(client: client, errors: errors, server: name)
+        datapacks = DatapacksViewModel(client: client, errors: errors, server: name)
+        world = WorldViewModel(client: client, errors: errors, server: name)
+        tasks = TasksViewModel(client: client, errors: errors, server: name)
+        settings = SettingsViewModel(client: client, errors: errors, server: name)
     }
 
     public var canStart: Bool { !isBusy && Self.startable.contains(state) }

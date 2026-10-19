@@ -164,7 +164,11 @@ On first launch, choose **This machine** or **A remote server** (address, finger
 
 ### Desktop app (Windows)
 
+<<<<<<< HEAD
 `apps/windows/` holds a WinUI 3 app (C#, .NET 8, Windows App SDK 1.6, unpackaged, no MSIX). It never reads MC Manager files: it reads the port and the token the daemon writes to `run/api.token` and talks to the local `/v1` API on `127.0.0.1`. It shows the server list (state, players, RAM), start/stop/restart/resume, the live console, the player lists (whitelist, ops, bans, kick), backups, mods, datapacks, worlds (sizes, pre-generation, dimension reset), scheduled tasks and the server settings (mode, hours, Java, configuration keys; secret values are write-only), plus a wizard to create a server. Texts follow the system language (English or French).
+=======
+`apps/windows/` holds a WinUI 3 app (C#, .NET 8, Windows App SDK 1.6, unpackaged, no MSIX). It never reads MC Manager files: it reads the port and the token the daemon writes to `run/api.token` and talks to the local `/v1` API on `127.0.0.1`. It shows the server list (state, players, RAM), start/stop/restart/resume, the live console, the player lists (whitelist, ops, bans, kick), backups, mods, datapacks, world, scheduled tasks, settings and a server creation wizard. A paired remote MC Manager can be used too: the certificate fingerprint is pinned and compared in constant time, and the device token is kept in the macOS keychain. Texts follow the system language (English or French).
+>>>>>>> feat/3.0-app-macos-onglets
 
 | Project | Role |
 |---|---|
@@ -182,7 +186,7 @@ dotnet build MCManager.App -c Release -p:Platform=x64   # Windows only
 
 ### Desktop app (macOS)
 
-`apps/macos/` holds a SwiftUI app (Swift 5.10, macOS 14+) built with SwiftPM, no Xcode project. It never reads MC Manager files: it talks to the local `/v1` API through the Unix socket `run/api.sock`, found by `MCMANAGER_RUN_DIR` or by the `WorkingDirectory` of the `io.github.scirr.mcmanager` LaunchAgent. It shows the server list (state, RAM), start/stop/restart/resume, the live console and the player lists (whitelist, ops, bans, kick). Texts follow the system language (English or French).
+`apps/macos/` holds a SwiftUI app (Swift 5.10, macOS 14+) built with SwiftPM, no Xcode project. It never reads MC Manager files: it talks to the local `/v1` API through the Unix socket `run/api.sock`, found by `MCMANAGER_RUN_DIR` or by the `WorkingDirectory` of the `io.github.scirr.mcmanager` LaunchAgent. It shows the server list (state, RAM), start/stop/restart/resume, the live console, the player lists (whitelist, ops, bans, kick), backups, mods, datapacks, world, scheduled tasks, settings and a server creation wizard. A paired remote MC Manager can be used too: the certificate fingerprint is pinned and compared in constant time, and the device token is kept in the macOS keychain. Texts follow the system language (English or French).
 
 | Target | Role |
 |---|---|

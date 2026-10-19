@@ -12,6 +12,18 @@ struct ServerDetailView: View {
                     .tabItem { Label(tr("Console"), systemImage: "terminal") }
                 PlayersView(model: model.players)
                     .tabItem { Label(tr("Players"), systemImage: "person.2") }
+                BackupsView(model: model.backups)
+                    .tabItem { Label(tr("Backups"), systemImage: "externaldrive") }
+                ModsView(model: model.mods)
+                    .tabItem { Label(tr("Mods"), systemImage: "puzzlepiece.extension") }
+                DatapacksView(model: model.datapacks)
+                    .tabItem { Label(tr("Datapacks"), systemImage: "shippingbox") }
+                WorldView(model: model.world)
+                    .tabItem { Label(tr("World"), systemImage: "globe") }
+                TasksView(model: model.tasks)
+                    .tabItem { Label(tr("Tasks"), systemImage: "calendar.badge.clock") }
+                SettingsView(model: model.settings)
+                    .tabItem { Label(tr("Settings"), systemImage: "gearshape") }
             }
         }
         .padding()

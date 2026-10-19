@@ -21,6 +21,24 @@ struct ContentView: View {
             }
         }
         .task { await model.connect() }
+        .toolbar { ConnectionMenu(model: model) }
+        .sheet(isPresented: Binding(
+            get: { model.createWizard != nil },
+            set: { if !$0 { model.createWizard = nil } }
+        )) {
+            if let wizard = model.createWizard {
+                CreateServerView(model: wizard, finished: { name in Task { await model.createFinished(name) } },
+                                 cancel: { model.createWizard = nil })
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { model.pairingWizard != nil },
+            set: { if !$0 { model.pairingClosed() } }
+        )) {
+            if let wizard = model.pairingWizard {
+                PairingView(model: wizard, close: { model.pairingClosed() })
+            }
+        }
         .alert(
             tr("Something went wrong"),
             isPresented: Binding(
@@ -53,6 +71,13 @@ struct ServerSplitView: View {
                 }
             }
             .toolbar {
+                Button {
+                    model.openCreateWizard()
+                } label: {
+                    Label(tr("New server"), systemImage: "plus")
+                }
+                .help(tr("New server"))
+                .accessibilityLabel(tr("New server"))
                 Button {
                     Task { await list.refresh() }
                 } label: {
@@ -98,6 +123,38 @@ struct ServerRow: View {
         case "starting", "sleeping", "maintenance": return .orange
         case "crashed", "error": return .red
         default: return .gray
+        }
+    }
+}
+
+struct ConnectionMenu: ToolbarContent {
+    let model: AppModel
+
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            Menu {
+                ForEach(model.connection.targets) { target in
+                    Button {
+                        model.select(target.id)
+                    } label: {
+                        if target.id == model.connection.selectedID {
+                            Label(target.isLocal ? tr("This Mac") : target.name, systemImage: "checkmark")
+                        } else {
+                            Text(verbatim: target.isLocal ? tr("This Mac") : target.name)
+                        }
+                    }
+                }
+                Divider()
+                Button(tr("Add a remote...")) { model.openPairingWizard() }
+                if !model.connection.selected.isLocal {
+                    Button(tr("Remove this remote"), role: .destructive) { model.removeSelectedRemote() }
+                }
+            } label: {
+                Label(model.connection.selected.isLocal ? tr("This Mac") : model.connection.selected.name,
+                      systemImage: model.connection.selected.isLocal ? "desktopcomputer" : "network")
+            }
+            .help(tr("Connection"))
+            .accessibilityLabel(tr("Connection"))
         }
     }
 }
