@@ -48,7 +48,7 @@ public interface IMcClient
 
     Task<DatapackList> ListDatapacksAsync(string server, CancellationToken ct = default);
 
-    Task<DatapackSet> SetDatapackEnabledAsync(string server, string pack, bool enabled, CancellationToken ct = default);
+    Task<DatapackSet> SetDatapackEnabledAsync(string server, string pack, bool enabled, string? placement = null, CancellationToken ct = default);
 
     Task<WorldList> ListWorldsAsync(string server, CancellationToken ct = default);
 
@@ -75,6 +75,10 @@ public interface IMcClient
     Task<OperationResult> SetServerModeAsync(string server, string mode, CancellationToken ct = default);
 
     Task<OperationResult> SetServerScheduleAsync(string server, ScheduleRequest schedule, CancellationToken ct = default);
+
+    Task<SleepSettings> GetSleepSettingsAsync(string server, CancellationToken ct = default);
+
+    Task<SleepSettings> SetSleepSettingsAsync(string server, SleepSettingsRequest request, CancellationToken ct = default);
 
     Task<JavaRuntimes> ListServerJavaAsync(string server, CancellationToken ct = default);
 

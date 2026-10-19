@@ -5,7 +5,7 @@ using MCManager.Client;
 
 namespace MCManager.ViewModels;
 
-public sealed record DimensionItem(string Id, string SizeText);
+public sealed record DimensionItem(string Id, string SizeText, bool CanWrite = true);
 
 public sealed partial class WorldViewModel : TabViewModel
 {
@@ -15,6 +15,8 @@ public sealed partial class WorldViewModel : TabViewModel
     }
 
     public ObservableCollection<DimensionItem> Dimensions { get; } = new();
+
+    protected override void ReadOnlyChanged() => Replace(Dimensions, item => item with { CanWrite = !IsReadOnly });
 
     [ObservableProperty]
     private string _totalSizeText = "-";
@@ -37,7 +39,7 @@ public sealed partial class WorldViewModel : TabViewModel
             Dimensions.Clear();
             foreach (var dimension in worlds.Dimensions)
             {
-                Dimensions.Add(new DimensionItem(dimension.Id, BackupsViewModel.FormatSize(dimension.SizeBytes)));
+                Dimensions.Add(new DimensionItem(dimension.Id, BackupsViewModel.FormatSize(dimension.SizeBytes), !IsReadOnly));
             }
             TotalSizeText = BackupsViewModel.FormatSize(worlds.SizeBytes);
         });

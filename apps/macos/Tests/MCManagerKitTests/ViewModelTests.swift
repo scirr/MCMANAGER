@@ -122,6 +122,17 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(model.lines.first, "l5")
     }
 
+    func testPlayersForbiddenWriteTurnsTheListsReadOnly() async {
+        let transport = FakeTransport()
+        transport.on("POST", "/v1/servers/survie/kick", status: 403, json: #"{"ok":false,"code":"forbidden","message":"No."}"#)
+        let errors = ErrorReporter()
+        let model = PlayersViewModel(client: McClient(transport: transport), errors: errors, server: "survie")
+        XCTAssertFalse(model.isReadOnly)
+        await model.kick("Steve")
+        XCTAssertTrue(model.isReadOnly)
+        XCTAssertEqual(errors.current?.code, "forbidden")
+    }
+
     func testPlayersAddRemoveAndKick() async {
         let transport = FakeTransport()
         transport.on("GET", "/v1/servers/survie/lists/whitelist", json: #"{"ok":true,"entries":[]}"#)

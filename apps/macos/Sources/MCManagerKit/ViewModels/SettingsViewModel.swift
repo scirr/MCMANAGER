@@ -30,13 +30,15 @@ public final class SettingsViewModel {
         "nom_serveur", "port", "rcon_port", "ram_allocation", "cpu_affinity", "jar_name", "domaine",
         "dossier_backup", "backup_retention_days", "backup_keep", "stop_timeout",
         "internal_port", "metrics_bind", "metrics_allow_remote",
-        "sleep_freeze", "sleep_hold_timeout", "sleep_join_mode", "sleep_proxy_protocol",
+        "sleep_hold_timeout", "sleep_proxy_protocol",
         "mcrcon_pass", "webhook_url", "curseforge_api_key", "backup_encrypt_key_file",
     ]
     public static let secretKeys = [
         "mcrcon_pass", "webhook_url", "curseforge_api_key", "backup_encrypt_key_file", "alerts", "backup_remotes",
     ]
     public static let modes = ["schedule", "always-on", "maintenance"]
+    public static let joinModes = ["kick", "hold"]
+    public static let sleepMinimumMinutes = 5
     public static let systemJava = "system"
 
     public private(set) var items: [SettingItem] = []
@@ -45,12 +47,17 @@ public final class SettingsViewModel {
     public var openTime = ""
     public var closeTime = ""
     public var javaChoice = ""
+    public var sleepEnabled = false
+    public var sleepMinutes = ""
+    public var sleepJoinMode = "kick"
+    public var sleepFreeze = false
     public let tab: TabRunner
 
     @ObservationIgnored private let client: McClientProtocol
     @ObservationIgnored private let errors: ErrorReporter
     @ObservationIgnored private let server: String
     @ObservationIgnored private var loadedJava = ""
+    @ObservationIgnored private var loadedSleep = SleepSettings(enabled: false, afterS: 0)
 
     public init(client: McClientProtocol, errors: ErrorReporter, server: String) {
         self.client = client
@@ -80,8 +87,9 @@ public final class SettingsViewModel {
             for key in Self.keys {
                 if Self.secretKeys.contains(key) {
                     built.append(SettingItem(key: key, isSecret: true, isSet: configured.contains(key), original: ""))
-                } else if let value = document.config[key] {
-                    built.append(SettingItem(key: key, isSecret: false, isSet: true, original: value.text))
+                } else {
+                    let value = document.config[key]
+                    built.append(SettingItem(key: key, isSecret: false, isSet: value != nil, original: value?.text ?? ""))
                 }
             }
             items = built
@@ -89,11 +97,43 @@ public final class SettingsViewModel {
             openTime = Self.clock(number("heure_ouverture"), number("minute_ouverture"))
             closeTime = Self.clock(number("heure_fermeture"), number("minute_fermeture"))
             mode = try await client.server(server).mode ?? ""
+            applySleep(try await client.sleepSettings(server))
             let java = try await client.serverJava(server)
             let majors = java.runtimes.keys.sorted { (Int($0) ?? Int.max) < (Int($1) ?? Int.max) }
             javaChoices = [Self.systemJava] + majors
             loadedJava = java.servers.first { $0.server == server }?.java?.text ?? Self.systemJava
             javaChoice = loadedJava
+        }
+    }
+
+    private func applySleep(_ sleep: SleepSettings) {
+        loadedSleep = sleep
+        sleepEnabled = sleep.enabled
+        sleepMinutes = String(sleep.afterS / 60)
+        sleepJoinMode = Self.joinModes.contains(sleep.joinMode ?? "") ? sleep.joinMode ?? "kick" : "kick"
+        sleepFreeze = sleep.freeze ?? false
+    }
+
+    public func saveSleep() async {
+        let text = sleepMinutes.trimmingCharacters(in: .whitespaces)
+        guard !text.isEmpty, text.allSatisfy(\.isNumber), let minutes = Int(text) else {
+            errors.show("invalid_value")
+            return
+        }
+        guard minutes >= Self.sleepMinimumMinutes else {
+            errors.show("sleep_after_too_short")
+            return
+        }
+        let request = SleepSettingsRequest(
+            enabled: sleepEnabled, afterS: minutes * 60,
+            joinMode: sleepJoinMode != (loadedSleep.joinMode ?? "kick") ? sleepJoinMode : nil,
+            freeze: sleepFreeze != (loadedSleep.freeze ?? false) ? sleepFreeze : nil)
+        var saved: SleepSettings?
+        if await tab.write({ saved = try await self.client.setSleepSettings(self.server, request: request) }),
+           let saved {
+            applySleep(saved)
+            if !(saved.notes ?? []).isEmpty { tab.restartRequired = true }
+            tab.markDone("sleep")
         }
     }
 

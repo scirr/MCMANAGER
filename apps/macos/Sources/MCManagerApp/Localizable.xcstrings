@@ -1682,32 +1682,12 @@
         }
       }
     },
-    "Sleep: freeze (0/1)": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Veille : gel (0/1)"
-          }
-        }
-      }
-    },
     "Sleep: hold timeout (s)": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Veille : délai de mise en attente (s)"
-          }
-        }
-      }
-    },
-    "Sleep: join mode (kick/hold)": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Veille : mode de connexion (kick/hold)"
           }
         }
       }
@@ -2288,6 +2268,206 @@
           "stringUnit": {
             "state": "translated",
             "value": "non défini"
+          }
+        }
+      }
+    },
+    "Sleep": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mise en veille"
+          }
+        }
+      }
+    },
+    "The server stops after a period without players and wakes when a known player joins.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le serveur s'arrête après un temps sans joueur et se réveille quand un joueur connu se connecte."
+          }
+        }
+      }
+    },
+    "Sleep when idle": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veille quand le serveur est inactif"
+          }
+        }
+      }
+    },
+    "Idle minutes before sleeping (at least 5)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Minutes d'inactivité avant la veille (au moins 5)"
+          }
+        }
+      }
+    },
+    "Join mode": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mode de connexion"
+          }
+        }
+      }
+    },
+    "Freeze instead of stopping": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geler au lieu d'arrêter"
+          }
+        }
+      }
+    },
+    "Freezing needs the hold join mode and is not available on a Windows server.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le gel demande le mode de connexion hold et n'existe pas sur un serveur Windows."
+          }
+        }
+      }
+    },
+    "Refuse while it wakes (kick)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refuser pendant le réveil (kick)"
+          }
+        }
+      }
+    },
+    "Hold until it is up (hold)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Garder jusqu'au démarrage (hold)"
+          }
+        }
+      }
+    },
+    "Default": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Par défaut"
+          }
+        }
+      }
+    },
+    "After built-in packs": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Après les packs intégrés"
+          }
+        }
+      }
+    },
+    "Last": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En dernier"
+          }
+        }
+      }
+    },
+    "Before vanilla": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avant vanilla"
+          }
+        }
+      }
+    },
+    "Position when enabling": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Position à l'activation"
+          }
+        }
+      }
+    },
+    "Not connected": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non connecté"
+          }
+        }
+      }
+    },
+    "Invalid value": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valeur invalide"
+          }
+        }
+      }
+    },
+    "The idle time must be at least 5 minutes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'inactivité doit durer au moins 5 minutes"
+          }
+        }
+      }
+    },
+    "Sleep needs RCON to count players: set a RCON password first": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La veille a besoin de RCON pour compter les joueurs : définissez d'abord un mot de passe RCON"
+          }
+        }
+      }
+    },
+    "The hold time must be between 10 and 600 seconds": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'attente doit durer entre 10 et 600 secondes"
+          }
+        }
+      }
+    },
+    "Not available on a Windows server": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indisponible sur un serveur Windows"
           }
         }
       }

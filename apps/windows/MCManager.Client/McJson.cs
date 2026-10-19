@@ -42,6 +42,8 @@ namespace MCManager.Client;
 [JsonSerializable(typeof(ConfigSet))]
 [JsonSerializable(typeof(ModeRequest))]
 [JsonSerializable(typeof(ScheduleRequest))]
+[JsonSerializable(typeof(SleepSettings))]
+[JsonSerializable(typeof(SleepSettingsRequest))]
 [JsonSerializable(typeof(JavaRuntimes))]
 [JsonSerializable(typeof(JavaUseRequest))]
 [JsonSerializable(typeof(JavaUsed))]

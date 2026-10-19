@@ -50,5 +50,10 @@ let errorTexts: [String: String.LocalizationValue] = [
     "java_bad_choice": "Invalid Java choice",
     "job_failed": "The operation failed",
     "job_cancelled": "The operation was cancelled",
+    "invalid_value": "Invalid value",
+    "sleep_after_too_short": "The idle time must be at least 5 minutes",
+    "sleep_needs_rcon": "Sleep needs RCON to count players: set a RCON password first",
+    "sleep_hold_timeout_range": "The hold time must be between 10 and 600 seconds",
+    "unsupported_on_windows": "Not available on a Windows server",
     "keychain_failed": "Could not save the access token in the keychain",
 ]

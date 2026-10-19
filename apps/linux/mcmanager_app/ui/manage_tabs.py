@@ -5,7 +5,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gtk  # noqa: E402
 
 from ..i18n import t  # noqa: E402
-from ..panels import (MODES, SECRET_KEYS, SETTING_GROUPS, TASK_ACTIONS, WARN_ACTIONS, SettingsModel,  # noqa: E402
+from ..panels import (JOIN_MODES, MODES, SECRET_KEYS, SETTING_GROUPS, TASK_ACTIONS, WARN_ACTIONS, SettingsModel,  # noqa: E402
                       TasksModel)
 from .common import (clear_rows, combo_row, confirm_dialog, entry_row, flush, icon_button, make_runner,  # noqa: E402
                      progress_bar, show_progress, text_button)
@@ -129,6 +129,17 @@ class SettingsTab(Adw.PreferencesPage):
             run.add(widget)
         self.add(run)
         self.groups.append(run)
+        self.sleep_group = Adw.PreferencesGroup(title=t("settings_sleep"), description=t("settings_sleep_hint"))
+        self.sleep_enabled = Adw.SwitchRow(title=t("sleep_enabled"))
+        self.sleep_minutes = entry_row(t("sleep_minutes"))
+        self.sleep_join = combo_row(t("sleep_join_mode"), [t("sleep_join_" + mode) for mode in JOIN_MODES])
+        self.sleep_freeze = Adw.SwitchRow(title=t("sleep_freeze"), subtitle=t("sleep_freeze_hint"))
+        self.sleep_apply = text_button(t("sleep_apply"), "suggested-action")
+        self.sleep_apply.connect("clicked", lambda _b: self.apply_sleep())
+        for widget in (self.sleep_enabled, self.sleep_minutes, self.sleep_join, self.sleep_freeze, self.sleep_apply):
+            self.sleep_group.add(widget)
+        self.add(self.sleep_group)
+        self.groups.append(self.sleep_group)
         self.secret_group = Adw.PreferencesGroup(title=t("settings_secrets"), description=t("settings_secrets_hint"))
         self.secrets = {}
         for key in SECRET_KEYS:
@@ -146,6 +157,10 @@ class SettingsTab(Adw.PreferencesPage):
     def apply_secret(self, key, entry):
         if self.model.set_secret(key, entry.get_text()):
             entry.set_text("")
+
+    def apply_sleep(self):
+        self.model.set_sleep(self.sleep_enabled.get_active(), self.sleep_minutes.get_text(),
+                             JOIN_MODES[self.sleep_join.get_selected()], self.sleep_freeze.get_active())
 
     def apply_mode(self):
         if not self.loading:
@@ -166,6 +181,12 @@ class SettingsTab(Adw.PreferencesPage):
         self.java.set_model(Gtk.StringList.new([t("java_system") if c == "system" else c for c in model.java_choices]))
         if model.java in model.java_choices:
             self.java.set_selected(model.java_choices.index(model.java))
+        sleep = model.sleep
+        if sleep:
+            self.sleep_enabled.set_active(sleep["enabled"])
+            self.sleep_minutes.set_text(sleep["minutes"])
+            self.sleep_join.set_selected(JOIN_MODES.index(sleep["join_mode"]) if sleep["join_mode"] in JOIN_MODES else 0)
+            self.sleep_freeze.set_active(sleep["freeze"])
         for key, entry in self.secrets.items():
             state = t("secret_set") if key in model.secrets_set else t("secret_unset")
             entry.set_title("%s (%s)" % (t("secret_" + key), state))
@@ -174,7 +195,7 @@ class SettingsTab(Adw.PreferencesPage):
     def refresh(self):
         model = self.model
         signature = (model.values, tuple(model.secrets_set), model.mode, model.open_time, model.close_time,
-                     model.java, tuple(model.java_choices))
+                     model.java, tuple(model.java_choices), tuple(sorted(model.sleep.items())))
         if signature != self.shown:
             self.shown = signature
             self.show_values()

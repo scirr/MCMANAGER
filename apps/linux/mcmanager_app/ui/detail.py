@@ -98,6 +98,7 @@ class PlayersTab(Adw.PreferencesPage):
 
     def refresh(self):
         busy = self.model.busy is not None
+        editable = not self.model.read_only
         for widget in self.online_rows:
             self.online.remove(widget)
         self.online_rows = []
@@ -105,7 +106,7 @@ class PlayersTab(Adw.PreferencesPage):
         self.online.set_title(players_text(self.row) if self.row else "")
         for name in names or [None]:
             widget = Adw.ActionRow(title=name or t("no_players"))
-            if name:
+            if name and editable:
                 button = self.remove_button(t("player_kick", name=name), lambda n=name: self.model.kick(n))
                 button.set_sensitive(not busy)
                 widget.add_suffix(button)
@@ -119,7 +120,7 @@ class PlayersTab(Adw.PreferencesPage):
             for item in entries or [None]:
                 name = item["name"] if item else None
                 widget = Adw.ActionRow(title=name or t("list_empty"))
-                if name:
+                if name and editable:
                     button = self.remove_button(t("player_remove", name=name),
                                                 lambda k=kind, n=name: self.model.remove(k, n))
                     button.set_sensitive(not busy)
@@ -127,6 +128,7 @@ class PlayersTab(Adw.PreferencesPage):
                 self.groups[kind].add(widget)
                 self.rows[kind].append(widget)
             self.entries[kind].set_sensitive(not busy)
+            self.entries[kind].set_visible(editable)
         if self.model.error:
             self.toast(self.model.error)
             self.model.error = None
@@ -167,6 +169,7 @@ class BackupsTab(Adw.PreferencesPage):
 
     def refresh(self):
         busy = self.model.busy is not None
+        editable = not self.model.read_only
         for widget in self.rows:
             self.group.remove(widget)
         self.rows = []
@@ -178,12 +181,14 @@ class BackupsTab(Adw.PreferencesPage):
                 widget = Adw.ActionRow(title=entry["date"], subtitle=subtitle)
                 button = Gtk.Button(label=t("backup_restore"), valign=Gtk.Align.CENTER, sensitive=not busy)
                 button.connect("clicked", lambda _b, e=entry: self.ask_restore(e))
-                widget.add_suffix(button)
+                if editable:
+                    widget.add_suffix(button)
             else:
                 widget = Adw.ActionRow(title=t("backup_empty"))
             self.group.add(widget)
             self.rows.append(widget)
         self.create_button.set_sensitive(not busy)
+        self.create_button.set_visible(editable)
         self.progress.set_visible(busy)
         self.progress.set_fraction(self.model.progress / 100)
         if self.model.error:

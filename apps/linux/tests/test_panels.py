@@ -317,6 +317,40 @@ class TestSettings(PanelCase):
         self.assertFalse(self.model.set_value("unknown", "x"))
         self.assertEqual(self.client.calls, [])
 
+    def test_known_keys_absent_from_the_config_are_editable(self):
+        self.assertEqual(self.model.values["internal_port"], "")
+        self.assertTrue(self.model.set_value("internal_port", "25570"))
+        self.assertTrue(self.model.set_value("metrics_bind", "127.0.0.1"))
+        self.assertTrue(self.model.set_value("metrics_allow_remote", "1"))
+        self.assertEqual(self.client.calls[:3], [("set_config", "internal_port", 25570),
+                                                 ("set_config", "metrics_bind", "127.0.0.1"),
+                                                 ("set_config", "metrics_allow_remote", 1)])
+        self.assertFalse(self.model.set_value("metrics_allow_remote", "2"))
+        self.assertEqual(self.model.error, "Invalid value")
+
+    def test_sleep_is_loaded_in_minutes(self):
+        self.assertEqual(self.model.sleep, {"enabled": False, "minutes": "120", "join_mode": "kick", "freeze": False})
+
+    def test_sleep_sends_only_what_changed(self):
+        self.assertTrue(self.model.set_sleep(True, "30", "kick", False))
+        self.assertEqual(self.client.calls[0], ("set_sleep", {"enabled": True, "after_s": 1800}))
+        self.assertEqual(self.model.message, "Sleep settings saved")
+        self.assertTrue(self.model.set_sleep(True, "30", "hold", True))
+        self.assertEqual(self.client.calls[1][1], {"enabled": True, "after_s": 1800, "join_mode": "hold", "freeze": True})
+
+    def test_sleep_rejects_bad_delay_before_calling(self):
+        self.assertFalse(self.model.set_sleep(True, "4", "kick", False))
+        self.assertEqual(self.model.error, "The idle time must be at least 5 minutes")
+        self.assertFalse(self.model.set_sleep(True, "abc", "kick", False))
+        self.assertFalse(self.model.set_sleep(True, "10", "other", False))
+        self.assertEqual(self.client.calls, [])
+
+    def test_sleep_freeze_refused_on_windows(self):
+        i18n.set_language("fr")
+        self.client.fail["set_sleep"] = "unsupported_on_windows"
+        self.model.set_sleep(True, "30", "hold", True)
+        self.assertEqual(self.model.error, "Indisponible sous Windows")
+
     def test_ram_accepts_megabytes_and_gigabytes(self):
         self.assertTrue(self.model.set_value("ram_allocation", "8G"))
         self.assertTrue(self.model.set_value("ram_allocation", "512M"))

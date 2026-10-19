@@ -63,6 +63,11 @@ class TestBackups(ModelCase):
         self.assertEqual(self.model.error, "Arrêtez d'abord le serveur")
         self.assertIsNone(self.model.busy)
 
+    def test_forbidden_makes_the_list_read_only(self):
+        self.client.fail["create_backup"] = "forbidden"
+        self.model.create()
+        self.assertTrue(self.model.read_only)
+
     def test_unknown_origin_is_shown_as_is(self):
         self.client.backups[0]["type"] = "weird"
         self.model.load()
@@ -101,6 +106,12 @@ class TestPlayers(ModelCase):
     def test_busy_blocks_a_second_action(self):
         self.model.busy = ("op", "add", "x")
         self.assertFalse(self.model.kick("Steve"))
+
+    def test_forbidden_makes_the_lists_read_only(self):
+        self.client.fail["kick"] = "forbidden"
+        self.assertFalse(self.model.read_only)
+        self.model.kick("Steve")
+        self.assertTrue(self.model.read_only)
 
     def test_error_is_translated(self):
         i18n.set_language("fr")

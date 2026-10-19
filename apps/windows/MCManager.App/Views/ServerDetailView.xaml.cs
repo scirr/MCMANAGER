@@ -18,6 +18,8 @@ public sealed partial class ServerDetailView : UserControl
         ModSourceBox.ItemsSource = ModsViewModel.Sources;
         TaskActionBox.ItemsSource = TasksViewModel.Actions;
         ModeBox.ItemsSource = SettingsViewModel.Modes;
+        SleepJoinBox.ItemsSource = SettingsViewModel.JoinModes;
+        DatapackPlacementBox.ItemsSource = DatapacksViewModel.Placements;
         _timer.Tick += OnTick;
     }
 

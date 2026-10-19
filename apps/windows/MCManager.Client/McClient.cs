@@ -103,9 +103,15 @@ public sealed class McClient : IMcClient, IDisposable
     public Task<DatapackList> ListDatapacksAsync(string server, CancellationToken ct = default)
         => SendAsync(HttpMethod.Get, ServerPath(server) + "/datapacks", null, McJson.Default.DatapackList, ct);
 
-    public Task<DatapackSet> SetDatapackEnabledAsync(string server, string pack, bool enabled, CancellationToken ct = default)
+    public Task<DatapackSet> SetDatapackEnabledAsync(string server, string pack, bool enabled, string? placement = null, CancellationToken ct = default)
         => SendAsync(HttpMethod.Put, ServerPath(server) + "/datapacks/" + Ref(pack),
-            new DatapackSetRequest { Enabled = enabled }, McJson.Default.DatapackSet, ct);
+            new DatapackSetRequest
+            {
+                Enabled = enabled,
+                First = enabled && placement == "first" ? true : null,
+                Last = enabled && placement == "last" ? true : null,
+                BeforeVanilla = enabled && placement == "before_vanilla" ? true : null,
+            }, McJson.Default.DatapackSet, ct);
 
     public Task<WorldList> ListWorldsAsync(string server, CancellationToken ct = default)
         => SendAsync(HttpMethod.Get, ServerPath(server) + "/worlds", null, McJson.Default.WorldList, ct);
@@ -150,6 +156,12 @@ public sealed class McClient : IMcClient, IDisposable
 
     public Task<OperationResult> SetServerScheduleAsync(string server, ScheduleRequest schedule, CancellationToken ct = default)
         => SendAsync(HttpMethod.Put, ServerPath(server) + "/schedule", schedule, McJson.Default.OperationResult, ct);
+
+    public Task<SleepSettings> GetSleepSettingsAsync(string server, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Get, ServerPath(server) + "/sleep", null, McJson.Default.SleepSettings, ct);
+
+    public Task<SleepSettings> SetSleepSettingsAsync(string server, SleepSettingsRequest request, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Put, ServerPath(server) + "/sleep", request, McJson.Default.SleepSettings, ct);
 
     public Task<JavaRuntimes> ListServerJavaAsync(string server, CancellationToken ct = default)
         => SendAsync(HttpMethod.Get, ServerPath(server) + "/java", null, McJson.Default.JavaRuntimes, ct);

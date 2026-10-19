@@ -352,6 +352,12 @@ class ApiClient:
                 "close_hour": close_hour, "close_minute": close_minute}
         return self.call("PUT", "/v1/servers/%s/schedule" % self.ref(server), body)[1]
 
+    def sleep_settings(self, server):
+        return self.get("/v1/servers/%s/sleep" % self.ref(server))
+
+    def set_sleep(self, server, **fields):
+        return self.call("PUT", "/v1/servers/%s/sleep" % self.ref(server), fields)[1]
+
     def server_java(self, server):
         return self.get("/v1/servers/%s/java" % self.ref(server))
 

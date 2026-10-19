@@ -48,6 +48,36 @@ struct SettingsView: View {
                     }
                 }
 
+                GroupBox(tr("Sleep")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(verbatim: tr("The server stops after a period without players and wakes when a known player joins."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Toggle(tr("Sleep when idle"), isOn: $model.sleepEnabled)
+                        HStack {
+                            TextField(tr("Idle minutes before sleeping (at least 5)"), text: $model.sleepMinutes)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(maxWidth: 360)
+                            Picker(tr("Join mode"), selection: $model.sleepJoinMode) {
+                                ForEach(SettingsViewModel.joinModes, id: \.self) { mode in
+                                    Text(verbatim: joinModeLabel(mode)).tag(mode)
+                                }
+                            }
+                            .frame(maxWidth: 320)
+                        }
+                        Toggle(tr("Freeze instead of stopping"), isOn: $model.sleepFreeze)
+                        Text(verbatim: tr("Freezing needs the hold join mode and is not available on a Windows server."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        HStack {
+                            Spacer()
+                            Button(tr("Save")) { Task { await model.saveSleep() } }
+                                .disabled(!model.tab.canAct)
+                        }
+                    }
+                    .disabled(model.tab.isReadOnly)
+                }
+
                 GroupBox(tr("Server settings")) {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(model.items, id: \.key) { item in

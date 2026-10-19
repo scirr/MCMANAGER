@@ -190,9 +190,9 @@ internal sealed class FakeClient : IMcClient
         return Task.FromResult(new DatapackList { Ok = true, Running = PacksRunning, Packs = Packs.ToList() });
     }
 
-    public Task<DatapackSet> SetDatapackEnabledAsync(string server, string pack, bool enabled, CancellationToken ct = default)
+    public Task<DatapackSet> SetDatapackEnabledAsync(string server, string pack, bool enabled, string? placement = null, CancellationToken ct = default)
     {
-        Record($"datapack {pack} {enabled}");
+        Record($"datapack {pack} {enabled}" + (placement is null ? "" : " " + placement));
         var index = Packs.FindIndex(p => p.File == pack);
         if (index >= 0)
         {
@@ -281,6 +281,27 @@ internal sealed class FakeClient : IMcClient
     {
         Record($"schedule {schedule.OpenHour}:{schedule.OpenMinute}-{schedule.CloseHour}:{schedule.CloseMinute}");
         return Task.FromResult(Ok("schedule_updated"));
+    }
+
+    public SleepSettings Sleep { get; set; } = new() { Ok = true, Enabled = false, AfterS = 7200, JoinMode = "kick" };
+
+    public Task<SleepSettings> GetSleepSettingsAsync(string server, CancellationToken ct = default)
+    {
+        Record("sleep-get");
+        return Task.FromResult(Sleep);
+    }
+
+    public Task<SleepSettings> SetSleepSettingsAsync(string server, SleepSettingsRequest request, CancellationToken ct = default)
+    {
+        Record($"sleep-set {request.Enabled} {request.AfterS} {request.JoinMode} {request.Freeze}");
+        Sleep = Sleep with
+        {
+            Enabled = request.Enabled ?? Sleep.Enabled,
+            AfterS = request.AfterS ?? Sleep.AfterS,
+            JoinMode = request.JoinMode ?? Sleep.JoinMode,
+            Freeze = request.Freeze ?? Sleep.Freeze,
+        };
+        return Task.FromResult(Sleep);
     }
 
     public Task<JavaRuntimes> ListServerJavaAsync(string server, CancellationToken ct = default)

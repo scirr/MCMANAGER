@@ -11,14 +11,16 @@ struct PlayersView: View {
                 HStack {
                     Text(verbatim: player)
                     Spacer()
-                    Button {
-                        Task { await model.kick(player) }
-                    } label: {
-                        Label(tr("Kick"), systemImage: "person.fill.xmark")
+                    if !model.isReadOnly {
+                        Button {
+                            Task { await model.kick(player) }
+                        } label: {
+                            Label(tr("Kick"), systemImage: "person.fill.xmark")
+                        }
+                        .labelStyle(.iconOnly)
+                        .help(tr("Kick"))
+                        .accessibilityLabel(String(format: tr("Kick %@"), player))
                     }
-                    .labelStyle(.iconOnly)
-                    .help(tr("Kick"))
-                    .accessibilityLabel(String(format: tr("Kick %@"), player))
                 }
             }
             .frame(minHeight: 80, maxHeight: 160)
@@ -42,27 +44,34 @@ struct PlayersView: View {
                         }
                     }
                     Spacer()
-                    Button {
-                        Task { await model.remove(entry.subject) }
-                    } label: {
-                        Label(tr("Remove"), systemImage: "trash")
+                    if !model.isReadOnly {
+                        Button {
+                            Task { await model.remove(entry.subject) }
+                        } label: {
+                            Label(tr("Remove"), systemImage: "trash")
+                        }
+                        .labelStyle(.iconOnly)
+                        .help(tr("Remove"))
+                        .accessibilityLabel(String(format: tr("Remove %@"), entry.subject))
                     }
-                    .labelStyle(.iconOnly)
-                    .help(tr("Remove"))
-                    .accessibilityLabel(String(format: tr("Remove %@"), entry.subject))
                 }
             }
 
-            HStack {
-                TextField(tr("Player or address"), text: $model.newSubject)
-                TextField(tr("Reason (optional)"), text: $model.reason)
-                Button {
-                    Task { await model.add() }
-                } label: {
-                    Label(tr("Add"), systemImage: "plus")
+            if model.isReadOnly {
+                Label(tr("This device is not allowed to change this."), systemImage: "lock")
+                    .foregroundStyle(.secondary)
+            } else {
+                HStack {
+                    TextField(tr("Player or address"), text: $model.newSubject)
+                    TextField(tr("Reason (optional)"), text: $model.reason)
+                    Button {
+                        Task { await model.add() }
+                    } label: {
+                        Label(tr("Add"), systemImage: "plus")
+                    }
+                    .disabled(model.newSubject.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .accessibilityLabel(tr("Add to the list"))
                 }
-                .disabled(model.newSubject.trimmingCharacters(in: .whitespaces).isEmpty)
-                .accessibilityLabel(tr("Add to the list"))
             }
         }
         .padding(.top, 8)

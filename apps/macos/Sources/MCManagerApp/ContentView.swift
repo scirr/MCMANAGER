@@ -16,6 +16,12 @@ struct ContentView: View {
                 } actions: {
                     Button(tr("Retry")) { Task { await model.connect() } }
                 }
+            } else if model.connectionFailed {
+                ContentUnavailableView {
+                    Label(tr("Not connected"), systemImage: "network.slash")
+                } actions: {
+                    Button(tr("Retry")) { Task { await model.connect() } }
+                }
             } else {
                 ProgressView()
             }

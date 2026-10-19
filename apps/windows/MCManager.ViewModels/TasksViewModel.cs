@@ -5,7 +5,7 @@ using MCManager.Client;
 
 namespace MCManager.ViewModels;
 
-public sealed record TaskItem(int Id, string Name, string Kind, string Cron, string Command, bool Enabled, string NextRun, string LastRun, string LastResult, string WarnText);
+public sealed record TaskItem(int Id, string Name, string Kind, string Cron, string Command, bool Enabled, string NextRun, string LastRun, string LastResult, string WarnText, bool CanWrite = true);
 
 public sealed partial class TasksViewModel : TabViewModel
 {
@@ -19,6 +19,8 @@ public sealed partial class TasksViewModel : TabViewModel
     public ObservableCollection<TaskItem> Items { get; } = new();
 
     public bool IsEmpty => Items.Count == 0;
+
+    protected override void ReadOnlyChanged() => Replace(Items, item => item with { CanWrite = !IsReadOnly });
 
     [ObservableProperty]
     private string _newName = "";
@@ -66,7 +68,8 @@ public sealed partial class TasksViewModel : TabViewModel
                     Stamp(task.NextRun),
                     Stamp(task.LastRun),
                     task.LastResult is null ? "" : task.LastResult.Ok ? "ok" : task.LastResult.Code,
-                    string.Join(", ", task.Warn.Select(FormatWarn))));
+                    string.Join(", ", task.Warn.Select(FormatWarn)),
+                    !IsReadOnly));
             }
             OnPropertyChanged(nameof(IsEmpty));
         });

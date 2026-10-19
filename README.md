@@ -153,7 +153,7 @@ mc deploy
 
 ### Desktop app (Linux)
 
-`apps/linux/` holds a native GTK 4 + libadwaita app (Python and PyGObject). It never reads MC Manager files: everything goes through the `/v1` API, either by the daemon's local socket (`run/api.sock`) or by a paired remote server (pinned certificate, device token). It shows the server dashboard (state, players, RAM), start/stop/restart/wake, the live console, the online players and the settings (read only). Texts follow the system language (English or French).
+`apps/linux/` holds a native GTK 4 + libadwaita app (Python and PyGObject). It never reads MC Manager files: everything goes through the `/v1` API, either by the daemon's local socket (`run/api.sock`) or by a paired remote server (pinned certificate, device token). It shows the server dashboard (state, players, RAM), start/stop/restart/wake, the live console, the player lists, backups, mods, datapacks, worlds, scheduled tasks and the settings (mode, hours, Java, sleep, configuration keys; secret values are write-only), plus a server creation wizard. Texts follow the system language (English or French).
 
 ```
 sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-adw-1   # libadwaita 1.5+
@@ -164,7 +164,7 @@ On first launch, choose **This machine** or **A remote server** (address, finger
 
 ### Desktop app (Windows)
 
-`apps/windows/` holds a WinUI 3 app (C#, .NET 8, Windows App SDK 1.6, unpackaged, no MSIX). It never reads MC Manager files: it reads the port and the token the daemon writes to `run/api.token` and talks to the local `/v1` API on `127.0.0.1`. It shows the server list (state, players, RAM), start/stop/restart/resume, the live console, the player lists (whitelist, ops, bans, kick), backups, mods, datapacks, worlds (sizes, pre-generation, dimension reset), scheduled tasks and the server settings (mode, hours, Java, configuration keys; secret values are write-only), plus a wizard to create a server. Texts follow the system language (English or French).
+`apps/windows/` holds a WinUI 3 app (C#, .NET 8, Windows App SDK 1.6, unpackaged, no MSIX). It never reads MC Manager files: it reads the port and the token the daemon writes to `run/api.token` and talks to the local `/v1` API on `127.0.0.1`. It shows the server list (state, players, RAM), start/stop/restart/resume, the live console, the player lists (whitelist, ops, bans, kick), backups, mods, datapacks, worlds (sizes, pre-generation, dimension reset), scheduled tasks and the server settings (mode, hours, Java, sleep, configuration keys; secret values are write-only), plus a wizard to create a server. Texts follow the system language (English or French).
 
 | Project | Role |
 |---|---|
@@ -182,7 +182,7 @@ dotnet build MCManager.App -c Release -p:Platform=x64   # Windows only
 
 ### Desktop app (macOS)
 
-`apps/macos/` holds a SwiftUI app (Swift 5.10, macOS 14+) built with SwiftPM, no Xcode project. It never reads MC Manager files: it talks to the local `/v1` API through the Unix socket `run/api.sock`, found by `MCMANAGER_RUN_DIR` or by the `WorkingDirectory` of the `io.github.scirr.mcmanager` LaunchAgent. It shows the server list (state, RAM), start/stop/restart/resume, the live console, the player lists (whitelist, ops, bans, kick), backups, mods, datapacks, world, scheduled tasks, settings and a server creation wizard. A paired remote MC Manager can be used too: the certificate fingerprint is pinned and compared in constant time, and the device token is kept in the macOS keychain. Texts follow the system language (English or French).
+`apps/macos/` holds a SwiftUI app (Swift 5.10, macOS 14+) built with SwiftPM, no Xcode project. It never reads MC Manager files: it talks to the local `/v1` API through the Unix socket `run/api.sock`, found by `MCMANAGER_RUN_DIR` or by the `WorkingDirectory` of the `io.github.scirr.mcmanager` LaunchAgent. It shows the server list (state, RAM), start/stop/restart/resume, the live console, the player lists (whitelist, ops, bans, kick), backups, mods, datapacks, world, scheduled tasks, settings (mode, hours, Java, sleep, configuration keys) and a server creation wizard. A paired remote MC Manager can be used too: the certificate fingerprint is pinned and compared in constant time, and the device token is kept in the macOS keychain. Texts follow the system language (English or French).
 
 | Target | Role |
 |---|---|
