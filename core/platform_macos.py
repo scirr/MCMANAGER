@@ -8,7 +8,7 @@ import sys
 
 from plat_posix import (  # noqa: F401
     atomic_replace, console_raw_mode, file_is_private, is_elevated, kill, launch_args_name,
-    pick_file_dialog as _pick_file_dialog_posix, port_in_use, reap_children, resume,
+    pick_file_dialog as _pick_file_dialog_posix, port_in_use as _bind_probe, reap_children, resume,
     script_launch_args, secure_dir, secure_file, server_script_name, set_executable,
     setup_console, shell_quote, spawn_server, suspend, terminate, write_private_file,
 )
@@ -204,6 +204,10 @@ def _listeners(port):
     if not result or not result.stdout:
         return []
     return parse_lsof_listen(result.stdout)
+
+
+def port_in_use(port):
+    return _bind_probe(port) or bool(_listeners(port))
 
 
 def listens_on_all_interfaces(port):

@@ -61,6 +61,7 @@ class TestContract(unittest.TestCase):
         self.assertTrue(pm.cache_dir().endswith("Library/Caches/MCManager"))
         self.assertIsNone(pm.cgroup_of(1))
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX signals")
     def test_suspend_and_resume_use_stop_and_continue(self):
         with mock.patch("os.kill") as kill:
             self.assertTrue(pm.suspend(10))
@@ -120,6 +121,7 @@ class TestPs(unittest.TestCase):
             self.assertEqual(pm.find_server_processes(target), [6310])
             self.assertEqual(pm.find_server_processes(""), [])
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX waitpid")
     def test_process_alive_checks_directory(self):
         with mock.patch("os.kill"), mock.patch("os.waitpid", side_effect=ChildProcessError), \
              mock.patch.object(pm, "_run", return_value=_done(PS_ONE)), \
@@ -128,6 +130,7 @@ class TestPs(unittest.TestCase):
             self.assertTrue(pm.process_alive(501, "/srv/a"))
             self.assertFalse(pm.process_alive(501, "/srv/b"))
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX waitpid")
     def test_process_alive_false_for_zombie_and_missing(self):
         with mock.patch("os.kill"), mock.patch("os.waitpid", side_effect=ChildProcessError), \
              mock.patch.object(pm, "_run", return_value=_done(" 6400   977 Z 00:09 0 0:00.00 (java)\n")):
@@ -144,6 +147,13 @@ class TestLsof(unittest.TestCase):
 
     def test_listen(self):
         self.assertEqual(pm.parse_lsof_listen(LSOF_LISTEN), [(6310, "java", ["*:25565", "*:25565"])])
+
+    def test_in_use_when_only_lsof_sees_the_listener(self):
+        with mock.patch.object(pm, "_bind_probe", return_value=False), \
+             mock.patch.object(pm, "_run", return_value=_done(LSOF_LOCAL)):
+            self.assertTrue(pm.port_in_use(25575))
+        with mock.patch.object(pm, "_bind_probe", return_value=False), mock.patch.object(pm, "_run", return_value=_done("", 1)):
+            self.assertFalse(pm.port_in_use(25575))
 
     def test_port_listener(self):
         with mock.patch.object(pm, "port_in_use", return_value=True), \
@@ -174,7 +184,7 @@ class TestService(unittest.TestCase):
         self.assertTrue(data["AbandonProcessGroup"])
         self.assertEqual(data["ProgramArguments"][-1], os.path.join(pm.BASE_DIR, "mc_daemon.py"))
         self.assertEqual(data["WorkingDirectory"], pm.BASE_DIR)
-        self.assertTrue(pm.SERVICE_FILE.endswith("Library/LaunchAgents/io.github.scirr.mcmanager.plist"))
+        self.assertTrue(pm.SERVICE_FILE.replace(os.sep, "/").endswith("Library/LaunchAgents/io.github.scirr.mcmanager.plist"))
 
     def test_shared_data_dir_is_baked_in(self):
         with mock.patch.dict(os.environ, {"MCMANAGER_DATA_DIR": "/shared"}):
@@ -222,7 +232,7 @@ class TestService(unittest.TestCase):
                     return _done(LAUNCHCTL_PRINT) if loaded else _done("", 113, "Could not find service")
                 return result or _done()
             with mock.patch.object(pm, "SERVICE_FILE", path), mock.patch.object(pm, "_launchctl", side_effect=launchctl), \
-                 mock.patch("os.getuid", return_value=501):
+                 mock.patch("os.getuid", create=True, return_value=501):
                 return pm.service_control(action), [c for c in calls if c[0] != "print"]
 
     def test_control_commands(self):
@@ -241,7 +251,7 @@ class TestService(unittest.TestCase):
         self.assertEqual(res[0], "no_permission")
 
     def test_install_refuses_root(self):
-        with mock.patch("os.getuid", return_value=0):
+        with mock.patch("os.getuid", create=True, return_value=0):
             self.assertFalse(pm.service_install()[0])
 
     def test_install_writes_and_bootstraps(self):
@@ -254,7 +264,7 @@ class TestService(unittest.TestCase):
                 return _done("", 113) if args[0] == "print" else _done()
             with mock.patch.object(pm, "SERVICE_FILE", path), mock.patch.object(pm, "LAUNCH_AGENTS_DIR", os.path.dirname(path)), \
                  mock.patch.object(pm, "BASE_DIR", tmp), mock.patch.object(pm, "_launchctl", side_effect=launchctl), \
-                 mock.patch("os.getuid", return_value=501):
+                 mock.patch("os.getuid", create=True, return_value=501):
                 self.assertEqual(pm.service_install(), (True, ""))
             self.assertTrue(os.path.isfile(path))
             self.assertEqual(calls[-1][0], "bootstrap")

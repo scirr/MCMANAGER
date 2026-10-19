@@ -813,8 +813,9 @@ class TestAudit(RemoteCase):
                     self.assertNotIn(value, text, f"{label} leaked by GET {path}")
                 checked += 1
             self.assertGreater(checked, 25)
-            self.assertEqual(admin.request("PUT", "/v1/servers/a/config/webhook_url",
-                                           {"value": "https://x.example/" + leaks.SECRETS["hook"]})[0] in (200, 422), True)
+            status, body = admin.request("PUT", "/v1/servers/a/config/webhook_url",
+                                         {"value": "https://x.example/" + leaks.SECRETS["hook"]})
+            self.assertIn(status, (200, 422), body)
             for secret in leaks.SECRETS.values():
                 self.assertNotIn(secret, slurp(os.path.join(self.logs, "audit.log")))
                 self.assertNotIn(secret, slurp(os.path.join(mc_remote.state_dir(), "remote_devices.json")))
