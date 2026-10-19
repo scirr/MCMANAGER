@@ -89,7 +89,12 @@ public sealed partial class ServerDetailView : UserControl
 
     private async void OnRestoreClick(object sender, RoutedEventArgs e)
     {
-        if (_viewModel is null || sender is not FrameworkElement { Tag: BackupItem item })
+        if (_viewModel is null || sender is not FrameworkElement { Tag: string id })
+        {
+            return;
+        }
+        var item = _viewModel.Backups.Items.FirstOrDefault(entry => entry.Id == id);
+        if (item is null)
         {
             return;
         }
