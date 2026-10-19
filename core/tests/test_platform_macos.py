@@ -195,10 +195,11 @@ class TestService(unittest.TestCase):
         self.assertEqual(pm.parse_launchctl_print("\tstate = not running\n"), {})
 
     def test_running(self):
-        with mock.patch.object(pm, "_launchctl", return_value=_done(LAUNCHCTL_PRINT)):
-            self.assertTrue(pm.service_running())
-        with mock.patch.object(pm, "_launchctl", return_value=_done("", 113, "Could not find service")):
-            self.assertFalse(pm.service_running())
+        with mock.patch("os.getuid", create=True, return_value=501):
+            with mock.patch.object(pm, "_launchctl", return_value=_done(LAUNCHCTL_PRINT)):
+                self.assertTrue(pm.service_running())
+            with mock.patch.object(pm, "_launchctl", return_value=_done("", 113, "Could not find service")):
+                self.assertFalse(pm.service_running())
 
     def test_drift(self):
         with tempfile.TemporaryDirectory() as tmp:

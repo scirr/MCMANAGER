@@ -813,8 +813,12 @@ class TestAudit(RemoteCase):
                     self.assertNotIn(value, text, f"{label} leaked by GET {path}")
                 checked += 1
             self.assertGreater(checked, 25)
-            status, body = admin.request("PUT", "/v1/servers/a/config/webhook_url",
-                                         {"value": "https://x.example/" + leaks.SECRETS["hook"]})
+            for _attempt in range(3):
+                status, body = admin.request("PUT", "/v1/servers/a/config/webhook_url",
+                                             {"value": "https://x.example/" + leaks.SECRETS["hook"]})
+                if status != 429:
+                    break
+                time.sleep(mc_remote.RATE_WINDOW_S + 0.2)
             self.assertIn(status, (200, 422), body)
             for secret in leaks.SECRETS.values():
                 self.assertNotIn(secret, slurp(os.path.join(self.logs, "audit.log")))
