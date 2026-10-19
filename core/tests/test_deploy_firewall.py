@@ -22,6 +22,11 @@ class TestDeployFirewall(unittest.TestCase):
         self.data = tempfile.mkdtemp()
         self.calls = []
         self.ufw_allow_code = 0
+        import mc_platform
+        import platform_linux
+        saved = mc_platform._Lazy._impl
+        mc_platform.use(platform_linux)
+        self.addCleanup(mc_platform.use, saved)
         patches = [
             mock.patch.object(mc_servers, "REGISTRY_FILE", os.path.join(self.data, "servers.json")),
             mock.patch.object(mc_servers, "REGISTRY_DIR", self.data),

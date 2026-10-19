@@ -139,9 +139,13 @@ class TestJava(NetCase):
     def setUp(self):
         super().setUp()
         self.java_dir = tempfile.mkdtemp()
-        p = mock.patch.object(mc_java, "JAVA_DIR", self.java_dir)
-        p.start()
-        self.addCleanup(p.stop)
+        import mc_platform
+        impl = mc_platform._load()
+        for p in (mock.patch.object(mc_java, "JAVA_DIR", self.java_dir),
+                  mock.patch.object(impl, "java_archive_kind", return_value="tar"),
+                  mock.patch.object(impl, "java_exe_name", return_value="bin/java")):
+            p.start()
+            self.addCleanup(p.stop)
 
     def _tarball(self, entries):
         buf = io.BytesIO()

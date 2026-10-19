@@ -9,7 +9,18 @@ from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import mc_firewall
+import mc_platform
 import platform_linux
+
+
+def setUpModule():
+    global _saved
+    _saved = mc_platform._Lazy._impl
+    mc_platform.use(platform_linux)
+
+
+def tearDownModule():
+    mc_platform.use(_saved)
 
 UFW = """Status: active
 

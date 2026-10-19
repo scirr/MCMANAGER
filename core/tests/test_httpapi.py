@@ -36,7 +36,7 @@ def started(env, mode=None, **kwargs):
 
 
 class ApiCase(unittest.TestCase):
-    mode = "unix"
+    mode = mc_httpapi.default_mode()
 
     def setUp(self):
         manager = api_environment()

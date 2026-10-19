@@ -266,7 +266,7 @@ def _apply(folder, the_plan, tmp, progress=None):
     for f in the_plan["files"]:
         target = safe_join(folder, f["path"])
         mc_http.download(f["url"], target, f["hashes"], progress=progress)
-        written.append(os.path.relpath(target, folder).replace(os.sep, "/"))
+        written.append(os.path.relpath(target, os.path.realpath(folder)).replace(os.sep, "/"))
     if the_plan.get("archive") and the_plan.get("overrides"):
         extracted = os.path.join(tmp, "extracted")
         _extract(the_plan["archive"], extracted)

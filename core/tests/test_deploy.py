@@ -55,8 +55,9 @@ class DetectDefaultJarTests(unittest.TestCase):
 
     def test_runsh_wins_over_jars(self):
         # Forge/NeoForge: run.sh is the launcher, no single runnable jar.
-        self._touch("run.sh")
-        self.assertEqual(mc_config.detect_default_jar(self.d), "run.sh")
+        script = mc_config.plat.server_script_name()
+        self._touch(script)
+        self.assertEqual(mc_config.detect_default_jar(self.d), script)
 
     def test_runbat_wins_over_jars_on_windows(self):
         import mc_platform
