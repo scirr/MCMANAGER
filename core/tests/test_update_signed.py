@@ -71,6 +71,9 @@ class TestVerification(unittest.TestCase):
 class TestInstall(unittest.TestCase):
 
     def setUp(self):
+        asset = mock.patch.object(mc_update, "ASSET_NAME", "MCManager-Linux.zip")
+        asset.start()
+        self.addCleanup(asset.stop)
         self.app = tempfile.mkdtemp()
         for name, data in (("mc_lang.py", 'VERSION = "2.6.0"\n'), ("mc_old.py", "OLD\n"),
                            ("servers.json", "{}")):
