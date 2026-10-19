@@ -471,6 +471,1826 @@
           }
         }
       }
+    },
+    "%@ will be deleted and regenerated. This cannot be undone.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ sera supprimée puis régénérée. Cette action est irréversible."
+          }
+        }
+      }
+    },
+    "%@ will be moved to the quarantine folder; nothing is deleted.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ sera déplacé dans le dossier de quarantaine ; rien n'est supprimé."
+          }
+        }
+      }
+    },
+    "A task already has this name": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une tâche porte déjà ce nom"
+          }
+        }
+      }
+    },
+    "Access refused: pair this device again": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accès refusé : appairez à nouveau cet appareil"
+          }
+        }
+      }
+    },
+    "Action": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Action"
+          }
+        }
+      }
+    },
+    "Add a remote MC Manager": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter un MC Manager distant"
+          }
+        }
+      }
+    },
+    "Add a remote...": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter un distant..."
+          }
+        }
+      }
+    },
+    "Add task": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter la tâche"
+          }
+        }
+      }
+    },
+    "Address of the remote MC Manager (host:port)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adresse du MC Manager distant (hôte:port)"
+          }
+        }
+      }
+    },
+    "Always on": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toujours allumé"
+          }
+        }
+      }
+    },
+    "Automatic": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatique"
+          }
+        }
+      }
+    },
+    "Back up now": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sauvegarder maintenant"
+          }
+        }
+      }
+    },
+    "Backup": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sauvegarde"
+          }
+        }
+      }
+    },
+    "Backup encryption key file": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fichier de clé de chiffrement des sauvegardes"
+          }
+        }
+      }
+    },
+    "Backup folder": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dossier des sauvegardes"
+          }
+        }
+      }
+    },
+    "Backup not found": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sauvegarde introuvable"
+          }
+        }
+      }
+    },
+    "Backup retention (days)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conservation des sauvegardes (jours)"
+          }
+        }
+      }
+    },
+    "Backups": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sauvegardes"
+          }
+        }
+      }
+    },
+    "Backups kept": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sauvegardes conservées"
+          }
+        }
+      }
+    },
+    "Before a restore": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avant une restauration"
+          }
+        }
+      }
+    },
+    "Before an update": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avant une mise à jour"
+          }
+        }
+      }
+    },
+    "CPU affinity": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Affinité CPU"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annuler"
+          }
+        }
+      }
+    },
+    "Center x,z (optional)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Centre x,z (facultatif)"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fermer"
+          }
+        }
+      }
+    },
+    "Closes (HH:MM)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fermeture (HH:MM)"
+          }
+        }
+      }
+    },
+    "Compare this SHA-256 fingerprint with the one shown on the server (mc remote status). Continue only if they are identical.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comparez cette empreinte SHA-256 avec celle affichée sur le serveur (mc remote status). Ne continuez que si elles sont identiques."
+          }
+        }
+      }
+    },
+    "Confirmation required": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirmation requise"
+          }
+        }
+      }
+    },
+    "Connection": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connexion"
+          }
+        }
+      }
+    },
+    "Console command": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commande de la console"
+          }
+        }
+      }
+    },
+    "Could not look up the latest version": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de trouver la dernière version"
+          }
+        }
+      }
+    },
+    "Could not save the access token in the keychain": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d'enregistrer le jeton dans le trousseau"
+          }
+        }
+      }
+    },
+    "Create the server": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Créer le serveur"
+          }
+        }
+      }
+    },
+    "Creating the server downloads its files. You must accept the Minecraft EULA (https://aka.ms/MinecraftEULA).": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La création télécharge les fichiers du serveur. Vous devez accepter le CLUF de Minecraft (https://aka.ms/MinecraftEULA)."
+          }
+        }
+      }
+    },
+    "CurseForge API key": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clé API CurseForge"
+          }
+        }
+      }
+    },
+    "Datapack not found": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datapack introuvable"
+          }
+        }
+      }
+    },
+    "Datapacks": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datapacks"
+          }
+        }
+      }
+    },
+    "Delete": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer"
+          }
+        }
+      }
+    },
+    "Delete the task %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer la tâche %@"
+          }
+        }
+      }
+    },
+    "Delete this task?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer cette tâche ?"
+          }
+        }
+      }
+    },
+    "Device name": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom de l'appareil"
+          }
+        }
+      }
+    },
+    "Disable": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désactiver"
+          }
+        }
+      }
+    },
+    "Domain": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Domaine"
+          }
+        }
+      }
+    },
+    "Enable": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activer"
+          }
+        }
+      }
+    },
+    "Enable the task %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activer la tâche %@"
+          }
+        }
+      }
+    },
+    "End": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End"
+          }
+        }
+      }
+    },
+    "Enter a device name": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saisissez un nom d'appareil"
+          }
+        }
+      }
+    },
+    "Enter a radius in blocks (a positive number)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saisissez un rayon en blocs (nombre positif)"
+          }
+        }
+      }
+    },
+    "Enter a server name": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saisissez un nom de serveur"
+          }
+        }
+      }
+    },
+    "Enter the address as host:port": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saisissez l'adresse sous la forme hôte:port"
+          }
+        }
+      }
+    },
+    "Enter the console command": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saisissez la commande console"
+          }
+        }
+      }
+    },
+    "Enter the schedule (cron)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saisissez le planning (cron)"
+          }
+        }
+      }
+    },
+    "Enter the times as HH:MM": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saisissez les heures au format HH:MM"
+          }
+        }
+      }
+    },
+    "I accept the Minecraft EULA": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "J'accepte le CLUF de Minecraft"
+          }
+        }
+      }
+    },
+    "Internal port": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Port interne"
+          }
+        }
+      }
+    },
+    "Invalid Java choice": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choix de Java invalide"
+          }
+        }
+      }
+    },
+    "Invalid cron schedule": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Planning cron invalide"
+          }
+        }
+      }
+    },
+    "Invalid warning durations": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durées d'avertissement invalides"
+          }
+        }
+      }
+    },
+    "Java": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Java"
+          }
+        }
+      }
+    },
+    "Manual": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manuelle"
+          }
+        }
+      }
+    },
+    "Memory (e.g. 4G)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mémoire (ex. 4G)"
+          }
+        }
+      }
+    },
+    "Memory must look like 4G or 2048M": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La mémoire doit ressembler à 4G ou 2048M"
+          }
+        }
+      }
+    },
+    "Metrics address": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adresse des métriques"
+          }
+        }
+      }
+    },
+    "Metrics from remote (0/1)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Métriques à distance (0/1)"
+          }
+        }
+      }
+    },
+    "Midnight (automatic)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Minuit (automatique)"
+          }
+        }
+      }
+    },
+    "Minecraft version (empty: latest)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version de Minecraft (vide : la dernière)"
+          }
+        }
+      }
+    },
+    "Mod name, URL or .jar path": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom, URL ou chemin .jar du mod"
+          }
+        }
+      }
+    },
+    "Mod not found": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mod introuvable"
+          }
+        }
+      }
+    },
+    "Mode": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mode"
+          }
+        }
+      }
+    },
+    "Mods": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mods"
+          }
+        }
+      }
+    },
+    "Name (optional)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom (facultatif)"
+          }
+        }
+      }
+    },
+    "Name of this device": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom de cet appareil"
+          }
+        }
+      }
+    },
+    "Nether": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nether"
+          }
+        }
+      }
+    },
+    "New server": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nouveau serveur"
+          }
+        }
+      }
+    },
+    "Next": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suivant"
+          }
+        }
+      }
+    },
+    "No backups": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune sauvegarde"
+          }
+        }
+      }
+    },
+    "No datapack found.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun datapack trouvé."
+          }
+        }
+      }
+    },
+    "No mod installed.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun mod installé."
+          }
+        }
+      }
+    },
+    "No pinned fingerprint: connection refused": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune empreinte épinglée : connexion refusée"
+          }
+        }
+      }
+    },
+    "No scheduled task.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune tâche planifiée."
+          }
+        }
+      }
+    },
+    "Noon (automatic)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Midi (automatique)"
+          }
+        }
+      }
+    },
+    "Opening hours": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Horaires d'ouverture"
+          }
+        }
+      }
+    },
+    "Opens (HH:MM)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouverture (HH:MM)"
+          }
+        }
+      }
+    },
+    "Operation in progress": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opération en cours"
+          }
+        }
+      }
+    },
+    "Overworld": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monde principal"
+          }
+        }
+      }
+    },
+    "Pair": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appairer"
+          }
+        }
+      }
+    },
+    "Paired.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appairé."
+          }
+        }
+      }
+    },
+    "Pairing code": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code d'appairage"
+          }
+        }
+      }
+    },
+    "Pairing code (8 digits) generated on the server": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code d'appairage (8 chiffres) généré sur le serveur"
+          }
+        }
+      }
+    },
+    "Port": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Port"
+          }
+        }
+      }
+    },
+    "Port (empty: automatic)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Port (vide : automatique)"
+          }
+        }
+      }
+    },
+    "Ports must be between 1024 and 65535": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les ports doivent être compris entre 1024 et 65535"
+          }
+        }
+      }
+    },
+    "Pre-generation": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pré-génération"
+          }
+        }
+      }
+    },
+    "Pre-generation needs the server running": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La pré-génération demande que le serveur tourne"
+          }
+        }
+      }
+    },
+    "Previous": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Précédent"
+          }
+        }
+      }
+    },
+    "RCON password": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mot de passe RCON"
+          }
+        }
+      }
+    },
+    "RCON port": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Port RCON"
+          }
+        }
+      }
+    },
+    "RCON port (empty: automatic)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Port RCON (vide : automatique)"
+          }
+        }
+      }
+    },
+    "Radius (blocks)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rayon (blocs)"
+          }
+        }
+      }
+    },
+    "Refresh the pre-generation progress": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualiser la progression de la pré-génération"
+          }
+        }
+      }
+    },
+    "Reject": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refuser"
+          }
+        }
+      }
+    },
+    "Remove the mod %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer le mod %@"
+          }
+        }
+      }
+    },
+    "Remove this mod?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer ce mod ?"
+          }
+        }
+      }
+    },
+    "Remove this remote": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer ce distant"
+          }
+        }
+      }
+    },
+    "Reset": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réinitialiser"
+          }
+        }
+      }
+    },
+    "Reset %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réinitialiser %@"
+          }
+        }
+      }
+    },
+    "Reset this dimension?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réinitialiser cette dimension ?"
+          }
+        }
+      }
+    },
+    "Restart the server to apply the changes.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redémarrez le serveur pour appliquer les changements."
+          }
+        }
+      }
+    },
+    "Restore": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restaurer"
+          }
+        }
+      }
+    },
+    "Restore the backup of %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restaurer la sauvegarde du %@"
+          }
+        }
+      }
+    },
+    "Restore this backup?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restaurer cette sauvegarde ?"
+          }
+        }
+      }
+    },
+    "Run now": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lancer"
+          }
+        }
+      }
+    },
+    "Save": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrer"
+          }
+        }
+      }
+    },
+    "Schedule": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Horaires"
+          }
+        }
+      }
+    },
+    "Schedule (cron)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Planning (cron)"
+          }
+        }
+      }
+    },
+    "Server jar": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fichier jar du serveur"
+          }
+        }
+      }
+    },
+    "Server name": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom du serveur"
+          }
+        }
+      }
+    },
+    "Server settings": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglages du serveur"
+          }
+        }
+      }
+    },
+    "Server software": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Logiciel serveur"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglages"
+          }
+        }
+      }
+    },
+    "Several mods match": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plusieurs mods correspondent"
+          }
+        }
+      }
+    },
+    "Sleep: freeze (0/1)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veille : gel (0/1)"
+          }
+        }
+      }
+    },
+    "Sleep: hold timeout (s)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veille : délai de mise en attente (s)"
+          }
+        }
+      }
+    },
+    "Sleep: join mode (kick/hold)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veille : mode de connexion (kick/hold)"
+          }
+        }
+      }
+    },
+    "Sleep: proxy protocol (auto/on/off)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veille : protocole proxy (auto/on/off)"
+          }
+        }
+      }
+    },
+    "Source": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source"
+          }
+        }
+      }
+    },
+    "Step 1 of 3: name and software": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Étape 1 sur 3 : nom et logiciel"
+          }
+        }
+      }
+    },
+    "Step 2 of 3: resources": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Étape 2 sur 3 : ressources"
+          }
+        }
+      }
+    },
+    "Step 3 of 3: summary and EULA": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Étape 3 sur 3 : récapitulatif et CLUF"
+          }
+        }
+      }
+    },
+    "Stop the server first": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrêtez d'abord le serveur"
+          }
+        }
+      }
+    },
+    "Stop timeout (s)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Délai d'arrêt (s)"
+          }
+        }
+      }
+    },
+    "System Java": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Java du système"
+          }
+        }
+      }
+    },
+    "Task not found": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tâche introuvable"
+          }
+        }
+      }
+    },
+    "Tasks": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tâches"
+          }
+        }
+      }
+    },
+    "The Minecraft EULA must be accepted": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le CLUF de Minecraft doit être accepté"
+          }
+        }
+      }
+    },
+    "The backup failed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La sauvegarde a échoué"
+          }
+        }
+      }
+    },
+    "The datapack is nested in a folder": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le datapack est imbriqué dans un dossier"
+          }
+        }
+      }
+    },
+    "The encryption key file is missing": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le fichier de clé de chiffrement est introuvable"
+          }
+        }
+      }
+    },
+    "The operation failed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'opération a échoué"
+          }
+        }
+      }
+    },
+    "The operation was cancelled": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'opération a été annulée"
+          }
+        }
+      }
+    },
+    "The overworld is protected": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le monde principal est protégé"
+          }
+        }
+      }
+    },
+    "The remote MC Manager is unreachable": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le MC Manager distant est injoignable"
+          }
+        }
+      }
+    },
+    "The scheduled backup failed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La sauvegarde planifiée a échoué"
+          }
+        }
+      }
+    },
+    "The server certificate does not match the pinned fingerprint. Connection refused.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le certificat du serveur ne correspond pas à l'empreinte épinglée. Connexion refusée."
+          }
+        }
+      }
+    },
+    "The server is running: stop it first": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le serveur tourne : arrêtez-le d'abord"
+          }
+        }
+      }
+    },
+    "The server was not running": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le serveur n'était pas démarré"
+          }
+        }
+      }
+    },
+    "The server will be stopped and the current world replaced by the backup of %@. A safety copy is kept first.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le serveur sera arrêté et le monde actuel remplacé par la sauvegarde du %@. Une copie de sécurité est conservée avant."
+          }
+        }
+      }
+    },
+    "The target folder is not empty": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le dossier cible n'est pas vide"
+          }
+        }
+      }
+    },
+    "The task %@ will be deleted.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La tâche %@ sera supprimée."
+          }
+        }
+      }
+    },
+    "The task failed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La tâche a échoué"
+          }
+        }
+      }
+    },
+    "The task is already running": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La tâche est déjà en cours"
+          }
+        }
+      }
+    },
+    "This Java version is not installed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette version de Java n'est pas installée"
+          }
+        }
+      }
+    },
+    "This Mac": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce Mac"
+          }
+        }
+      }
+    },
+    "This device is not allowed to change this.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cet appareil n'a pas le droit de modifier ceci."
+          }
+        }
+      }
+    },
+    "This device is not allowed to do this": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cet appareil n'a pas le droit de faire cela"
+          }
+        }
+      }
+    },
+    "This is not a datapack": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce n'est pas un datapack"
+          }
+        }
+      }
+    },
+    "This mod adds blocks to the world. Removing it turns them into air and the world saves that change.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce mod ajoute des blocs au monde. Le retirer les transforme en air et le monde enregistre ce changement."
+          }
+        }
+      }
+    },
+    "This mod adds blocks: confirm its removal": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce mod ajoute des blocs : confirmez son retrait"
+          }
+        }
+      }
+    },
+    "This mod is already installed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce mod est déjà installé"
+          }
+        }
+      }
+    },
+    "Too many failures: pairing is locked for 15 minutes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trop d'échecs : l'appairage est verrouillé pendant 15 minutes"
+          }
+        }
+      }
+    },
+    "Total size": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taille totale"
+          }
+        }
+      }
+    },
+    "Trust this fingerprint": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faire confiance à cette empreinte"
+          }
+        }
+      }
+    },
+    "Unknown Minecraft version": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version de Minecraft inconnue"
+          }
+        }
+      }
+    },
+    "Unknown dimension": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dimension inconnue"
+          }
+        }
+      }
+    },
+    "Unknown server software": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Logiciel serveur inconnu"
+          }
+        }
+      }
+    },
+    "Update all": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout mettre à jour"
+          }
+        }
+      }
+    },
+    "Warnings, e.g. 5m,1m": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avertissements, ex. 5m,1m"
+          }
+        }
+      }
+    },
+    "Webhook URL": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL du webhook"
+          }
+        }
+      }
+    },
+    "World": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monde"
+          }
+        }
+      }
+    },
+    "Wrong, expired or malformed pairing code": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code d'appairage faux, expiré ou mal formé"
+          }
+        }
+      }
+    },
+    "adds blocks": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ajoute des blocs"
+          }
+        }
+      }
+    },
+    "configured (hidden, type to replace)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "configuré (masqué, saisir pour remplacer)"
+          }
+        }
+      }
+    },
+    "disabled": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "désactivé"
+          }
+        }
+      }
+    },
+    "enabled": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "activé"
+          }
+        }
+      }
+    },
+    "encrypted": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "chiffrée"
+          }
+        }
+      }
+    },
+    "host:port": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "hôte:port"
+          }
+        }
+      }
+    },
+    "last run failed: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dernière exécution en échec : %@"
+          }
+        }
+      }
+    },
+    "last run: ok": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dernière exécution : ok"
+          }
+        }
+      }
+    },
+    "nested folder: not usable": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dossier imbriqué : inutilisable"
+          }
+        }
+      }
+    },
+    "next: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "prochaine : %@"
+          }
+        }
+      }
+    },
+    "not a datapack": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ce n'est pas un datapack"
+          }
+        }
+      }
+    },
+    "not set": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "non défini"
+          }
+        }
+      }
     }
   }
 }

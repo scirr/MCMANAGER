@@ -155,6 +155,8 @@ enum Coding {
         return decoder
     }()
 
+    static let plainDecoder = JSONDecoder()
+
     static let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase

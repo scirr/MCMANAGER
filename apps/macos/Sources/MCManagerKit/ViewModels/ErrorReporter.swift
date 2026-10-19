@@ -13,6 +13,10 @@ public final class ErrorReporter {
         current = (error as? ApiError) ?? ApiError(code: "unknown", message: error.localizedDescription)
     }
 
+    public func show(_ code: String) {
+        current = ApiError(code: code)
+    }
+
     public func dismiss() { current = nil }
 
     @discardableResult
