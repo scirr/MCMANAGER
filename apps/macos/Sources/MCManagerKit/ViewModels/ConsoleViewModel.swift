@@ -53,7 +53,7 @@ public final class ConsoleViewModel {
             append("> " + command)
             let reply = try await client.sendCommand(server, command: command)
             if let output = reply.output, !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                for line in output.components(separatedBy: .newlines) {
+                for line in output.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n") {
                     append(line)
                 }
             }
