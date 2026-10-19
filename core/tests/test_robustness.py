@@ -139,7 +139,7 @@ class TestPorts(unittest.TestCase):
         srv.close()
         self.assertFalse(mc_core._port_in_use(port))
 
-    @unittest.skipIf(sys.platform == "win32", "reads /proc")
+    @unittest.skipIf(sys.platform != "linux", "reads /proc")
     def test_listening_port_is_in_use_and_owner_found(self):
         srv = socket.socket()
         srv.bind(("0.0.0.0", 0))
@@ -167,7 +167,7 @@ class TestProcessIdentity(unittest.TestCase):
         proc.wait()
         self.assertFalse(mc_core.is_pid_running(proc.pid))
 
-    @unittest.skipIf(sys.platform == "win32", "zombies are a POSIX notion")
+    @unittest.skipIf(sys.platform != "linux", "reads /proc to inspect the zombie")
     def test_zombie_is_not_running(self):
         proc = subprocess.Popen(["true"])
         # Wait for it to exit without reaping it.

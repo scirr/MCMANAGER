@@ -32,7 +32,7 @@ class TestWindowsPackage(unittest.TestCase):
 
     def test_all_imported_modules_are_packaged(self):
         shipped = set(build_release.PACKAGE_FILES)
-        local = core_modules() - {"platform_linux"}
+        local = core_modules() - {"platform_linux", "platform_macos", "plat_posix"}
         for fname in shipped:
             if not fname.endswith(".py"):
                 continue

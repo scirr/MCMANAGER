@@ -16,7 +16,7 @@ def _done(stdout="", code=0, stderr=""):
     return subprocess.CompletedProcess([], code, stdout=stdout, stderr=stderr)
 
 
-@unittest.skipIf(sys.platform == "win32", "Linux platform module")
+@unittest.skipIf(sys.platform != "linux", "Linux platform module: needs /proc and systemd")
 class TestContract(unittest.TestCase):
     def test_nothing_missing(self):
         self.assertEqual(mc_platform.missing(pl), [])
@@ -44,7 +44,7 @@ class TestContract(unittest.TestCase):
             self.assertFalse(pl.kill(10))
 
 
-@unittest.skipIf(sys.platform == "win32", "Linux platform module")
+@unittest.skipIf(sys.platform != "linux", "Linux platform module: needs /proc and systemd")
 class TestProcFiles(unittest.TestCase):
     def _open(self, files):
         real = open
@@ -104,7 +104,7 @@ class TestProcFiles(unittest.TestCase):
         kill.assert_called_once_with(123, 0)
 
 
-@unittest.skipIf(sys.platform == "win32", "Linux platform module")
+@unittest.skipIf(sys.platform != "linux", "Linux platform module: needs /proc and systemd")
 class TestFilesAndPrivileges(unittest.TestCase):
     def test_secure_and_private(self):
         path = os.path.join(tempfile.mkdtemp(), "f")
@@ -151,7 +151,7 @@ class TestFilesAndPrivileges(unittest.TestCase):
         self.assertEqual(popen.call_args.args[0], ["xdg-open", "/srv/x"])
 
 
-@unittest.skipIf(sys.platform == "win32", "Linux platform module")
+@unittest.skipIf(sys.platform != "linux", "Linux platform module: needs /proc and systemd")
 class TestPorts(unittest.TestCase):
     TABLE = ("  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n"
              "   0: 00000000:63DD 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000 0 4242 1 0\n"
@@ -179,7 +179,7 @@ class TestPorts(unittest.TestCase):
             self.assertEqual(pl.port_listener(25565), (None, None))
 
 
-@unittest.skipIf(sys.platform == "win32", "Linux platform module")
+@unittest.skipIf(sys.platform != "linux", "Linux platform module: needs /proc and systemd")
 class TestService(unittest.TestCase):
     def _control(self, code, out="", err=""):
         with mock.patch.object(pl, "_run_systemctl", return_value=_done(out, code, err)):
@@ -212,7 +212,7 @@ class TestService(unittest.TestCase):
             self.assertFalse(pl.service_running())
 
 
-@unittest.skipIf(sys.platform == "win32", "Linux platform module")
+@unittest.skipIf(sys.platform != "linux", "Linux platform module: needs /proc and systemd")
 class TestFirewall(unittest.TestCase):
     def test_allow_and_remove_use_the_comment_rules_only(self):
         calls = []
@@ -238,7 +238,7 @@ class TestFirewall(unittest.TestCase):
                           pl.firewall_manual_command(25565, "tcp", "survie"))
 
 
-@unittest.skipIf(sys.platform == "win32", "Linux platform module")
+@unittest.skipIf(sys.platform != "linux", "Linux platform module: needs /proc and systemd")
 class TestInstall(unittest.TestCase):
     def test_service_install_reports_the_polkit_rule(self):
         folder = tempfile.mkdtemp()

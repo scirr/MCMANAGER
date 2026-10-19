@@ -30,6 +30,8 @@ def missing(module):
 def _load():
     if sys.platform == "win32":
         import platform_windows as impl
+    elif sys.platform == "darwin":
+        import platform_macos as impl
     else:
         import platform_linux as impl
     return impl
