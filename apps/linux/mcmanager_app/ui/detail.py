@@ -5,7 +5,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, GLib, Gtk  # noqa: E402
 
 from ..i18n import t  # noqa: E402
-from ..models import ACTIONS, PLAYER_LISTS, ConsoleModel, PlayersModel, ServerDetailModel, players_text  # noqa: E402
+from ..models import ACTIONS, PLAYER_LISTS, BackupsModel, ConsoleModel, PlayersModel, ServerDetailModel, players_text  # noqa: E402
 from .common import make_runner  # noqa: E402
 
 
@@ -133,6 +133,65 @@ class PlayersTab(Adw.PreferencesPage):
             self.model.message = None
 
 
+class BackupsTab(Adw.PreferencesPage):
+    def __init__(self, client, name, toast):
+        super().__init__()
+        self.toast = toast
+        self.model = BackupsModel(client, name, make_runner())
+        self.actions = Adw.PreferencesGroup()
+        self.create_button = Gtk.Button(label=t("backup_now"), css_classes=["suggested-action"], halign=Gtk.Align.START)
+        self.create_button.connect("clicked", lambda _b: self.model.create())
+        self.progress = Gtk.ProgressBar(visible=False, margin_top=12)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        box.append(self.create_button)
+        box.append(self.progress)
+        self.actions.add(box)
+        self.group = Adw.PreferencesGroup()
+        self.add(self.actions)
+        self.add(self.group)
+        self.rows = []
+        self.model.subscribe(self.refresh)
+        self.model.load()
+
+    def ask_restore(self, entry):
+        dialog = Adw.AlertDialog(heading=t("backup_restore_title"), body=t("backup_restore_body", date=entry["date"]))
+        dialog.add_response("cancel", t("backup_cancel"))
+        dialog.add_response("restore", t("backup_restore"))
+        dialog.set_response_appearance("restore", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_default_response("cancel")
+        dialog.set_close_response("cancel")
+        dialog.connect("response", lambda _d, response: self.model.restore(entry["id"], response == "restore"))
+        dialog.present(self)
+
+    def refresh(self):
+        busy = self.model.busy is not None
+        for widget in self.rows:
+            self.group.remove(widget)
+        self.rows = []
+        for entry in self.model.backups or [None]:
+            if entry:
+                subtitle = "%s - %s" % (entry["size_text"], entry["origin_text"])
+                if entry["encrypted"]:
+                    subtitle += " - " + t("backup_encrypted")
+                widget = Adw.ActionRow(title=entry["date"], subtitle=subtitle)
+                button = Gtk.Button(label=t("backup_restore"), valign=Gtk.Align.CENTER, sensitive=not busy)
+                button.connect("clicked", lambda _b, e=entry: self.ask_restore(e))
+                widget.add_suffix(button)
+            else:
+                widget = Adw.ActionRow(title=t("backup_empty"))
+            self.group.add(widget)
+            self.rows.append(widget)
+        self.create_button.set_sensitive(not busy)
+        self.progress.set_visible(busy)
+        self.progress.set_fraction(self.model.progress / 100)
+        if self.model.error:
+            self.toast(self.model.error)
+            self.model.error = None
+        elif self.model.message:
+            self.toast(self.model.message)
+            self.model.message = None
+
+
 class SettingsTab(Adw.PreferencesPage):
     def __init__(self):
         super().__init__()
@@ -155,7 +214,7 @@ class SettingsTab(Adw.PreferencesPage):
 
 
 class ServerDetailPage(Adw.NavigationPage):
-    """Server sheet: action buttons and the Console, Players and Settings tabs."""
+    """Server sheet: action buttons and the Console, Players, Backups and Settings tabs."""
 
     def __init__(self, client, list_model, name, toast):
         super().__init__(title=name, tag="detail")
@@ -163,6 +222,7 @@ class ServerDetailPage(Adw.NavigationPage):
         self.model = ServerDetailModel(client, name, make_runner())
         self.console = ConsoleTab(ConsoleModel(client, name, make_runner()), toast)
         self.players = PlayersTab(client, name, toast)
+        self.backups = BackupsTab(client, name, toast)
         self.settings = SettingsTab()
         self.buttons = {}
         header = Adw.HeaderBar()
@@ -176,6 +236,7 @@ class ServerDetailPage(Adw.NavigationPage):
         self.stack = Adw.ViewStack()
         self.stack.add_titled_with_icon(self.console, "console", t("tab_console"), "utilities-terminal-symbolic")
         self.stack.add_titled_with_icon(self.players, "players", t("tab_players"), "system-users-symbolic")
+        self.stack.add_titled_with_icon(self.backups, "backups", t("tab_backups"), "document-save-symbolic")
         self.stack.add_titled_with_icon(self.settings, "settings", t("tab_settings"), "emblem-system-symbolic")
         switcher = Adw.ViewSwitcherBar(stack=self.stack, reveal=True)
         view = Adw.ToolbarView()

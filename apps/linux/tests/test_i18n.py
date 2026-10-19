@@ -34,7 +34,7 @@ class TestI18n(unittest.TestCase):
 
     def test_every_error_text_used_by_the_models_exists(self):
         for code in ("unauthorized", "forbidden", "not_found", "server_running", "console_offline", "bad_pair_code",
-                     "invalid_name", "kick_offline", "player_not_online", "rcon_failed"):
+                     "invalid_name", "kick_offline", "player_not_online", "rcon_failed", "backup_not_found", "backup_failed", "stop_first", "confirm_required"):
             self.assertNotIn("(", i18n.error_text(code))
 
 

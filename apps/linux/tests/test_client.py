@@ -91,6 +91,32 @@ class TestAgainstLocalApi(unittest.TestCase):
             self.client.wait_job(document["id"], step=0.05)
         self.assertEqual(caught.exception.code, "backup_failed")
 
+    def test_backup_list_create_and_restore(self):
+        entry = {"id": "a_midi", "file": "a_midi.zip", "path": "/x/a_midi.zip", "size": 10, "type": "midi",
+                 "created": "2026-10-08T12:00:03", "encrypted": False, "created_ts": 1}
+        listing = mc_api.result(True, "backup_list", server="a", backups=[entry], count=1)
+        with mock.patch.object(mc_api, "backup_list", lambda n, c: listing):
+            self.assertEqual(self.client.list_backups("a")["backups"][0]["id"], "a_midi")
+        with mock.patch.object(mc_api, "backup_now", lambda n, c: mc_api.result(True, "backup_created")):
+            document = self.client.create_backup("a")
+        seen = []
+        result = self.client.wait_job(document["id"], step=0.05, on_progress=seen.append)
+        self.assertEqual(result["code"], "backup_created")
+        self.assertTrue(seen)
+        with mock.patch.object(mc_api, "backup_restore", lambda n, c, ref: mc_api.result(True, "backup_restored", backup=ref)):
+            document = self.client.restore_backup("a", "a_midi")
+        self.assertEqual(self.client.wait_job(document["id"], step=0.05)["backup"], "a_midi")
+
+    def test_restore_errors_are_typed(self):
+        missing = mc_api.result(False, "backup_not_found", server="a")
+        with mock.patch.object(mc_api, "backup_restore", lambda n, c, ref: missing):
+            with self.assertRaises(ApiError) as caught:
+                self.client.restore_backup("a", "zz")
+        self.assertIn(caught.exception.code, ("backup_not_found", "job_failed"))
+        with self.assertRaises(ApiError) as caught:
+            self.client.call("POST", "/v1/servers/a/backups/zz/restore", {})
+        self.assertIn(caught.exception.code, ("confirm_required", "confirmation_required", "missing_field"))
+
     def test_event_stream_receives_then_stops_cleanly(self):
         received, states = [], []
         stream = self.client.events(lambda name, data: received.append((name, json.loads(data))), states.append)

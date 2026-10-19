@@ -237,6 +237,88 @@ class ServerDetailModel(Observable):
 PLAYER_LISTS = ("whitelist", "op", "ban")
 
 
+def format_size(size):
+    size = float(size or 0)
+    for unit in ("B", "KB", "MB", "GB"):
+        if size < 1024 or unit == "GB":
+            return "%d %s" % (size, unit) if unit == "B" else "%.1f %s" % (size, unit)
+        size /= 1024
+
+
+def backup_row(entry):
+    kind = entry.get("type") or "manual"
+    key = "backup_origin_" + kind
+    return {
+        "id": entry.get("id") or entry.get("file") or "",
+        "date": (entry.get("created") or "").replace("T", " "),
+        "size": entry.get("size") or 0,
+        "size_text": format_size(entry.get("size")),
+        "origin": kind,
+        "origin_text": t(key) if t(key) != key else kind,
+        "encrypted": bool(entry.get("encrypted")),
+    }
+
+
+class BackupsModel(Observable):
+    """Backups of one server: list, create and restore as jobs with progress and translated errors."""
+
+    def __init__(self, client, name, runner=None):
+        super().__init__()
+        self.client, self.name, self.runner = client, name, runner or Runner()
+        self.backups = []
+        self.busy = None
+        self.progress = 0
+        self.error = None
+        self.message = None
+
+    def load(self):
+        self.runner.run(lambda: self.client.list_backups(self.name), self._loaded)
+
+    def _loaded(self, document, error):
+        if error:
+            self.error = error_text(error.code)
+        else:
+            self.backups = [backup_row(entry) for entry in document.get("backups") or []]
+        self.notify()
+
+    def create(self):
+        return self._start("create", lambda: self.client.create_backup(self.name))
+
+    def restore(self, backup_id, confirmed=False):
+        if not confirmed or not backup_id:
+            return False
+        return self._start("restore", lambda: self.client.restore_backup(self.name, backup_id))
+
+    def _start(self, kind, work):
+        if self.busy:
+            return False
+        self.busy, self.progress, self.error, self.message = kind, 0, None, None
+        self.notify()
+        self.runner.run(lambda: self._execute(work), lambda _result, error: self._finished(kind, error))
+        return True
+
+    def _execute(self, work):
+        document = work()
+        return self.client.wait_job(document["id"], on_progress=self._report)
+
+    def _report(self, value):
+        self.runner.dispatch(self._progressed, value)
+
+    def _progressed(self, value):
+        self.progress = max(0, min(100, int(value)))
+        self.notify()
+
+    def _finished(self, kind, error):
+        self.busy = None
+        if error:
+            self.error = error_text(error.code)
+            self.notify()
+            return
+        self.message = t("backup_%s_done" % kind)
+        self.notify()
+        self.load()
+
+
 class PlayersModel(Observable):
     """Whitelist, operators and bans of one server, plus kicking: edits with an in-progress state."""
 

@@ -5,7 +5,7 @@ from tests.support import FakeClient, sync_runner
 
 from mcmanager_app import i18n
 from mcmanager_app.client import ApiError
-from mcmanager_app.models import (ConnectionModel, ConsoleModel, ServerDetailModel, PlayersModel, ServerListModel, format_ram,
+from mcmanager_app.models import (BackupsModel, format_size, ConnectionModel, ConsoleModel, ServerDetailModel, PlayersModel, ServerListModel, format_ram,
                                   players_text)
 
 
@@ -19,6 +19,54 @@ class ModelCase(unittest.TestCase):
         self.addCleanup(i18n.set_language, "en")
         self.client = FakeClient()
         self.runner = sync_runner()
+
+
+class TestBackups(ModelCase):
+    def setUp(self):
+        super().setUp()
+        self.client.backups = [{"id": "a_midi", "type": "midi", "created": "2026-10-08T12:00:03", "size": 1288490188,
+                                "encrypted": False}]
+        self.model = BackupsModel(self.client, "a", self.runner)
+
+    def test_format_size(self):
+        self.assertEqual(format_size(512), "512 B")
+        self.assertEqual(format_size(1288490188), "1.2 GB")
+
+    def test_load_builds_rows(self):
+        self.model.load()
+        row = self.model.backups[0]
+        self.assertEqual((row["date"], row["size_text"], row["origin_text"]),
+                         ("2026-10-08 12:00:03", "1.2 GB", "Noon (automatic)"))
+
+    def test_create_follows_the_job_and_reloads(self):
+        self.assertTrue(self.model.create())
+        self.assertIsNone(self.model.busy)
+        self.assertEqual(self.model.progress, 40)
+        self.assertEqual(self.model.message, "Backup created")
+        self.assertEqual(self.client.calls, [("backup", "a"), ("wait", "jb")])
+        self.assertEqual(len(self.model.backups), 1)
+
+    def test_restore_needs_confirmation(self):
+        self.assertFalse(self.model.restore("a_midi"))
+        self.assertEqual(self.client.calls, [])
+        self.assertTrue(self.model.restore("a_midi", confirmed=True))
+        self.assertEqual(self.client.calls[0], ("restore", "a_midi"))
+        self.assertEqual(self.model.message, "World restored")
+
+    def test_busy_blocks_and_errors_are_translated(self):
+        self.model.busy = "create"
+        self.assertFalse(self.model.create())
+        self.model.busy = None
+        i18n.set_language("fr")
+        self.client.fail["restore_backup"] = "stop_first"
+        self.model.restore("a_midi", confirmed=True)
+        self.assertEqual(self.model.error, "Arrêtez d'abord le serveur")
+        self.assertIsNone(self.model.busy)
+
+    def test_unknown_origin_is_shown_as_is(self):
+        self.client.backups[0]["type"] = "weird"
+        self.model.load()
+        self.assertEqual(self.model.backups[0]["origin_text"], "weird")
 
 
 class TestPlayers(ModelCase):
