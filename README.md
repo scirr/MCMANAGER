@@ -1,6 +1,6 @@
 # 🎮 MC Manager
 
-**MC Manager** is a lightweight, cross-platform Minecraft server management tool built in Python. It automates server scheduling, backups, Discord notifications, and provides a simple `mc` CLI — available on both **Linux** and **Windows**.
+**MC Manager** is a lightweight, cross-platform Minecraft server management tool built in Python. It automates server scheduling, backups, Discord notifications, and provides a simple `mc` CLI — available on **Linux**, **Windows** and **macOS**, with the same commands everywhere.
 
 > Designed for personal or small community Minecraft servers running Fabric, Paper, Forge or any JAR-based server.
 
@@ -10,6 +10,7 @@ This README is a high-level overview only. For installation steps and the comple
 
 - 🪟 **[Windows guide](Windows/README_Windows.md)** — multi-server management, `mc deploy`/`mc add`/`mc configure`, full command reference
 - 🐧 **[Linux guide](Linux/README_Linux.md)** — installation, configuration, command reference
+- 🍎 **[macOS guide](macOS/README_macOS.md)** — LaunchAgent install, configuration, command reference
 
 ---
 
@@ -19,37 +20,42 @@ This README is a high-level overview only. For installation steps and the comple
 - **Automatic backups** — Mid-session, nightly and manual ZIP backups with `save-off` / `save-on` safety
 - **Discord webhooks** — Notifies players on server open, close, and shutdown events
 - **Maintenance mode** — Instantly pauses the daemon without stopping it
-- **Sleep mode** — Frees the server's memory when nobody plays; the server stays listed and wakes when a known player joins, optionally keeping them connected (hold) or freezing the JVM (Linux)
-- **Router** — Several servers behind one port, chosen by hostname, with per-IP limits and CIDR lists (Linux)
-- **Every server type** — Vanilla, Paper, Folia, Purpur, Fabric, Quilt, Forge, NeoForge, Spigot, and the Velocity/Waterfall/BungeeCord proxies; `mc upgrade` moves a server to a newer Minecraft version (Linux)
-- **Modpacks, mods and plugins by name** — Modrinth, CurseForge and FTB modpacks; mods and plugins from Modrinth, CurseForge and Hangar with their dependencies; a managed Java runtime per server (Linux)
+- **Sleep mode** — Frees the server's memory when nobody plays; the server stays listed and wakes when a known player joins, optionally keeping them connected (hold) or freezing the JVM (not on Windows)
+- **Router** — Several servers behind one port, chosen by hostname, with per-IP limits and CIDR lists
+- **Every server type** — Vanilla, Paper, Folia, Purpur, Fabric, Quilt, Forge, NeoForge, Spigot, and the Velocity/Waterfall/BungeeCord proxies; `mc upgrade` moves a server to a newer Minecraft version
+- **Modpacks, mods and plugins by name** — Modrinth, CurseForge and FTB modpacks; mods and plugins from Modrinth, CurseForge and Hangar with their dependencies; a managed Java runtime per server
 - **Custom domain** — Show players a friendly domain/link (from any DNS provider) instead of a bare IP
 - **AutoModpack integration** — Sends the connection key directly in the Discord embed
 - **CPU affinity** — Pins the server process to specific CPU cores
 - **Shared registry (dual-boot)** — Point Windows and Linux at one shared disk (`MCMANAGER_DATA_DIR`) and the same servers appear on both, no re-registering
 - **Bilingual (FR/EN)** — A single build; the language is chosen on first launch and switchable anytime with `mc language`
-- **Scriptable** — Documented exit codes, `--json` output with a versioned schema, and commands (`mc active`, `mc players`, `mc rcon`, `mc config`, `mc freeze`) so tools never have to parse MC Manager's files (Linux)
+- **Scriptable** — Documented exit codes, `--json` output with a versioned schema, and commands (`mc active`, `mc players`, `mc rcon`, `mc config`, `mc freeze`) so tools never have to parse MC Manager's files
 - **Signed updates** — `mc update` installs only packages whose Ed25519 signature and hashes check out, keeps the previous version for `mc update --rollback`; releases are built, signed and attested by CI
-- **Hardened** — polkit instead of sudo, sandboxed systemd service, secrets readable by their owner only, RCON exposure checks (Linux); see [SECURITY.md](SECURITY.md)
-- **Cross-platform** — Same logic, adapted natively for Linux and Windows
+- **Hardened** — secrets readable by their owner only, RCON exposure checks, polkit instead of sudo and a sandboxed systemd service on Linux; see [SECURITY.md](SECURITY.md)
+- **Backups, alerts and tools** — Backups to sftp, S3 or restic; alerts by e-mail, Telegram, ntfy, webhook or Discord; whitelist, ops, bans and kick; world export/import/reset and Chunky pregeneration; scheduled tasks; Prometheus metrics and a static status page
+- **Local and remote API** — The daemon serves a versioned `/v1` HTTP API (OpenAPI 3.1 contract in `api/openapi.json`, long operations as jobs, Server-Sent Events): on a Unix socket on Linux and macOS, on `127.0.0.1` with a token on Windows (`mc api status`). Remote access is off by default: `mc remote enable` serves it over TLS 1.3 with a pinned self-signed certificate, devices pair with a one-time 8-digit code and get a `viewer`, `operator` or `admin` role per server
+- **Remote control** — `mc --remote <profile> <command>` drives another MC Manager (status, start, stop, players, logs, backup, console); `mc remote add` pairs a profile
+- **Desktop apps** — GTK 4 / libadwaita on Linux (also as a Flatpak), WinUI 3 on Windows, SwiftUI on macOS: server list, console, players, backups, mods, datapacks, world, tasks, settings and a creation wizard, all through the API, on this machine or on a paired remote one
+- **Cross-platform** — The same core runs on Linux, Windows and macOS, with a thin native layer for each
 
 ---
 
 ## 📁 Project Structure
 
-Both platforms share the same module set and command surface. They are fully independent — no code is shared between the two directories.
+All platforms are built from the same `core/` modules and share one command surface; each platform directory only holds its packaging.
 
 ```
 MC_Manager/
-├── core/               # modules shared by every platform (Linux and Windows)
+├── core/               # modules shared by every platform (Linux, Windows and macOS)
 │   ├── mc_cli.py       # entry point, dashboard, command dispatch
 │   ├── mc_core.py      # lifecycle, native RCON, backups, webhooks
-│   ├── mc_config.py    # config.json/webhooks.json, systemd install
+│   ├── mc_config.py    # config.json/webhooks.json, service install
 │   ├── mc_servers.py   # multi-server registry (servers.json)
 │   ├── mc_deploy.py    # deploy / add / configure wizards
 │   ├── mc_daemon.py    # background scheduler (30s tick)
 │   ├── mc_doctor.py    # non-destructive diagnostics
-│   ├── mc_firewall.py  # ufw / firewalld rule automation
+│   ├── mc_firewall.py  # ufw / firewalld / netsh / macOS rule automation
+│   ├── mc_update.py    # signed self-update and rollback
 │   ├── mc_sig.py       # Ed25519 verification of signed updates
 │   ├── mc_image.py     # server-icon.png handling
 │   ├── mc_lang.py      # bilingual FR/EN strings
@@ -92,18 +98,25 @@ MC_Manager/
 │
 ├── packaging/linux/    # .deb and .rpm builder (build_packages.py)
 ├── apps/linux/         # Desktop app (GTK 4 + libadwaita), Flatpak manifest
+├── apps/windows/       # Desktop app (WinUI 3, C#), client and view-model tests
 ├── apps/macos/         # Desktop app (SwiftUI), Swift package
+├── api/                # OpenAPI 3.1 contract of the /v1 API
 │
 ├── Linux/              # Linux packaging (systemd service)
 │   ├── build_release.py
 │   ├── install.sh / uninstall.sh
 │   └── README_Linux.md
 │
-└── Windows/            # Windows packaging (NSSM service)
+├── Windows/            # Windows packaging (NSSM service)
+│   ├── build_release.py
+│   ├── install.bat / uninstall.bat
+│   ├── webhook_templates.json
+│   └── README_Windows.md
+│
+└── macOS/              # macOS packaging (LaunchAgent)
     ├── build_release.py
-    ├── install.bat / uninstall.bat
-    ├── webhook_templates.json
-    └── README_Windows.md
+    ├── install.sh / uninstall.sh
+    └── README_macOS.md
 ```
 
 ---
@@ -139,6 +152,20 @@ mc deploy
 
 Java is not a dependency: MC Manager installs one per server. Update with `sudo apt install ./<new>.deb` or `sudo dnf upgrade ./<new>.rpm` (`mc update` refuses on a package install). Removing the package never deletes your servers or worlds.
 
+### macOS
+
+Run the installer as your user, **without sudo**:
+
+```bash
+cd macOS/
+python3 build_release.py
+unzip ../dist/MCManager-macOS.zip -d ~
+cd ~/MCManager && ./install.sh
+mc deploy
+```
+
+Or download `MCManager-macOS.zip` from the latest release. The daemon is a per-user LaunchAgent (`io.github.scirr.mcmanager`); servers live in `~/Library/Application Support/MCManager`. The macOS firewall cannot filter by port, so `mc` prints the command to run instead of changing it. See the **[macOS guide](macOS/README_macOS.md)**.
+
 ### Windows
 
 Right-click `install.bat` → **Run as administrator**, then open a new terminal:
@@ -147,7 +174,7 @@ Right-click `install.bat` → **Run as administrator**, then open a new terminal
 mc deploy
 ```
 
-> Both platforms share the same multi-server workflow (`mc deploy`/`mc add`/`mc configure`, dashboard, modes...). See the **[Linux guide](Linux/README_Linux.md)** or **[Windows guide](Windows/README_Windows.md)** for the full walkthrough.
+> All platforms share the same multi-server workflow (`mc deploy`/`mc add`/`mc configure`, dashboard, modes...). See the **[Linux guide](Linux/README_Linux.md)**, **[Windows guide](Windows/README_Windows.md)** or **[macOS guide](macOS/README_macOS.md)** for the full walkthrough.
 
 ---
 
@@ -201,7 +228,7 @@ swift run MCManagerApp
 
 ## 🖥️ CLI Commands
 
-> Linux and Windows now share the same command surface. Every command accepts an optional target (a server name, a registry number, or nothing to use the active server). See the platform guides for the authoritative, up-to-date reference.
+> Linux, Windows and macOS share the same command surface (exceptions: `mc freeze` of a sleeping server and cgroup/swap figures are unavailable on Windows). Every command accepts an optional target (a server name, a registry number, or nothing to use the active server). See the platform guides for the authoritative, up-to-date reference.
 
 | Command | Description |
 |---|---|
@@ -212,22 +239,22 @@ swift run MCManagerApp
 | `mc use <target>` | Set the active server |
 | `mc remove <target>` | Unregister a server |
 | `mc start` / `mc stop [--force]` | Start / stop the server (`--force` kills the process if RCON is unavailable) |
-| `mc stop --reason <r> [--quiet]` | Stop for a stated reason (`sleep`, `update`, `maintenance`, `switch`) — Linux |
-| `mc status [--json]` | Show server status (explicit state, RAM, uptime, players) — `--json` on Linux |
-| `mc active` / `mc players` / `mc rcon "<cmd>"` | Scripting helpers: active server, players online, one RCON command — Linux |
-| `mc config get\|set <key> [value]` | Read / change a setting everywhere it lives — Linux |
-| `mc freeze` / `mc thaw` | Freeze the world for an external backup — Linux |
-| `mc switch <target>` | Hand the active server's place (ports included) to another server — Linux |
-| `mc sleep enable\|disable\|status` | Sleep when nobody plays, wake when a known player joins — Linux |
-| `mc metrics serve` | Prometheus metrics of every server on `127.0.0.1:9225` — Linux |
-| `mc status-page enable\|disable` | Static public status page regenerated by the service — Linux |
-| `mc router enable\|disable\|status\|route\|default\|allow\|deny` | Several servers behind one port, routed by hostname — Linux |
-| `mc datapack` / `mc mod` | Manage datapacks and mods (AutoModpack copy, quarantine) — Linux |
+| `mc stop --reason <r> [--quiet]` | Stop for a stated reason (`sleep`, `update`, `maintenance`, `switch`) |
+| `mc status [--json]` | Show server status (explicit state, RAM, uptime, players) |
+| `mc active` / `mc players` / `mc rcon "<cmd>"` | Scripting helpers: active server, players online, one RCON command |
+| `mc config get\|set <key> [value]` | Read / change a setting everywhere it lives |
+| `mc freeze` / `mc thaw` | Freeze the world for an external backup |
+| `mc switch <target>` | Hand the active server's place (ports included) to another server |
+| `mc sleep enable\|disable\|status` | Sleep when nobody plays, wake when a known player joins |
+| `mc metrics serve` | Prometheus metrics of every server on `127.0.0.1:9225` |
+| `mc status-page enable\|disable` | Static public status page regenerated by the service |
+| `mc router enable\|disable\|status\|route\|default\|allow\|deny` | Several servers behind one port, routed by hostname |
+| `mc datapack` / `mc mod` | Manage datapacks and mods (AutoModpack copy, quarantine) |
 | `mc console` | Attach to the interactive RCON console |
 | `mc logs` | Show recent server logs |
 | `mc backup` | Manual ZIP backup |
-| `mc backup list\|restore\|remote` | List, restore (server stopped) and send backups to sftp / S3 / restic — Linux |
-| `mc alert add\|list\|remove\|test` | Alerts by e-mail, Telegram, ntfy, webhook or Discord, filtered per event — Linux |
+| `mc backup list\|restore\|remote` | List, restore (server stopped) and send backups to sftp / S3 / restic |
+| `mc alert add\|list\|remove\|test` | Alerts by e-mail, Telegram, ntfy, webhook or Discord, filtered per event |
 | `mc open` / `mc resume` | Open the server folder / resume from maintenance |
 | `mc announce` | Send the startup Discord webhook manually |
 | `mc mode <schedule\|always\|maintenance>` | Switch the daemon operating mode |
@@ -237,7 +264,12 @@ swift run MCManagerApp
 | `mc update [--check\|--to X\|--rollback]` | Signed self-update, specific version, or rollback |
 | `mc edit` | Edit `config.json` in `$EDITOR` |
 | `mc image add\|rm` | Set or remove the server icon |
-| `mc daemon <run\|start\|stop\|restart>` | Control the background service |
+| `mc daemon <run\|start\|stop\|restart\|status>` | Control the background service |
+| `mc api status` | State of the local HTTP API |
+| `mc remote enable\|disable\|pair\|add\|devices list\|revoke` | Remote access: TLS listener, pairing code, client profiles, device management |
+| `mc --remote <profile> <command>` | Run a command on a paired remote MC Manager |
+| `mc java` / `mc modpack` / `mc upgrade` | Managed Java runtimes, modpacks, move a server to a newer Minecraft version |
+| `mc players history` / `mc kick` / `mc world` / `mc task` | Connection history, kick, world tools, scheduled tasks |
 
 ---
 
@@ -285,8 +317,22 @@ Webhooks are silenced during maintenance mode by design (no players connected).
 
 ## 🔧 Platform Differences
 
-| Feature | Linux | Windows |
-|---|---|---|
+| Feature | Linux | Windows | macOS |
+|---|---|---|---|
+| Process detection | PID file + `/proc` | `tasklist` + PID file | PID file + `ps` / `lsof` |
+| CPU affinity | `os.sched_setaffinity` | `SetProcessAffinityMask` (WinAPI) | not available |
+| Force kill | `os.killpg` (SIGKILL) | `taskkill /F /PID` | `os.killpg` (SIGKILL) |
+| Daemon | systemd service | NSSM Windows service `MCManagerDaemon` | LaunchAgent (per user) |
+| Install | `sudo ./install.sh`, or `.deb` / `.rpm` | `install.bat` as administrator | `./install.sh` without sudo |
+| Firewall | `ufw` or `firewalld` | `netsh advfirewall` | no per-port filter: `mc` prints the command |
+| Global command | `mc` in `/usr/bin` or `/usr/local/bin/` | `mc.bat` in `System32` | `mc` in `/usr/local/bin` or `~/bin` |
+| Local API | Unix socket `run/api.sock` | `127.0.0.1` + token | Unix socket `run/api.sock` |
+| Freeze a sleeping server | yes | no (`unsupported_on_windows`) | yes |
+| cgroup and swap figures | yes | `null` | `null` |
+| Icon file picker | `tkinter`, then zenity / kdialog | `tkinter` | `tkinter` |
+| Servers folder | per-user data directory | per-user data directory | `~/Library/Application Support/MCManager` |
+
+---|---|---|
 | Background process | `subprocess` + PID file | `subprocess` + PID file |
 | CPU affinity | `os.sched_setaffinity` | `SetProcessAffinityMask` (WinAPI) |
 | Process detection | PID file + `/proc` | `tasklist` + PID file |
@@ -310,6 +356,13 @@ Webhooks are silenced during maintenance mode by design (no players connected).
 - systemd (standard on Fedora and most distributions)
 - Optional: `ufw` or `firewalld` for automatic port rules, `Pillow` for server-icon resizing, `zenity`/`kdialog` for the graphical icon picker
 - No external runtime dependencies — RCON, HTTP and backups use the Python standard library
+
+### macOS
+- macOS 13 or later (Apple Silicon or Intel)
+- [Python 3.10+](https://www.python.org/downloads/) (`xcode-select --install` or `brew install python`)
+- [Java 21](https://adoptium.net/temurin/releases/?version=21) (or let MC Manager download one with `mc java install 21`)
+- Optional: `Pillow` for server-icon resizing
+- The daemon runs only while you are logged in
 
 ### Windows
 - [Python 3.10+](https://www.python.org/downloads/) (check **"Add Python to PATH"** during install)
