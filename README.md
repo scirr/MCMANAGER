@@ -330,7 +330,7 @@ Webhooks are silenced during maintenance mode by design (no players connected).
 | Freeze a sleeping server | yes | no (`unsupported_on_windows`) | yes |
 | cgroup and swap figures | yes | `null` | `null` |
 | Icon file picker | `tkinter`, then zenity / kdialog | `tkinter` | `tkinter` |
-| Servers folder | per-user data directory | per-user data directory | `~/Library/Application Support/MCManager` |
+| Data folder (`MCMANAGER_DATA_DIR` overrides it) | `~/MCManager/Servers` | `%APPDATA%\MCManager` | `~/Library/Application Support/MCManager/Servers` |
 
 ---|---|---|
 | Background process | `subprocess` + PID file | `subprocess` + PID file |
