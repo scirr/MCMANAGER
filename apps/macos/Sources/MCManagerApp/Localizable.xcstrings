@@ -2471,6 +2471,1756 @@
           }
         }
       }
+    },
+    "%@ crashed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ a planté"
+          }
+        }
+      }
+    },
+    "%@ keeps crashing": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ plante en boucle"
+          }
+        }
+      }
+    },
+    "%@ loses access immediately and its open connections are closed.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ perd l'accès immédiatement et ses connexions ouvertes sont fermées."
+          }
+        }
+      }
+    },
+    "%d error(s) to fix": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d erreur(s) à corriger"
+          }
+        }
+      }
+    },
+    "%d warning(s)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d avertissement(s)"
+          }
+        }
+      }
+    },
+    "A backup fails": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une sauvegarde échoue"
+          }
+        }
+      }
+    },
+    "A channel already has this name": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un canal porte déjà ce nom"
+          }
+        }
+      }
+    },
+    "A player joins": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un joueur se connecte"
+          }
+        }
+      }
+    },
+    "A server crashes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un serveur plante"
+          }
+        }
+      }
+    },
+    "A single public port in front of several servers, routed by the host name players type.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un seul port public devant plusieurs serveurs, aiguillé selon le nom d'hôte tapé par les joueurs."
+          }
+        }
+      }
+    },
+    "Access control": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contrôle d'accès"
+          }
+        }
+      }
+    },
+    "Access list changed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liste d'accès modifiée"
+          }
+        }
+      }
+    },
+    "Add a channel": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter un canal"
+          }
+        }
+      }
+    },
+    "Add the channel": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter le canal"
+          }
+        }
+      }
+    },
+    "Add the range": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter la plage"
+          }
+        }
+      }
+    },
+    "Add the route": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter la route"
+          }
+        }
+      }
+    },
+    "Address (URL)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adresse (URL)"
+          }
+        }
+      }
+    },
+    "Address range, for example 10.0.0.0/8": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plage d'adresses, par exemple 10.0.0.0/8"
+          }
+        }
+      }
+    },
+    "Administrator": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Administrateur"
+          }
+        }
+      }
+    },
+    "Alerts": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alertes"
+          }
+        }
+      }
+    },
+    "Allow remote access": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser l'accès à distance"
+          }
+        }
+      }
+    },
+    "Allowed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorisées"
+          }
+        }
+      }
+    },
+    "Allowed and refused address ranges (CIDR).": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plages d'adresses autorisées et refusées (CIDR)."
+          }
+        }
+      }
+    },
+    "Backup failed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sauvegarde ratée"
+          }
+        }
+      }
+    },
+    "Backup of %@ failed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sauvegarde de %@ ratée"
+          }
+        }
+      }
+    },
+    "Certificate fingerprint": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empreinte du certificat"
+          }
+        }
+      }
+    },
+    "Channel added": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Canal ajouté"
+          }
+        }
+      }
+    },
+    "Channel name (optional)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom du canal (facultatif)"
+          }
+        }
+      }
+    },
+    "Channel not found": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Canal introuvable"
+          }
+        }
+      }
+    },
+    "Channel removed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Canal retiré"
+          }
+        }
+      }
+    },
+    "Channels": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Canaux"
+          }
+        }
+      }
+    },
+    "Chat identifier": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Identifiant de la conversation"
+          }
+        }
+      }
+    },
+    "Check again": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérifier à nouveau"
+          }
+        }
+      }
+    },
+    "Checks the machine and every server, with the fix to apply when something is wrong.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérifie la machine et chaque serveur, avec le correctif à appliquer en cas de problème."
+          }
+        }
+      }
+    },
+    "Crash": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plantage"
+          }
+        }
+      }
+    },
+    "Default server": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serveur par défaut"
+          }
+        }
+      }
+    },
+    "Default server saved": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serveur par défaut enregistré"
+          }
+        }
+      }
+    },
+    "Device name (optional)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom de l'appareil (facultatif)"
+          }
+        }
+      }
+    },
+    "Device not found": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appareil introuvable"
+          }
+        }
+      }
+    },
+    "Device revoked": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appareil révoqué"
+          }
+        }
+      }
+    },
+    "Devices": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appareils"
+          }
+        }
+      }
+    },
+    "Diagnostics": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnostic"
+          }
+        }
+      }
+    },
+    "Email": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Courriel"
+          }
+        }
+      }
+    },
+    "Encryption is not available on this machine": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le chiffrement n'est pas disponible sur cette machine"
+          }
+        }
+      }
+    },
+    "Enter a modpack name or address": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saisissez un nom ou une adresse de modpack"
+          }
+        }
+      }
+    },
+    "Events": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Événements"
+          }
+        }
+      }
+    },
+    "Fix: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Correctif : %@"
+          }
+        }
+      }
+    },
+    "Generate a code": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Générer un code"
+          }
+        }
+      }
+    },
+    "Generates a one-time code to type on the new device. It stays valid for a few minutes.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Génère un code à usage unique à saisir sur le nouvel appareil. Il reste valable quelques minutes."
+          }
+        }
+      }
+    },
+    "Go back to the previous version": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revenir à la version précédente"
+          }
+        }
+      }
+    },
+    "Go back?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revenir en arrière ?"
+          }
+        }
+      }
+    },
+    "Going back to an older version is refused": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le retour à une version plus ancienne est refusé"
+          }
+        }
+      }
+    },
+    "Host name": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom d'hôte"
+          }
+        }
+      }
+    },
+    "Install": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installer"
+          }
+        }
+      }
+    },
+    "Install a Java": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installer un Java"
+          }
+        }
+      }
+    },
+    "Install the update": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installer la mise à jour"
+          }
+        }
+      }
+    },
+    "Install the update?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installer la mise à jour ?"
+          }
+        }
+      }
+    },
+    "Installed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installés"
+          }
+        }
+      }
+    },
+    "Invalid address": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adresse invalide"
+          }
+        }
+      }
+    },
+    "Invalid channel name": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom de canal invalide"
+          }
+        }
+      }
+    },
+    "Invalid port": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Port invalide"
+          }
+        }
+      }
+    },
+    "Invalid router option": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Option du routeur invalide"
+          }
+        }
+      }
+    },
+    "Java %@ will be deleted. Servers that use it will not start until you pick another one.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Java %@ sera supprimé. Les serveurs qui l'utilisent ne démarreront plus tant que vous n'en choisissez pas un autre."
+          }
+        }
+      }
+    },
+    "Java installed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Java installé"
+          }
+        }
+      }
+    },
+    "Java removed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Java retiré"
+          }
+        }
+      }
+    },
+    "Lets other devices drive this MC Manager over an encrypted connection.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permet à d'autres appareils de piloter ce MC Manager par une connexion chiffrée."
+          }
+        }
+      }
+    },
+    "Look up the modpack": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chercher le modpack"
+          }
+        }
+      }
+    },
+    "Messages sent when something happens to this server.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Messages envoyés quand il arrive quelque chose à ce serveur."
+          }
+        }
+      }
+    },
+    "Modpack (name or address, optional)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modpack (nom ou adresse, facultatif)"
+          }
+        }
+      }
+    },
+    "Modpack found": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modpack trouvé"
+          }
+        }
+      }
+    },
+    "Modpack not found": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modpack introuvable"
+          }
+        }
+      }
+    },
+    "Modpack updated": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modpack mis à jour"
+          }
+        }
+      }
+    },
+    "No Java installed by MC Manager": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun Java installé par MC Manager"
+          }
+        }
+      }
+    },
+    "No alert channel": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun canal d'alerte"
+          }
+        }
+      }
+    },
+    "No choice means every event.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun choix signifie tous les événements."
+          }
+        }
+      }
+    },
+    "No file for this system in the release": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun fichier pour ce système dans la version"
+          }
+        }
+      }
+    },
+    "No paired device": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun appareil appairé"
+          }
+        }
+      }
+    },
+    "No recorded activity": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune activité enregistrée"
+          }
+        }
+      }
+    },
+    "No route": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune route"
+          }
+        }
+      }
+    },
+    "Nothing to report": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rien à signaler"
+          }
+        }
+      }
+    },
+    "Notifications": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications"
+          }
+        }
+      }
+    },
+    "Operator": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opérateur"
+          }
+        }
+      }
+    },
+    "Pair a device": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appairer un appareil"
+          }
+        }
+      }
+    },
+    "Paired devices": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Appareils appairés"
+          }
+        }
+      }
+    },
+    "Pairing code generated": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code d'appairage généré"
+          }
+        }
+      }
+    },
+    "Password": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mot de passe"
+          }
+        }
+      }
+    },
+    "Player joined %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Joueur connecté sur %@"
+          }
+        }
+      }
+    },
+    "Players using %@ will no longer reach their server.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les joueurs qui utilisent %@ n'atteindront plus leur serveur."
+          }
+        }
+      }
+    },
+    "Port (587 by default)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Port (587 par défaut)"
+          }
+        }
+      }
+    },
+    "Previous version restored": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version précédente restaurée"
+          }
+        }
+      }
+    },
+    "Recent activity": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activité récente"
+          }
+        }
+      }
+    },
+    "Recipients (comma-separated)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Destinataires (séparés par des virgules)"
+          }
+        }
+      }
+    },
+    "Refused": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refusées"
+          }
+        }
+      }
+    },
+    "Remote access": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accès à distance"
+          }
+        }
+      }
+    },
+    "Remote access disabled": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accès à distance désactivé"
+          }
+        }
+      }
+    },
+    "Remote access enabled": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accès à distance activé"
+          }
+        }
+      }
+    },
+    "Remove Java %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer Java %@"
+          }
+        }
+      }
+    },
+    "Remove the channel %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer le canal %@"
+          }
+        }
+      }
+    },
+    "Remove the route %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer la route %@"
+          }
+        }
+      }
+    },
+    "Remove this Java?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer ce Java ?"
+          }
+        }
+      }
+    },
+    "Remove this channel?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer ce canal ?"
+          }
+        }
+      }
+    },
+    "Remove this route?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer cette route ?"
+          }
+        }
+      }
+    },
+    "Repeated crashes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plantages en boucle"
+          }
+        }
+      }
+    },
+    "Restart required": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redémarrage nécessaire"
+          }
+        }
+      }
+    },
+    "Revoke": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Révoquer"
+          }
+        }
+      }
+    },
+    "Revoke %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Révoquer %@"
+          }
+        }
+      }
+    },
+    "Revoke this device?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Révoquer cet appareil ?"
+          }
+        }
+      }
+    },
+    "Role": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rôle"
+          }
+        }
+      }
+    },
+    "Role changed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rôle modifié"
+          }
+        }
+      }
+    },
+    "Role of %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rôle de %@"
+          }
+        }
+      }
+    },
+    "Route removed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Route retirée"
+          }
+        }
+      }
+    },
+    "Route saved": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Route enregistrée"
+          }
+        }
+      }
+    },
+    "Router": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Routeur"
+          }
+        }
+      }
+    },
+    "Router disabled": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Routeur désactivé"
+          }
+        }
+      }
+    },
+    "Router enabled": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Routeur activé"
+          }
+        }
+      }
+    },
+    "Routes": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Routes"
+          }
+        }
+      }
+    },
+    "Run the diagnostics": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lancer le diagnostic"
+          }
+        }
+      }
+    },
+    "SMTP server": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serveur SMTP"
+          }
+        }
+      }
+    },
+    "Send a test to %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Envoyer un test à %@"
+          }
+        }
+      }
+    },
+    "Send a test to every channel": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Envoyer un test à tous les canaux"
+          }
+        }
+      }
+    },
+    "Sender address": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adresse d'expédition"
+          }
+        }
+      }
+    },
+    "Server": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serveur"
+          }
+        }
+      }
+    },
+    "Server name (empty: the modpack name)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom du serveur (vide : le nom du modpack)"
+          }
+        }
+      }
+    },
+    "Signing secret (optional)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secret de signature (facultatif)"
+          }
+        }
+      }
+    },
+    "System": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Système"
+          }
+        }
+      }
+    },
+    "System notifications when the window is in the background.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications du système quand la fenêtre est en arrière-plan."
+          }
+        }
+      }
+    },
+    "Test": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tester"
+          }
+        }
+      }
+    },
+    "Test message sent": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Message de test envoyé"
+          }
+        }
+      }
+    },
+    "The Java runtimes installed by MC Manager. Each server picks its own in its settings.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les Java installés par MC Manager. Chaque serveur choisit le sien dans ses réglages."
+          }
+        }
+      }
+    },
+    "The SMTP server is required": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le serveur SMTP est requis"
+          }
+        }
+      }
+    },
+    "The channel %@ will no longer receive alerts.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le canal %@ ne recevra plus d'alertes."
+          }
+        }
+      }
+    },
+    "The modpack is already up to date": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le modpack est déjà à jour"
+          }
+        }
+      }
+    },
+    "The previous version of MC Manager will be restored.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La version précédente de MC Manager sera restaurée."
+          }
+        }
+      }
+    },
+    "The sender and the recipients are required": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'expéditeur et les destinataires sont requis"
+          }
+        }
+      }
+    },
+    "The test failed for: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le test a échoué pour : %@"
+          }
+        }
+      }
+    },
+    "The test message could not be delivered": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le message de test n'a pas pu être livré"
+          }
+        }
+      }
+    },
+    "The token and the chat identifier are required": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le jeton et l'identifiant de conversation sont requis"
+          }
+        }
+      }
+    },
+    "The topic is required": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le sujet est requis"
+          }
+        }
+      }
+    },
+    "The update is corrupted": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La mise à jour est corrompue"
+          }
+        }
+      }
+    },
+    "The update signature is invalid": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La signature de la mise à jour est invalide"
+          }
+        }
+      }
+    },
+    "There is no previous version to restore": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il n'y a pas de version précédente à restaurer"
+          }
+        }
+      }
+    },
+    "This device is not allowed to see this.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cet appareil n'a pas le droit de voir ceci."
+          }
+        }
+      }
+    },
+    "This device was revoked": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cet appareil a été révoqué"
+          }
+        }
+      }
+    },
+    "This file is not part of the release": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce fichier ne fait pas partie de la version"
+          }
+        }
+      }
+    },
+    "This modpack cannot be updated automatically": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce modpack ne peut pas être mis à jour automatiquement"
+          }
+        }
+      }
+    },
+    "This modpack has no server files": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce modpack n'a pas de fichiers serveur"
+          }
+        }
+      }
+    },
+    "This port is already used by a server": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce port est déjà utilisé par un serveur"
+          }
+        }
+      }
+    },
+    "This release is not signed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette version n'est pas signée"
+          }
+        }
+      }
+    },
+    "This server has no alert channel": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce serveur n'a aucun canal d'alerte"
+          }
+        }
+      }
+    },
+    "This server was not installed from a modpack": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce serveur n'a pas été installé depuis un modpack"
+          }
+        }
+      }
+    },
+    "Token": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jeton"
+          }
+        }
+      }
+    },
+    "Topic": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sujet"
+          }
+        }
+      }
+    },
+    "Type": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type"
+          }
+        }
+      }
+    },
+    "Unknown Java version": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version de Java inconnue"
+          }
+        }
+      }
+    },
+    "Unknown channel type": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type de canal inconnu"
+          }
+        }
+      }
+    },
+    "Unknown event": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Événement inconnu"
+          }
+        }
+      }
+    },
+    "Update": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mise à jour"
+          }
+        }
+      }
+    },
+    "Update installed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mise à jour installée"
+          }
+        }
+      }
+    },
+    "Update the modpack": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mettre à jour le modpack"
+          }
+        }
+      }
+    },
+    "Updates are checked by signature and checksum. The service then restarts.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les mises à jour sont vérifiées par signature et somme de contrôle. Le service redémarre ensuite."
+          }
+        }
+      }
+    },
+    "Used by %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilisé par %@"
+          }
+        }
+      }
+    },
+    "Used by no server": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilisé par aucun serveur"
+          }
+        }
+      }
+    },
+    "User": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilisateur"
+          }
+        }
+      }
+    },
+    "Valid for %d min": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valable %d min"
+          }
+        }
+      }
+    },
+    "Version %@ will be installed and MC Manager will restart. Running servers are not stopped.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La version %@ sera installée et MC Manager redémarrera. Les serveurs en marche ne sont pas arrêtés."
+          }
+        }
+      }
+    },
+    "Version %@, %@ is available": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version %@, la %@ est disponible"
+          }
+        }
+      }
+    },
+    "Version %@, up to date": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version %@, à jour"
+          }
+        }
+      }
+    },
+    "Viewer": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lecteur"
+          }
+        }
+      }
+    },
+    "Wake-up": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réveil"
+          }
+        }
+      }
+    },
+    "announcement channel, read-only": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "canal d'annonce, lecture seule"
+          }
+        }
+      }
+    },
+    "every event": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tous les événements"
+          }
+        }
+      }
+    },
+    "never connected": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "jamais connecté"
+          }
+        }
+      }
+    },
+    "ntfy server (optional)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serveur ntfy (facultatif)"
+          }
+        }
+      }
+    },
+    "refused": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "refusé"
+          }
+        }
+      }
+    },
+    "seen on %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vu le %@"
+          }
+        }
+      }
     }
   }
 }

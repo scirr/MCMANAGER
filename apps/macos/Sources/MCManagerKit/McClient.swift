@@ -42,6 +42,35 @@ public protocol McClientProtocol: Sendable {
     func serverJava(_ name: String) async throws -> JavaRuntimes
     func setServerJava(_ name: String, choice: String) async throws -> JavaUsed
     func createServer(_ request: CreateServerRequest) async throws -> Job
+    func alertChannels(_ name: String) async throws -> AlertList
+    func addAlertChannel(_ name: String, request: AlertCreateRequest) async throws -> AlertAdded
+    func testAlerts(_ name: String, channel: String?) async throws -> AlertTested
+    func removeAlertChannel(_ name: String, channel: String) async throws -> AlertRemoved
+    func javaRuntimes() async throws -> JavaRuntimes
+    func installJava(major: Int) async throws -> Job
+    func removeJava(major: Int) async throws -> OperationResult
+    func remoteStatus() async throws -> RemoteStatus
+    func setRemoteAccess(enabled: Bool) async throws -> RemoteStatus
+    func createPairingCode(name: String?, role: String) async throws -> PairCode
+    func listDevices() async throws -> DeviceList
+    func setDeviceRole(_ device: String, role: String) async throws -> OperationResult
+    func revokeDevice(_ device: String) async throws -> OperationResult
+    func auditLog(limit: Int) async throws -> AuditLog
+    func checkUpdate() async throws -> UpdateCheck
+    func applyUpdate() async throws -> Job
+    func rollbackUpdate() async throws -> OperationResult
+    func doctor(server: String?) async throws -> DoctorReport
+    func router() async throws -> RouterStatus
+    func enableRouter() async throws -> RouterStatus
+    func disableRouter() async throws -> RouterStatus
+    func setRouterRoute(host: String, server: String) async throws -> RouterStatus
+    func removeRouterRoute(host: String) async throws -> RouterStatus
+    func setRouterDefault(server: String) async throws -> RouterStatus
+    func editRouterAccess(list: String, action: String, cidr: String) async throws -> RouterStatus
+    func modpackInfo(source: String) async throws -> ModpackInfo
+    func installModpack(_ request: ModpackInstallRequest) async throws -> Job
+    func updateModpack(_ name: String) async throws -> Job
+    func streamEvents() -> AsyncThrowingStream<ConsoleEvent, Error>
 }
 
 public struct McClient: McClientProtocol {
@@ -66,6 +95,7 @@ public struct McClient: McClientProtocol {
 
     private func call<T: Decodable>(_ method: String, _ path: String, body: (any Encodable)? = nil,
                                     decoder: JSONDecoder = Coding.decoder,
+                                    reported: Bool = false,
                                     as type: T.Type? = nil) async throws -> T {
         var request = HTTPRequest(method: method, path: path)
         if let body {
@@ -85,7 +115,7 @@ public struct McClient: McClientProtocol {
         guard (200..<300).contains(response.status) else {
             throw ApiError.parse(body: response.body, status: response.status)
         }
-        if let envelope = try? JSONDecoder().decode(ErrorBody.self, from: response.body), envelope.ok == false {
+        if !reported, let envelope = try? JSONDecoder().decode(ErrorBody.self, from: response.body), envelope.ok == false {
             throw ApiError.parse(body: response.body, status: response.status)
         }
         do {
@@ -264,9 +294,135 @@ public struct McClient: McClientProtocol {
         try await call("POST", "/v1/servers", body: request)
     }
 
+
+    public func alertChannels(_ name: String) async throws -> AlertList {
+        try await call("GET", Self.serverPath(name) + "/alerts")
+    }
+
+    public func addAlertChannel(_ name: String, request: AlertCreateRequest) async throws -> AlertAdded {
+        try await call("POST", Self.serverPath(name) + "/alerts", body: request)
+    }
+
+    public func testAlerts(_ name: String, channel: String?) async throws -> AlertTested {
+        try await call("POST", Self.serverPath(name) + "/alerts/test", body: AlertTestRequest(channel: channel),
+                       reported: true)
+    }
+
+    public func removeAlertChannel(_ name: String, channel: String) async throws -> AlertRemoved {
+        try await call("DELETE", Self.serverPath(name) + "/alerts/" + Self.ref(channel))
+    }
+
+    public func javaRuntimes() async throws -> JavaRuntimes {
+        try await call("GET", "/v1/java")
+    }
+
+    public func installJava(major: Int) async throws -> Job {
+        try await call("PUT", "/v1/java/\(major)")
+    }
+
+    public func removeJava(major: Int) async throws -> OperationResult {
+        try await call("DELETE", "/v1/java/\(major)")
+    }
+
+    public func remoteStatus() async throws -> RemoteStatus {
+        try await call("GET", "/v1/remote")
+    }
+
+    public func setRemoteAccess(enabled: Bool) async throws -> RemoteStatus {
+        try await call("PUT", "/v1/remote", body: RemoteEnableRequest(enabled: enabled))
+    }
+
+    public func createPairingCode(name: String?, role: String) async throws -> PairCode {
+        try await call("POST", "/v1/pair/codes", body: PairCodeRequest(name: name, role: role))
+    }
+
+    public func listDevices() async throws -> DeviceList {
+        try await call("GET", "/v1/devices")
+    }
+
+    public func setDeviceRole(_ device: String, role: String) async throws -> OperationResult {
+        try await call("PUT", "/v1/devices/" + Self.ref(device) + "/roles",
+                       body: DeviceRolesRequest(roles: DeviceRolesDocument(defaultRole: role)))
+    }
+
+    public func revokeDevice(_ device: String) async throws -> OperationResult {
+        try await call("DELETE", "/v1/devices/" + Self.ref(device))
+    }
+
+    public func auditLog(limit: Int) async throws -> AuditLog {
+        try await call("GET", "/v1/audit?limit=\(limit)")
+    }
+
+    public func checkUpdate() async throws -> UpdateCheck {
+        try await call("GET", "/v1/update")
+    }
+
+    public func applyUpdate() async throws -> Job {
+        try await call("POST", "/v1/update", body: EmptyBody())
+    }
+
+    public func rollbackUpdate() async throws -> OperationResult {
+        try await call("POST", "/v1/update/rollback")
+    }
+
+    public func doctor(server: String?) async throws -> DoctorReport {
+        let path = server.map { Self.serverPath($0) + "/doctor" } ?? "/v1/doctor"
+        return try await call("GET", path, reported: true)
+    }
+
+    public func router() async throws -> RouterStatus {
+        try await call("GET", "/v1/router", decoder: Coding.plainDecoder)
+    }
+
+    public func enableRouter() async throws -> RouterStatus {
+        try await call("POST", "/v1/router/enable", body: EmptyBody(), decoder: Coding.plainDecoder)
+    }
+
+    public func disableRouter() async throws -> RouterStatus {
+        try await call("POST", "/v1/router/disable", decoder: Coding.plainDecoder)
+    }
+
+    public func setRouterRoute(host: String, server: String) async throws -> RouterStatus {
+        try await call("PUT", "/v1/router/routes/" + Self.ref(host), body: RouterTargetRequest(server: server),
+                       decoder: Coding.plainDecoder)
+    }
+
+    public func removeRouterRoute(host: String) async throws -> RouterStatus {
+        try await call("DELETE", "/v1/router/routes/" + Self.ref(host), decoder: Coding.plainDecoder)
+    }
+
+    public func setRouterDefault(server: String) async throws -> RouterStatus {
+        try await call("PUT", "/v1/router/default", body: RouterTargetRequest(server: server),
+                       decoder: Coding.plainDecoder)
+    }
+
+    public func editRouterAccess(list: String, action: String, cidr: String) async throws -> RouterStatus {
+        try await call("POST", "/v1/router/access", body: RouterAccessRequest(list: list, action: action, cidr: cidr),
+                       decoder: Coding.plainDecoder)
+    }
+
+    public func modpackInfo(source: String) async throws -> ModpackInfo {
+        try await call("GET", "/v1/modpacks/info?source=" + Self.ref(source))
+    }
+
+    public func installModpack(_ request: ModpackInstallRequest) async throws -> Job {
+        try await call("POST", "/v1/modpacks", body: request)
+    }
+
+    public func updateModpack(_ name: String) async throws -> Job {
+        try await call("POST", Self.serverPath(name) + "/modpack/update", body: EmptyBody())
+    }
+
     public func streamConsole(_ name: String, tail: Int = 200) -> AsyncThrowingStream<ConsoleEvent, Error> {
-        let request = HTTPRequest(method: "GET", path: Self.serverPath(name) + "/console?tail=\(tail)",
-                                  headers: ["Accept": "text/event-stream"])
+        events(path: Self.serverPath(name) + "/console?tail=\(tail)")
+    }
+
+    public func streamEvents() -> AsyncThrowingStream<ConsoleEvent, Error> {
+        events(path: "/v1/events")
+    }
+
+    private func events(path: String) -> AsyncThrowingStream<ConsoleEvent, Error> {
+        let request = HTTPRequest(method: "GET", path: path, headers: ["Accept": "text/event-stream"])
         let chunks = transport.stream(request)
         return AsyncThrowingStream { continuation in
             let task = Task {

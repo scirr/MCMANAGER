@@ -10,9 +10,16 @@ struct TabStatusView: View {
                 ProgressView(value: tab.progress, total: 100)
                     .accessibilityLabel(tr("Operation in progress"))
             }
-            if tab.isReadOnly {
+            if tab.isDenied {
+                Label(tr("This device is not allowed to see this."), systemImage: "lock")
+                    .foregroundStyle(.secondary)
+            } else if tab.isReadOnly {
                 Label(tr("This device is not allowed to change this."), systemImage: "lock")
                     .foregroundStyle(.secondary)
+            }
+            if let done = doneLabel(tab.lastDone) {
+                Label(done, systemImage: "checkmark.circle")
+                    .foregroundStyle(.green)
             }
             if tab.restartRequired {
                 Label(tr("Restart the server to apply the changes."), systemImage: "arrow.clockwise")

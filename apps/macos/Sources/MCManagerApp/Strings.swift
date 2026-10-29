@@ -26,6 +26,10 @@ func message(for error: ApiError) -> String {
     case "bad_answer": return tr("The MC Manager service sent an answer the app cannot read.")
     case "server_offline": return tr("The server is offline.")
     case "port_taken": return tr("The server port is already in use.")
+    case "alert_test_failed":
+        return error.message.isEmpty
+            ? tr("The test message could not be delivered")
+            : String(format: tr("The test failed for: %@"), error.message)
     default:
         if let text = errorTexts[error.code] { return String(localized: text, bundle: .module) }
         return error.message.isEmpty ? error.code : error.message
@@ -153,4 +157,100 @@ func lastResultLabel(_ result: String) -> String {
     if result == "ok" { return tr("last run: ok") }
     let reason = errorTexts[result].map { String(localized: $0, bundle: .module) } ?? result
     return String(format: tr("last run failed: %@"), reason)
+}
+
+func alertTypeLabel(_ type: String) -> String {
+    switch type {
+    case "email": return tr("Email")
+    case "telegram": return "Telegram"
+    case "ntfy": return "ntfy"
+    case "webhook": return "Webhook"
+    case "discord": return "Discord"
+    default: return type
+    }
+}
+
+func alertEventLabel(_ event: String) -> String {
+    switch event {
+    case "start": return tr("Start")
+    case "stop": return tr("Stop")
+    case "crash": return tr("Crash")
+    case "crash_loop": return tr("Repeated crashes")
+    case "backup_failed": return tr("Backup failed")
+    case "update": return tr("Update")
+    case "sleep": return tr("Sleep")
+    case "wake": return tr("Wake-up")
+    default: return event
+    }
+}
+
+func alertFieldLabel(_ key: String) -> String {
+    switch key {
+    case "host": return tr("SMTP server")
+    case "port": return tr("Port (587 by default)")
+    case "user": return tr("User")
+    case "password": return tr("Password")
+    case "sender": return tr("Sender address")
+    case "to": return tr("Recipients (comma-separated)")
+    case "token": return tr("Token")
+    case "chat_id": return tr("Chat identifier")
+    case "server": return tr("ntfy server (optional)")
+    case "topic": return tr("Topic")
+    case "url": return tr("Address (URL)")
+    case "secret": return tr("Signing secret (optional)")
+    default: return key
+    }
+}
+
+func roleLabel(_ role: String) -> String {
+    switch role {
+    case "viewer": return tr("Viewer")
+    case "operator": return tr("Operator")
+    case "admin": return tr("Administrator")
+    default: return role
+    }
+}
+
+func notificationPrefLabel(_ kind: String) -> String {
+    switch kind {
+    case "crash": return tr("A server crashes")
+    case "backup_failed": return tr("A backup fails")
+    case "join": return tr("A player joins")
+    default: return kind
+    }
+}
+
+func noticeTitle(_ notice: AppNotice) -> String {
+    switch notice.kind {
+    case "crash": return String(format: tr("%@ crashed"), notice.server)
+    case "crash_loop": return String(format: tr("%@ keeps crashing"), notice.server)
+    case "backup_failed": return String(format: tr("Backup of %@ failed"), notice.server)
+    default: return String(format: tr("Player joined %@"), notice.server)
+    }
+}
+
+func doneLabel(_ kind: String) -> String? {
+    switch kind {
+    case "alert_added": return tr("Channel added")
+    case "alert_tested": return tr("Test message sent")
+    case "alert_removed": return tr("Channel removed")
+    case "java_installed": return tr("Java installed")
+    case "java_removed": return tr("Java removed")
+    case "remote_enabled": return tr("Remote access enabled")
+    case "remote_disabled": return tr("Remote access disabled")
+    case "code_ready": return tr("Pairing code generated")
+    case "role_saved": return tr("Role changed")
+    case "device_revoked": return tr("Device revoked")
+    case "update_done": return tr("Update installed")
+    case "update_rolled_back": return tr("Previous version restored")
+    case "router_enabled": return tr("Router enabled")
+    case "router_disabled": return tr("Router disabled")
+    case "route_saved": return tr("Route saved")
+    case "route_removed": return tr("Route removed")
+    case "router_default_saved": return tr("Default server saved")
+    case "router_access_saved": return tr("Access list changed")
+    case "modpack_updated": return tr("Modpack updated")
+    case "modpack_current": return tr("The modpack is already up to date")
+    default: return nil
+    }
 }

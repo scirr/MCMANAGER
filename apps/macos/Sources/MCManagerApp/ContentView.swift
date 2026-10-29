@@ -38,6 +38,14 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: Binding(
+            get: { model.system != nil },
+            set: { if !$0 { model.system = nil } }
+        )) {
+            if let system = model.system {
+                SystemView(model: system, close: { model.system = nil })
+            }
+        }
+        .sheet(isPresented: Binding(
             get: { model.pairingWizard != nil },
             set: { if !$0 { model.pairingClosed() } }
         )) {
@@ -84,6 +92,13 @@ struct ServerSplitView: View {
                 }
                 .help(tr("New server"))
                 .accessibilityLabel(tr("New server"))
+                Button {
+                    model.openSystem()
+                } label: {
+                    Label(tr("System"), systemImage: "gearshape.2")
+                }
+                .help(tr("System"))
+                .accessibilityLabel(tr("System"))
                 Button {
                     Task { await list.refresh() }
                 } label: {

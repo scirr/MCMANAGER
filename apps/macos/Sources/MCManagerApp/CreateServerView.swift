@@ -36,7 +36,7 @@ struct CreateServerView: View {
             }
         }
         .padding(20)
-        .frame(width: 520, height: 420)
+        .frame(width: 520, height: 460)
         .onChange(of: model.createdName) {
             if !model.createdName.isEmpty { finished(model.createdName) }
         }
@@ -52,17 +52,37 @@ struct CreateServerView: View {
 
     private var identityStep: some View {
         VStack(alignment: .leading, spacing: 10) {
-            TextField(tr("Server name"), text: $model.name)
-            Picker(tr("Server software"), selection: $model.loader) {
-                ForEach(CreateServerViewModel.loaders, id: \.self) { loader in
-                    Text(verbatim: loader).tag(loader)
+            TextField(model.isModpack ? tr("Server name (empty: the modpack name)") : tr("Server name"), text: $model.name)
+            HStack {
+                TextField(tr("Modpack (name or address, optional)"), text: $model.modpack)
+                    .onSubmit { Task { await model.lookupModpack() } }
+                IconButton(title: tr("Look up the modpack"), symbol: "magnifyingglass",
+                           enabled: model.isModpack && !model.tab.isBusy) {
+                    Task { await model.lookupModpack() }
                 }
             }
-            if !model.isProxy {
-                TextField(tr("Minecraft version (empty: latest)"), text: $model.version)
+            if model.isModpack {
+                if let pack = model.pack {
+                    Text(verbatim: packSummary(pack)).font(.caption).foregroundStyle(.secondary)
+                }
+            } else {
+                Picker(tr("Server software"), selection: $model.loader) {
+                    ForEach(CreateServerViewModel.loaders, id: \.self) { loader in
+                        Text(verbatim: loader).tag(loader)
+                    }
+                }
+                if !model.isProxy {
+                    TextField(tr("Minecraft version (empty: latest)"), text: $model.version)
+                }
             }
         }
         .textFieldStyle(.roundedBorder)
+    }
+
+    private func packSummary(_ pack: ModpackInfo) -> String {
+        let parts = [pack.title, pack.version, pack.mcVersion, pack.loader]
+            .compactMap { $0 }.filter { !$0.isEmpty }
+        return tr("Modpack found") + ": " + parts.joined(separator: " - ")
     }
 
     private var resourcesStep: some View {
@@ -74,11 +94,20 @@ struct CreateServerView: View {
         .textFieldStyle(.roundedBorder)
     }
 
+    private var summary: String {
+        let name = model.name.trimmingCharacters(in: .whitespaces)
+        if model.isModpack {
+            return [name.isEmpty ? (model.pack?.title ?? "") : name, model.modpack, model.ram.uppercased()]
+                .filter { !$0.isEmpty }.joined(separator: " - ")
+        }
+        return name + " - " + model.loader
+            + (model.version.isEmpty || model.isProxy ? "" : " " + model.version)
+            + " - " + model.ram.uppercased()
+    }
+
     private var summaryStep: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(verbatim: model.name.trimmingCharacters(in: .whitespaces) + " - " + model.loader
-                + (model.version.isEmpty || model.isProxy ? "" : " " + model.version)
-                + " - " + model.ram.uppercased())
+            Text(verbatim: summary)
                 .font(.headline)
             Text(verbatim: tr("Creating the server downloads its files. You must accept the Minecraft EULA (https://aka.ms/MinecraftEULA)."))
             Toggle(tr("I accept the Minecraft EULA"), isOn: $model.acceptEula)

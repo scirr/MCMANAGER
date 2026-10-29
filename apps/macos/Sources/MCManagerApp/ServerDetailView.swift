@@ -22,6 +22,8 @@ struct ServerDetailView: View {
                     .tabItem { Label(tr("World"), systemImage: "globe") }
                 TasksView(model: model.tasks)
                     .tabItem { Label(tr("Tasks"), systemImage: "calendar.badge.clock") }
+                AlertsView(model: model.alerts)
+                    .tabItem { Label(tr("Alerts"), systemImage: "bell.badge") }
                 SettingsView(model: model.settings)
                     .tabItem { Label(tr("Settings"), systemImage: "gearshape") }
             }
