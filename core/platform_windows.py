@@ -97,7 +97,7 @@ def service_install(user=None):
 
 def service_unit_drift():
     nssm, python_exe, daemon, base = _service_paths()
-    expected = {"Application": python_exe, "AppParameters": daemon, "AppDirectory": base}
+    expected = {"Application": python_exe, "AppParameters": f'"{daemon}"', "AppDirectory": base}
     return _service.service_unit_drift(expected, nssm)
 
 

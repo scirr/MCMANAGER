@@ -177,7 +177,8 @@ class TestInstall(unittest.TestCase):
         self.assertLess(verbs.index("install"), verbs.index("start"))
         self.assertEqual(verbs[-1], "start")
         install = next(c for c in calls if c[1] == "install")
-        self.assertEqual(install[2:], ["MCManagerDaemon", self.ARGS[1], self.ARGS[2]])
+        self.assertEqual(install[2:], ["MCManagerDaemon", self.ARGS[1]])
+        self.assertIn(["AppParameters", '"C:\\Mon Dossier\\mc_daemon.py"'], sets)
 
     def test_shared_data_dir(self):
         calls = []
@@ -208,7 +209,7 @@ class TestDrift(unittest.TestCase):
 
     def values(self, **over):
         v = {"Application": "c:\\python 3\\PYTHONW.exe",
-             "AppParameters": "C:\\Mon Dossier\\mc_daemon.py",
+             "AppParameters": "\"c:\\mon dossier\\MC_DAEMON.py\"",
              "AppDirectory": "C:\\Mon Dossier\\",
              "AppKillProcessTree": "0"}
         v.update(over)
@@ -231,6 +232,21 @@ class TestDrift(unittest.TestCase):
         self.assertEqual(status, "outdated")
         self.assertIn(("AppDirectory", "C:\\Ancien", "C:\\Mon Dossier"), drift)
         self.assertIn(("AppKillProcessTree", "1", "0"), drift)
+
+    def test_unquoted_script_path_with_a_space_is_outdated(self):
+        vals = self.values(AppParameters="C:\\Mon Dossier\\mc_daemon.py")
+        with mock.patch.object(svc, "service_state", return_value="running"), \
+                patch_run(nssm_fake(vals)):
+            status, drift = svc.service_unit_drift(self.EXPECTED, "nssm.exe")
+        self.assertEqual(status, "outdated")
+        self.assertEqual(drift[0][0], "AppParameters")
+
+    def test_quotes_are_optional_without_a_space(self):
+        expected = dict(self.EXPECTED, AppParameters="\"C:\\MC\\mc_daemon.py\"")
+        vals = self.values(AppParameters="C:\\MC\\mc_daemon.py")
+        with mock.patch.object(svc, "service_state", return_value="running"), \
+                patch_run(nssm_fake(vals)):
+            self.assertEqual(svc.service_unit_drift(expected, "nssm.exe"), ("ok", []))
 
     def test_no_nssm_means_ok(self):
         with mock.patch.object(svc, "service_state", return_value="running"), \

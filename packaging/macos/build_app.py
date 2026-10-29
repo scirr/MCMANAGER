@@ -156,7 +156,8 @@ def zip_app(app_dir, zip_path):
                 full = os.path.join(base, name)
                 arc = os.path.relpath(full, parent).replace(os.sep, "/")
                 info = zipfile.ZipInfo.from_file(full, arc)
-                mode = 0o755 if os.stat(full).st_mode & stat.S_IXUSR else 0o644
+                executable = "/Contents/MacOS/" in arc or os.stat(full).st_mode & stat.S_IXUSR
+                mode = 0o755 if executable else 0o644
                 info.external_attr = (stat.S_IFREG | mode) << 16
                 info.compress_type = zipfile.ZIP_DEFLATED
                 with open(full, "rb") as f:
