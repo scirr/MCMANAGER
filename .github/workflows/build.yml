@@ -191,12 +191,18 @@ jobs:
           }
           if (-not $answered) { Fail "the daemon API does not answer" $out }
           New-Item -ItemType Directory -Force "$env:ProgramData\MCManager\Servers\keep-me" | Out-Null
-          & "$root\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
-          foreach ($i in 1..30) {
+          $uninstallLog = Join-Path $env:RUNNER_TEMP 'uninstall.log'
+          & "$root\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART "/LOG=$uninstallLog"
+          foreach ($i in 1..60) {
             if (-not (Test-Path "$root\core")) { break }
             Start-Sleep -Seconds 2
           }
-          if (Test-Path "$root\core") { Fail "uninstall left the core behind" }
+          if (Test-Path "$root\core") {
+            $left = Get-ChildItem "$root\core" -Recurse -Force -ErrorAction SilentlyContinue | Select-Object -First 15 | ForEach-Object { $_.FullName }
+            $procs = Get-CimInstance Win32_Process -Filter "Name='python.exe' OR Name='pythonw.exe' OR Name='nssm.exe'" | ForEach-Object { "$($_.ProcessId) $($_.CommandLine)" }
+            $svc = Get-Service MCManagerDaemon -ErrorAction SilentlyContinue
+            Fail "uninstall left the core behind (service: $($svc.Status))" ((Tail $uninstallLog 30) + "`n--- left:`n" + ($left -join "`n") + "`n--- processes:`n" + ($procs -join "`n"))
+          }
           if (Get-Service MCManagerDaemon -ErrorAction SilentlyContinue) { Fail "the service is still registered" }
           if (Test-Path "$env:SystemRoot\System32\mc.bat") { Fail "mc.bat is still there" }
           if (-not (Test-Path "$env:ProgramData\MCManager\Servers\keep-me")) { Fail "the uninstaller touched the servers folder" }
