@@ -150,9 +150,15 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - name: Client tests
-        run: dotnet test apps/windows/MCManager.Client.Tests -c Release
+        run: |
+          dotnet test apps/windows/MCManager.Client.Tests -c Release 2>&1 | tee test.log; status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then grep -E "error [A-Z]+[0-9]+|^\s+Failed |Assert\.|Expected:|Actual:" test.log | sort -u | head -10 | sed 's/^\s*/::error::/'; fi
+          exit "$status"
       - name: View model tests
-        run: dotnet test apps/windows/MCManager.ViewModels.Tests -c Release
+        run: |
+          dotnet test apps/windows/MCManager.ViewModels.Tests -c Release 2>&1 | tee test.log; status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then grep -E "error [A-Z]+[0-9]+|^\s+Failed |Assert\.|Expected:|Actual:" test.log | sort -u | head -10 | sed 's/^\s*/::error::/'; fi
+          exit "$status"
 
   app-windows:
     name: Windows app (WinUI 3 build)
