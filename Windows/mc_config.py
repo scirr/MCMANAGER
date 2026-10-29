@@ -509,7 +509,8 @@ def install_daemon_task():
     subprocess.run([nssm_exe, "stop", service_name], capture_output=True)
     subprocess.run([nssm_exe, "remove", service_name, "confirm"], capture_output=True)
 
-    subprocess.run([nssm_exe, "install", service_name, python_exe, daemon_path], capture_output=True)
+    subprocess.run([nssm_exe, "install", service_name, python_exe], capture_output=True)
+    subprocess.run([nssm_exe, "set", service_name, "AppParameters", f'"{daemon_path}"'], capture_output=True)
     subprocess.run([nssm_exe, "set", service_name, "AppDirectory", BASE_DIR], capture_output=True)
     subprocess.run([nssm_exe, "set", service_name, "Start", "SERVICE_AUTO_START"], capture_output=True)
     subprocess.run([nssm_exe, "set", service_name, "AppStderr", os.path.join(logs_dir, "daemon_error.log")], capture_output=True)
