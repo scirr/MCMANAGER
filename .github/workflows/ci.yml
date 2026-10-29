@@ -56,42 +56,9 @@ jobs:
       - name: pip-audit
         run: pip-audit -r Linux/requirements.txt
 
-  packages:
-    name: Linux packages (.deb, .rpm)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-      - name: Install rpmbuild
-        run: sudo apt-get install -y --no-install-recommends rpm
-      - name: Build both packages
-        run: python3 packaging/linux/build_packages.py --out dist
-      - name: Inspect the .deb
-        run: |
-          dpkg-deb --info dist/mcmanager_*_all.deb
-          dpkg-deb --contents dist/mcmanager_*_all.deb
-      - name: Inspect the .rpm
-        run: |
-          rpm -qpi dist/mcmanager-*.noarch.rpm
-          rpm -qpl dist/mcmanager-*.noarch.rpm
-          rpm -qp --scripts dist/mcmanager-*.noarch.rpm
-      - name: Install the .deb and run it
-        run: |
-          sudo apt-get install -y ./dist/mcmanager_*_all.deb
-          dpkg -s mcmanager
-          test -x /usr/bin/mc
-          test -f /lib/systemd/system/mc_manager.service
-          mc version
-          mc doctor --json || test $? -eq 3
-          mc update --json || test $? -eq 1
-      - name: Remove and purge the .deb
-        run: |
-          sudo apt-get purge -y mcmanager
-          test ! -e /usr/bin/mc
+  build:
+    name: Build
+    uses: ./.github/workflows/build.yml
 
   app-linux:
     name: Desktop app (Linux)

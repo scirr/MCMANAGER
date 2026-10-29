@@ -44,6 +44,17 @@ DESCRIPTION = (
     "After installing, run: sudo mcmanager-setup"
 )
 NOT_SHIPPED = {"install.sh", "uninstall.sh"}
+APP_ID = "io.github.scirr.MCManager"
+APP_COMMAND = "mcmanager-app"
+APP_DATA_DIRS = {
+    f"{APP_ID}.desktop": "usr/share/applications",
+    f"{APP_ID}.metainfo.xml": "usr/share/metainfo",
+    f"{APP_ID}.svg": "usr/share/icons/hicolor/scalable/apps",
+}
+RECOMMENDS = {
+    "deb": ["python3-pil", "python3-gi", "gir1.2-gtk-4.0", "gir1.2-adw-1"],
+    "rpm": ["python3-pillow", "python3-gobject", "gtk4", "libadwaita"],
+}
 EXECUTABLE_APP_FILES = {"mc_cli.py", "mc_daemon.py"}
 
 UNIT_DIRS = {"deb": "/lib/systemd/system", "rpm": "/usr/lib/systemd/system"}
@@ -54,6 +65,10 @@ POLKIT_RULE = "/etc/polkit-1/rules.d/50-mc-manager.rules"
 
 COMMAND_SCRIPT = f"""#!/bin/sh
 exec {PYTHON} {APP_DIR}/mc_cli.py "$@"
+"""
+
+APP_COMMAND_SCRIPT = f"""#!/bin/sh
+PYTHONPATH={APP_DIR}/app${{PYTHONPATH:+:$PYTHONPATH}} exec {PYTHON} -m mcmanager_app "$@"
 """
 
 SETUP_SCRIPT = f"""#!/bin/sh
@@ -171,15 +186,20 @@ def stage_tree(stage, zip_path, kind):
     with zipfile.ZipFile(zip_path) as zf:
         for member in zf.namelist():
             parts = member.split("/")
-            if member.startswith("/") or ".." in parts or len(parts) != 2 or not parts[1]:
+            if member.startswith("/") or ".." in parts or not parts[-1]:
                 continue
-            fname = parts[1]
-            if fname in NOT_SHIPPED:
-                continue
-            mode = 0o755 if fname in EXECUTABLE_APP_FILES else 0o644
-            _write(os.path.join(stage, APP_DIR.lstrip("/"), fname), zf.read(member), mode)
+            if len(parts) == 2:
+                if parts[1] in NOT_SHIPPED:
+                    continue
+                mode = 0o755 if parts[1] in EXECUTABLE_APP_FILES else 0o644
+                _write(os.path.join(stage, APP_DIR.lstrip("/"), parts[1]), zf.read(member), mode)
+            elif len(parts) >= 4 and parts[1] == "app" and parts[2] == "mcmanager_app":
+                _write(os.path.join(stage, APP_DIR.lstrip("/"), *parts[1:]), zf.read(member), 0o644)
+            elif len(parts) == 4 and parts[1:3] == ["app", "data"] and parts[3] in APP_DATA_DIRS:
+                _write(os.path.join(stage, APP_DATA_DIRS[parts[3]], parts[3]), zf.read(member), 0o644)
     _write(os.path.join(stage, APP_DIR.lstrip("/"), "installed-by-package"), MARKERS[kind] + "\n", 0o644)
     _write(os.path.join(stage, "usr/bin/mc"), COMMAND_SCRIPT, 0o755)
+    _write(os.path.join(stage, "usr/bin", APP_COMMAND), APP_COMMAND_SCRIPT, 0o755)
     _write(os.path.join(stage, "usr/sbin/mcmanager-setup"), SETUP_SCRIPT, 0o755)
     _write(os.path.join(stage, UNIT_DIRS[kind].lstrip("/"), UNIT_NAME), render_unit(), 0o644)
     os.chmod(stage, 0o755)  # nosec B103 - package directories are world-readable by design
@@ -217,7 +237,7 @@ def control_text(version, size_kib):
         f"Maintainer: {MAINTAINER}\n"
         f"Installed-Size: {size_kib}\n"
         "Depends: python3 (>= 3.10)\n"
-        "Recommends: python3-pil\n"
+        f"Recommends: {', '.join(RECOMMENDS['deb'])}\n"
         "Section: utils\n"
         "Priority: optional\n"
         f"Homepage: {HOMEPAGE}\n"
@@ -245,6 +265,14 @@ def build_deb(zip_path, out_dir, version):
 def spec_text(version, stage_files, stagedir="%{_stagedir}"):
     scripts = rpm_scripts()
     files = "\n".join(f'%attr({mode:04o},root,root) "{path}"' for path, mode in stage_files)
+    app_dirs = set()
+    for path, _mode in stage_files:
+        folder = os.path.dirname(path)
+        while path.startswith(APP_DIR + "/") and folder != APP_DIR:
+            app_dirs.add(folder)
+            folder = os.path.dirname(folder)
+    app_dirs = sorted(app_dirs)
+    files = "\n".join([f"%dir %attr(0755,root,root) {d}" for d in app_dirs] + [files])
     changelog_date = time.strftime("%a %b %d %Y", time.gmtime())
     return f"""%global debug_package %{{nil}}
 %global __os_install_post %{{nil}}
@@ -259,7 +287,7 @@ URL:            {HOMEPAGE}
 BuildArch:      noarch
 AutoReqProv:    no
 Requires:       python3 >= 3.10
-Recommends:     python3-pillow
+Recommends:     {", ".join(RECOMMENDS["rpm"])}
 
 %description
 {DESCRIPTION}

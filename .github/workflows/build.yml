@@ -1,0 +1,252 @@
+name: Build packages and apps
+
+# The files a release publishes besides the three core zips are built here. CI
+# runs it on every push (nothing is published); the release workflow calls the
+# same jobs and publishes what they upload.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        default: ""
+    secrets:
+      WINDOWS_CERT_PFX:
+        required: false
+      WINDOWS_CERT_PASSWORD:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux packages (.deb, .rpm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install the build and test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends rpm xvfb appstream desktop-file-utils
+      - name: Build MCManager-Linux.zip, the .deb and the .rpm
+        run: python3 packaging/linux/build_packages.py --out dist
+      - name: The signing script sees the packages
+        run: |
+          python3 -m pip install --disable-pip-version-check "cryptography==50.0.1"
+          python3 tools/sign_release.py --list dist
+      - name: Inspect the .deb
+        run: |
+          dpkg-deb --info dist/mcmanager_*_all.deb
+          dpkg-deb --contents dist/mcmanager_*_all.deb
+      - name: Inspect the .rpm
+        run: |
+          rpm -qpi dist/mcmanager-*.noarch.rpm
+          rpm -qpl dist/mcmanager-*.noarch.rpm
+          rpm -qp --recommends dist/mcmanager-*.noarch.rpm
+          rpm -qp --scripts dist/mcmanager-*.noarch.rpm
+      - name: Install the .deb (with its recommended packages) and run it
+        run: |
+          sudo apt-get install -y ./dist/mcmanager_*_all.deb
+          dpkg -s mcmanager
+          test -x /usr/bin/mc
+          test -x /usr/bin/mcmanager-app
+          test -f /lib/systemd/system/mc_manager.service
+          mc version
+          mc doctor --json || test $? -eq 3
+          mc update --json || test $? -eq 1
+      - name: Desktop integration of the .deb
+        run: |
+          desktop-file-validate /usr/share/applications/io.github.scirr.MCManager.desktop
+          appstreamcli validate --no-net /usr/share/metainfo/io.github.scirr.MCManager.metainfo.xml
+          test -f /usr/share/icons/hicolor/scalable/apps/io.github.scirr.MCManager.svg
+      - name: Start the installed desktop app
+        run: |
+          status=0
+          xvfb-run -a timeout 8 mcmanager-app 2>app.log || status=$?
+          cat app.log
+          test "$status" -eq 124
+          ! grep -q Traceback app.log
+      - name: Start the desktop app from MCManager-Linux.zip
+        run: |
+          mkdir unzip && unzip -q dist/MCManager-Linux.zip -d unzip
+          test -x unzip/MCManager/app/mcmanager-app
+          status=0
+          PATH=/usr/bin:$PATH xvfb-run -a timeout 8 unzip/MCManager/app/mcmanager-app 2>zip.log || status=$?
+          cat zip.log
+          test "$status" -eq 124
+          ! grep -q Traceback zip.log
+      - name: Remove and purge the .deb
+        run: |
+          sudo apt-get purge -y mcmanager
+          test ! -e /usr/bin/mc
+          test ! -e /usr/bin/mcmanager-app
+          test ! -e /usr/share/applications/io.github.scirr.MCManager.desktop
+      - name: Install and remove the .rpm on Fedora
+        run: |
+          docker run --rm -v "$PWD/dist:/dist:ro" fedora:latest sh -ec '
+            dnf install -y --setopt=install_weak_deps=False /dist/mcmanager-*.noarch.rpm
+            rpm -q mcmanager
+            mc version
+            test -x /usr/bin/mcmanager-app
+            test -f /usr/share/applications/io.github.scirr.MCManager.desktop
+            rpm -V mcmanager
+            dnf remove -y mcmanager
+            test ! -e /usr/bin/mc
+            test ! -e /opt/mcmanager/app
+          '
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-linux
+          path: |
+            dist/MCManager-Linux.zip
+            dist/mcmanager_*_all.deb
+            dist/mcmanager-*.noarch.rpm
+          if-no-files-found: error
+          retention-days: 3
+
+  windows:
+    name: Windows (zip, app, installer)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: 8.0.x
+      - name: Build MCManager.zip
+        run: python Windows/build_release.py
+      - name: Publish the app (Release, x64, self-contained, unpackaged)
+        shell: pwsh
+        run: |
+          $msbuild = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
+          $out = Join-Path $PWD "build\app"
+          & $msbuild apps\windows\MCManager.App\MCManager.App.csproj -restore -m -t:Publish -p:Configuration=Release -p:Platform=x64 -p:RuntimeIdentifier=win-x64 -p:SelfContained=true -p:PublishDir="$out\" -nologo -v:minimal 2>&1 | Tee-Object -FilePath build.log
+          if ($LASTEXITCODE -ne 0) {
+            Select-String -Path build.log -Pattern '\berror [A-Z]+[0-9]+' | Select-Object -First 10 | ForEach-Object { "::error::" + $_.Line.Trim() }
+            exit 1
+          }
+          if (-not (Test-Path "$out\MCManager.exe")) { throw "MCManager.exe was not published" }
+          Get-ChildItem $out | Select-Object -First 40 | Format-Table Name, Length
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue) -and -not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+      - name: Build MCManager-Setup.exe
+        env:
+          WINDOWS_CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX }}
+          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: python packaging/windows/build_installer.py --zip dist/MCManager.zip --app build/app --out dist --work "$env:RUNNER_TEMP/setup"
+      - name: Install silently, check, uninstall
+        shell: pwsh
+        run: |
+          $setup = Start-Process -FilePath dist\MCManager-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/LANG=fr','/LOG=install.log' -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { Get-Content install.log -Tail 80; throw "installer exit code $($setup.ExitCode)" }
+          $root = Join-Path $env:ProgramFiles 'MCManager'
+          foreach ($p in 'python\python.exe', 'core\mc_cli.py', 'app\MCManager.exe', 'core\language.txt') {
+            if (-not (Test-Path (Join-Path $root $p))) { throw "missing after install: $p" }
+          }
+          if ((Get-Content "$root\core\language.txt" -Raw).Trim() -ne 'fr') { throw "language.txt is not fr" }
+          & "$root\python\python.exe" "$root\core\mc_cli.py" version
+          if ($LASTEXITCODE -ne 0) { throw "mc version failed" }
+          cmd /c mc version
+          if ($LASTEXITCODE -ne 0) { throw "the global mc command failed" }
+          $service = $null
+          foreach ($i in 1..30) {
+            $service = Get-Service MCManagerDaemon -ErrorAction SilentlyContinue
+            if ($service -and $service.Status -eq 'Running') { break }
+            Start-Sleep -Seconds 2
+          }
+          if (-not $service -or $service.Status -ne 'Running') {
+            Get-Content install.log -Tail 80
+            Get-ChildItem "$root\core\logs" -ErrorAction SilentlyContinue | ForEach-Object { "--- $($_.Name)"; Get-Content $_.FullName -Tail 40 }
+            throw "MCManagerDaemon is not running"
+          }
+          $answered = $false
+          foreach ($i in 1..30) {
+            & "$root\python\python.exe" "$root\core\mc_cli.py" api status --json
+            if ($LASTEXITCODE -eq 0) { $answered = $true; break }
+            Start-Sleep -Seconds 2
+          }
+          if (-not $answered) { throw "the daemon API does not answer" }
+          New-Item -ItemType Directory -Force "$env:ProgramData\MCManager\Servers\keep-me" | Out-Null
+          & "$root\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+          foreach ($i in 1..30) {
+            if (-not (Test-Path "$root\core")) { break }
+            Start-Sleep -Seconds 2
+          }
+          if (Test-Path "$root\core") { throw "uninstall left the core behind" }
+          if (Get-Service MCManagerDaemon -ErrorAction SilentlyContinue) { throw "the service is still registered" }
+          if (Test-Path "$env:SystemRoot\System32\mc.bat") { throw "mc.bat is still there" }
+          if (-not (Test-Path "$env:ProgramData\MCManager\Servers\keep-me")) { throw "the uninstaller touched the servers folder" }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-windows
+          path: |
+            dist/MCManager.zip
+            dist/MCManager-Setup.exe
+          if-no-files-found: error
+          retention-days: 3
+
+  macos:
+    name: macOS (zip, MCManager.app)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Build MCManager-macOS.zip
+        run: python3 macOS/build_release.py
+      - name: Build the app (universal, release)
+        working-directory: apps/macos
+        shell: bash
+        run: |
+          set -o pipefail
+          swift build -c release --arch arm64 --arch x86_64 2>&1 | tee build.log || {
+            grep ' error: ' build.log | sort -u | head -10 | while read -r line; do echo "::error::$line"; done
+            exit 1
+          }
+      - name: Assemble MCManager.app and zip it
+        shell: bash
+        run: |
+          bin=$(cd apps/macos && swift build -c release --arch arm64 --arch x86_64 --show-bin-path)
+          ls "$bin"
+          python3 packaging/macos/build_app.py --bin-path "$bin" --out dist --app-dir "$RUNNER_TEMP/MCManager.app"
+          lipo -archs "$RUNNER_TEMP/MCManager.app/Contents/MacOS/MCManager"
+          plutil -lint "$RUNNER_TEMP/MCManager.app/Contents/Info.plist"
+      - name: Start the app from the unzipped bundle
+        shell: bash
+        run: |
+          mkdir unzip && ditto -x -k dist/MCManager-App-macOS.zip unzip
+          test -x unzip/MCManager.app/Contents/MacOS/MCManager
+          unzip/MCManager.app/Contents/MacOS/MCManager >app.log 2>&1 &
+          pid=$!
+          sleep 10
+          cat app.log
+          kill -0 "$pid"
+          kill "$pid"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-macos
+          path: |
+            dist/MCManager-macOS.zip
+            dist/MCManager-App-macOS.zip
+          if-no-files-found: error
+          retention-days: 3

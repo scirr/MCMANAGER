@@ -91,6 +91,8 @@ MC_Manager/
 │   └── tests/
 │
 ├── packaging/linux/    # .deb and .rpm builder (build_packages.py)
+├── packaging/windows/  # Inno Setup installer (MCManager.iss, build_installer.py)
+├── packaging/macos/    # MCManager.app bundle builder (build_app.py)
 ├── apps/linux/         # Desktop app (GTK 4 + libadwaita), Flatpak manifest
 ├── apps/macos/         # Desktop app (SwiftUI), Swift package
 │
@@ -124,7 +126,7 @@ Or download `MCManager-Linux.zip` from the latest release and run `sudo ./instal
 
 ### Install from a package (Debian, Ubuntu, Fedora)
 
-Build the package with `python3 packaging/linux/build_packages.py` (output in `dist/`). The application goes to `/opt/mcmanager`, the command to `/usr/bin/mc`.
+Build the package with `python3 packaging/linux/build_packages.py` (output in `dist/`). The application goes to `/opt/mcmanager`, the command to `/usr/bin/mc`, the desktop app to `/opt/mcmanager/app` (`/usr/bin/mcmanager-app`, launcher, icon and metadata under `/usr/share`).
 
 ```bash
 # Debian / Ubuntu

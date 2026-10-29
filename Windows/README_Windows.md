@@ -15,6 +15,14 @@ Automatic Minecraft server management tool for Windows, driven by a Windows serv
 
 ## Installation
 
+### With the installer (recommended)
+
+Run `MCManager-Setup.exe` from the release. It installs MC Manager in `C:\Program Files\MCManager` with its own Python (nothing to install first), registers the `MCManagerDaemon` service, adds the global `mc` command and the **MC Manager** app to the Start menu. The installer is not code-signed unless the release was built with a certificate: SmartScreen then shows "Windows protected your PC", choose *More info*, then *Run anyway*.
+
+Servers, the registry and the worlds live in `C:\ProgramData\MCManager` (`MCMANAGER_DATA_DIR`), outside the installation folder. Uninstalling (Settings, Apps) removes the program, the service and the `mc` command, and never touches that folder. A registry created by the zip install (next to the program) is not read by the installer version: copy `servers.json` to `C:\ProgramData\MCManager` to keep it. `mc update` needs an administrator terminal on this install.
+
+### From the zip
+
 1. Place the MC Manager files in a folder (e.g. `D:\Code\MCMANAGER\Windows`) — this is the **program** folder, not the Minecraft server folder (servers live elsewhere, see [Multi-server](#multi-server)).
 2. Right-click `install.bat` → **Run as administrator**.
 3. Open a **new** terminal and create your first server:

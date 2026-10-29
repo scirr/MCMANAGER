@@ -2,7 +2,8 @@
 """
 sign_release.py — Write SHA256SUMS and SHA256SUMS.sig for a release.
 
-    python tools/sign_release.py dist        # sign every .zip in dist/
+    python tools/sign_release.py dist        # sign every .zip, .deb, .rpm and .exe in dist/
+    python tools/sign_release.py --list dist # what would be signed (no key needed)
     python tools/sign_release.py --generate  # create a new key pair
 
 The Ed25519 private key comes from the RELEASE_SIGNING_KEY environment
@@ -16,8 +17,9 @@ import os
 import re
 import sys
 
+SIGNED_SUFFIXES = (".zip", ".deb", ".rpm", ".exe")
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, "Linux"))
+sys.path.insert(0, os.path.join(ROOT, "core"))
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -30,16 +32,11 @@ def _raw_public(key):
 
 
 def embedded_public_keys():
-    keys = set()
-    for platform in ("Linux", "Windows"):
-        with open(os.path.join(ROOT, platform, "mc_update.py"), encoding="utf-8") as f:
-            m = re.search(r'RELEASE_PUBLIC_KEY = bytes\.fromhex\("([0-9a-f]{64})"\)', f.read())
-        if not m:
-            sys.exit(f"{platform}/mc_update.py: RELEASE_PUBLIC_KEY not found")
-        keys.add(m.group(1))
-    if len(keys) != 1:
-        sys.exit("Linux and Windows embed different release public keys")
-    return keys.pop()
+    with open(os.path.join(ROOT, "core", "mc_update.py"), encoding="utf-8") as f:
+        m = re.search(r'RELEASE_PUBLIC_KEY = bytes\.fromhex\("([0-9a-f]{64})"\)', f.read())
+    if not m:
+        sys.exit("core/mc_update.py: RELEASE_PUBLIC_KEY not found")
+    return m.group(1)
 
 
 def generate():
@@ -52,6 +49,13 @@ def generate():
     print(seed.hex())
 
 
+def release_files(dist):
+    found = sorted(f for f in os.listdir(dist) if f.endswith(SIGNED_SUFFIXES))
+    if not found:
+        sys.exit(f"nothing to sign in {dist}")
+    return found
+
+
 def sign(dist):
     secret = os.environ.get("RELEASE_SIGNING_KEY", "").strip()
     if not re.fullmatch(r"[0-9a-fA-F]{64}", secret):
@@ -61,9 +65,7 @@ def sign(dist):
     if public.hex() != embedded_public_keys():
         sys.exit("RELEASE_SIGNING_KEY does not match the public key embedded in the code")
 
-    packages = sorted(f for f in os.listdir(dist) if f.endswith(".zip"))
-    if not packages:
-        sys.exit(f"no .zip in {dist}")
+    packages = release_files(dist)
     lines = []
     for name in packages:
         with open(os.path.join(dist, name), "rb") as f:
@@ -84,6 +86,9 @@ def sign(dist):
 if __name__ == "__main__":
     if len(sys.argv) == 2 and sys.argv[1] == "--generate":
         generate()
+    elif len(sys.argv) == 3 and sys.argv[1] == "--list":
+        embedded_public_keys()
+        print("\n".join(release_files(sys.argv[2])))
     elif len(sys.argv) == 2:
         sign(sys.argv[1])
     else:

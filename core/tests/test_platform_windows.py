@@ -105,6 +105,7 @@ class TestLauncher(unittest.TestCase):
             with open(detail, newline="") as f:
                 text = f.read()
         self.assertIn("mc_cli.py", text)
+        self.assertIn(f'"{sys.executable}"', text)
         self.assertTrue(text.endswith("%*\r\n"))
 
     def test_write_failure(self):

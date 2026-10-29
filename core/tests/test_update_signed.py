@@ -153,3 +153,17 @@ class TestAssetPerPlatform(unittest.TestCase):
         self.assertEqual(mc_update.asset_for("win32"), "MCManager.zip")
         self.assertEqual(mc_update.asset_for("darwin"), "MCManager-macOS.zip")
         self.assertEqual(mc_update.asset_for("linux"), "MCManager-Linux.zip")
+
+    def test_other_release_files_are_never_taken_for_the_package(self):
+        others = {"MCManager-Setup.exe", "MCManager-App-macOS.zip", "mcmanager_3.0.0_all.deb",
+                  "mcmanager-3.0.0-1.noarch.rpm", "SHA256SUMS", "SHA256SUMS.sig"}
+        packages = {mc_update.asset_for(p) for p in ("win32", "darwin", "linux")}
+        self.assertEqual(len(packages), 3)
+        self.assertFalse(packages & others)
+        assets = {name: "https://example.invalid/" + name for name in sorted(packages | others)}
+        with mock.patch.object(mc_update, "_get_json", return_value={
+                "tag_name": "v3.0.0", "assets": [{"name": n, "browser_download_url": u} for n, u in assets.items()]}):
+            tag, found = mc_update._fetch_release()
+        self.assertEqual(tag, "3.0.0")
+        for package in packages:
+            self.assertEqual(found[package], assets[package])

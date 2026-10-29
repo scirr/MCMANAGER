@@ -20,6 +20,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DIST_DIR = os.path.join(HERE, "..", "dist")
 CORE_DIR = os.path.join(HERE, "..", "core")
 API_DIR = os.path.join(HERE, "..", "api")
+APP_DIR = os.path.join(HERE, "..", "apps", "linux")
+APP_LAUNCHER = """#!/bin/sh
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
+exec python3 -m mcmanager_app "$@"
+"""
 
 # Files shipped in the package. language.txt is intentionally NOT shipped so the
 # first launch prompts for the language.
@@ -83,6 +88,16 @@ def source_path(fname):
     return os.path.join(CORE_DIR, fname)
 
 
+def add_desktop_app(pkg):
+    app = os.path.join(pkg, "app")
+    shutil.copytree(os.path.join(APP_DIR, "mcmanager_app"), os.path.join(app, "mcmanager_app"),
+                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    shutil.copytree(os.path.join(APP_DIR, "data"), os.path.join(app, "data"))
+    launcher = os.path.join(app, "mcmanager-app")
+    with open(launcher, "w", encoding="utf-8", newline="\n") as f:
+        f.write(APP_LAUNCHER)
+
+
 def build_zip(zip_name="MCManager-Linux.zip", dist_dir=DIST_DIR):
     print(f"Building {zip_name} (bilingual FR/EN)...")
     os.makedirs(dist_dir, exist_ok=True)
@@ -94,6 +109,7 @@ def build_zip(zip_name="MCManager-Linux.zip", dist_dir=DIST_DIR):
 
         for fname in PACKAGE_FILES:
             shutil.copy2(source_path(fname), os.path.join(pkg, fname))
+        add_desktop_app(pkg)
 
         if os.path.exists(zip_path):
             os.remove(zip_path)
@@ -104,7 +120,7 @@ def build_zip(zip_name="MCManager-Linux.zip", dist_dir=DIST_DIR):
                     arcname = os.path.join("MCManager", os.path.relpath(filepath, pkg))
                     info = zipfile.ZipInfo.from_file(filepath, arcname)
                     # Keep shell scripts executable when extracted
-                    if file.endswith(".sh"):
+                    if file.endswith(".sh") or file == "mcmanager-app":
                         info.external_attr = 0o755 << 16
                     with open(filepath, "rb") as src:
                         zf.writestr(info, src.read(), zipfile.ZIP_DEFLATED)

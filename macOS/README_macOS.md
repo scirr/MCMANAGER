@@ -69,6 +69,10 @@ mc daemon start | stop | restart | status
 
 ---
 
+## Desktop app
+
+`MCManager-App-macOS.zip` (release) holds `MCManager.app`, the native app (macOS 14+, Apple Silicon and Intel). Unzip it and drag it to Applications. It is not signed or notarized: on the first launch, right-click the app, choose **Open**, then **Open** again (or allow it in System Settings, Privacy & Security). It talks to the daemon installed by `install.sh`.
+
 ## Uninstall
 
 ```bash

@@ -115,7 +115,7 @@ def install_launcher():
         return False, "elevation required"
     root = os.environ.get("SystemRoot") or r"C:\Windows"
     dst = ntpath.join(root, "System32", "mc.bat")
-    content = f'@echo off\r\npython "{ntpath.join(BASE_DIR, "mc_cli.py")}" %*\r\n'
+    content = f'@echo off\r\n"{sys.executable}" "{ntpath.join(BASE_DIR, "mc_cli.py")}" %*\r\n'
     try:
         with open(dst, "w", encoding="utf-8", newline="") as f:
             f.write(content)

@@ -5,6 +5,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CANDIDATES = (
     os.environ.get("MCMANAGER_CORE", ""),
     os.path.join(HERE, "..", "..", "..", "core"),
+    os.path.join(HERE, "..", ".."),
     "/opt/mcmanager",
 )
 
