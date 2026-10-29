@@ -171,7 +171,7 @@ public sealed partial class SettingsViewModel : TabViewModel
         SleepMinutes = (sleep.AfterS / 60).ToString(CultureInfo.InvariantCulture);
         SleepJoinMode = JoinModes.Contains(sleep.JoinMode) ? sleep.JoinMode : "kick";
         SleepFreeze = sleep.Freeze;
-        SleepFreezeSupported = sleep.FreezeSupported;
+        SleepFreezeSupported = sleep.FreezeSupported ?? true;
     }
 
     [RelayCommand]
