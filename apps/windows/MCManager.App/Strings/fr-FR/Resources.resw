@@ -278,10 +278,32 @@
   <data name="SleepJoinBox.Header" xml:space="preserve"><value>Mode de connexion</value></data>
   <data name="SleepJoinBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Mode de connexion</value></data>
   <data name="SleepFreezeBox.Content" xml:space="preserve"><value>Geler au lieu d'arrêter</value></data>
-  <data name="SleepFreezeHint.Text" xml:space="preserve"><value>Le gel demande le mode de connexion hold et n'existe pas sur un serveur Windows.</value></data>
+  <data name="SleepFreezeHint.Text" xml:space="preserve"><value>Le gel garde le serveur en mémoire au lieu de l'arrêter ; il demande de garder le joueur en attente.</value></data>
   <data name="Error_invalid_value" xml:space="preserve"><value>Valeur invalide</value></data>
   <data name="Error_sleep_after_too_short" xml:space="preserve"><value>L'inactivité doit durer au moins 5 minutes</value></data>
   <data name="Error_sleep_needs_rcon" xml:space="preserve"><value>La veille a besoin de RCON pour compter les joueurs : définissez d'abord un mot de passe RCON</value></data>
   <data name="Error_sleep_hold_timeout_range" xml:space="preserve"><value>L'attente doit durer entre 10 et 600 secondes</value></data>
   <data name="Error_unsupported_on_windows" xml:space="preserve"><value>Indisponible sur un serveur Windows</value></data>
+  <data name="Choice_whitelist" xml:space="preserve"><value>Liste blanche</value></data>
+  <data name="Choice_op" xml:space="preserve"><value>Opérateurs</value></data>
+  <data name="Choice_ban" xml:space="preserve"><value>Bannis</value></data>
+  <data name="Choice_banip" xml:space="preserve"><value>IP bannies</value></data>
+  <data name="Choice_auto" xml:space="preserve"><value>Automatique</value></data>
+  <data name="Choice_modrinth" xml:space="preserve"><value>Modrinth</value></data>
+  <data name="Choice_curseforge" xml:space="preserve"><value>CurseForge</value></data>
+  <data name="Choice_hangar" xml:space="preserve"><value>Hangar</value></data>
+  <data name="Choice_default" xml:space="preserve"><value>Par défaut</value></data>
+  <data name="Choice_first" xml:space="preserve"><value>En premier</value></data>
+  <data name="Choice_last" xml:space="preserve"><value>En dernier</value></data>
+  <data name="Choice_before_vanilla" xml:space="preserve"><value>Avant le vanilla</value></data>
+  <data name="Choice_restart" xml:space="preserve"><value>Redémarrer</value></data>
+  <data name="Choice_backup" xml:space="preserve"><value>Sauvegarder</value></data>
+  <data name="Choice_command" xml:space="preserve"><value>Commande</value></data>
+  <data name="Choice_stop" xml:space="preserve"><value>Arrêter</value></data>
+  <data name="Choice_start" xml:space="preserve"><value>Démarrer</value></data>
+  <data name="Choice_schedule" xml:space="preserve"><value>Horaires</value></data>
+  <data name="Choice_always_on" xml:space="preserve"><value>Toujours allumé</value></data>
+  <data name="Choice_maintenance" xml:space="preserve"><value>Maintenance</value></data>
+  <data name="Choice_kick" xml:space="preserve"><value>Refuser pendant le réveil</value></data>
+  <data name="Choice_hold" xml:space="preserve"><value>Garder le joueur en attente</value></data>
 </root>

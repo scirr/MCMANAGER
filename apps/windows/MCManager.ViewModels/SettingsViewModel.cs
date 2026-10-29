@@ -91,6 +91,9 @@ public sealed partial class SettingsViewModel : TabViewModel
     [ObservableProperty]
     private bool _sleepFreeze;
 
+    [ObservableProperty]
+    private bool _sleepFreezeSupported = true;
+
     private SleepSettings _loadedSleep = new();
 
     private string _loadedJava = "";
@@ -168,6 +171,7 @@ public sealed partial class SettingsViewModel : TabViewModel
         SleepMinutes = (sleep.AfterS / 60).ToString(CultureInfo.InvariantCulture);
         SleepJoinMode = JoinModes.Contains(sleep.JoinMode) ? sleep.JoinMode : "kick";
         SleepFreeze = sleep.Freeze;
+        SleepFreezeSupported = sleep.FreezeSupported;
     }
 
     [RelayCommand]

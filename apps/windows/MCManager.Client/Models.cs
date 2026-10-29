@@ -370,6 +370,7 @@ public sealed record SleepSettings
     public string JoinMode { get; init; } = "kick";
     public int HoldTimeoutS { get; init; }
     public bool Freeze { get; init; }
+    public bool FreezeSupported { get; init; } = true;
     public List<string> Allow { get; init; } = new();
     public List<string> Notes { get; init; } = new();
 }

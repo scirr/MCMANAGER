@@ -118,6 +118,7 @@ public class McClientTabsTests
         Assert.Equal(7200, sleep.AfterS);
         Assert.Equal("kick", sleep.JoinMode);
         Assert.Equal(120, sleep.HoldTimeoutS);
+        Assert.True(sleep.FreezeSupported);
         Assert.Equal("/v1/servers/survie/sleep", get.Requests[0].Path);
 
         var put = FakeHandler.Json(HttpStatusCode.OK, """
@@ -125,6 +126,12 @@ public class McClientTabsTests
         """);
         var saved = await put.Client().SetSleepSettingsAsync("survie", new SleepSettingsRequest { Enabled = true, AfterS = 3600, JoinMode = "hold", Freeze = true });
         Assert.True(saved.Freeze);
+        Assert.True(saved.FreezeSupported);
+
+        var windows = FakeHandler.Json(HttpStatusCode.OK, """
+        {"after_s": 7200, "allow": [], "code": "sleep_status", "enabled": false, "freeze": false, "freeze_supported": false, "hold_timeout_s": 120, "join_mode": "kick", "ok": true, "schema": 1, "server": "survie", "state": "stopped"}
+        """);
+        Assert.False((await windows.Client().GetSleepSettingsAsync("survie")).FreezeSupported);
         Assert.Single(saved.Notes);
         Assert.Equal(HttpMethod.Put, put.Requests[0].Method);
         Assert.Equal("""{"enabled":true,"after_s":3600,"join_mode":"hold","freeze":true}""", put.Requests[0].Body);

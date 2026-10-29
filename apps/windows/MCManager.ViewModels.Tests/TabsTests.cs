@@ -453,6 +453,16 @@ public class TabsTests
     }
 
     [Fact]
+    public async Task Settings_sleep_follows_whether_the_server_can_freeze()
+    {
+        var client = new FakeClient { Sleep = new SleepSettings { Ok = true, AfterS = 7200, FreezeSupported = false } };
+        var vm = new SettingsViewModel(client, new ErrorReporter(), "survie");
+        Assert.True(vm.SleepFreezeSupported);
+        await vm.RefreshAsync();
+        Assert.False(vm.SleepFreezeSupported);
+    }
+
+    [Fact]
     public async Task Settings_sleep_rejects_a_bad_delay_before_calling_the_api()
     {
         var client = new FakeClient();
