@@ -89,6 +89,7 @@ class ServerListModel(Observable):
         self.error = None
         self.connected = True
         self.loading = False
+        self.on_event = None
         self._stream = None
 
     def refresh(self):
@@ -155,6 +156,8 @@ class ServerListModel(Observable):
         self.notify()
 
     def apply_event(self, event):
+        if self.on_event:
+            self.on_event(event)
         kind = event.get("type")
         row = self.rows.get(event.get("server"))
         if kind == "state":

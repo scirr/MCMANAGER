@@ -64,6 +64,28 @@ class TestI18n(unittest.TestCase):
                  "task_enable_name", "task_disable_name", "dimension_overworld", "dimension_nether", "dimension_end"]
         self.assertEqual([key for key in keys if key not in i18n.TEXTS["en"]], [])
 
+    def test_computed_keys_of_the_host_panels_exist(self):
+        from mcmanager_app import host_panels
+        keys = ["alert_type_" + kind for kind in host_panels.ALERT_TYPES]
+        keys += ["alert_event_" + event for event in host_panels.ALERT_EVENTS + ("all",)]
+        keys += ["alert_field_" + key for fields in host_panels.ALERT_FIELDS.values() for key, _kind in fields]
+        keys += ["role_" + role for role in host_panels.ROLES]
+        keys += ["notify_pref_" + kind for kind in host_panels.NOTIFY_KINDS]
+        keys += ["notify_crash", "notify_crash_loop", "notify_backup_failed", "notify_join"]
+        keys += ["tab_" + name for name in ("alerts", "java", "devices", "router", "update", "doctor", "notifications")]
+        keys += ["update_current", "update_available", "router_allow", "router_deny"]
+        self.assertEqual([key for key in keys if key not in i18n.TEXTS["en"]], [])
+
+    def test_api_error_codes_of_the_host_panels_are_translated(self):
+        for code in ("bad_type", "bad_events", "bad_channel_name", "missing_host", "missing_addresses", "bad_port",
+                     "missing_telegram", "missing_topic", "bad_url", "channel_exists", "channel_not_found",
+                     "no_channel", "alert_test_failed", "router_port_conflict", "router_usage", "tls_unavailable",
+                     "device_not_found", "device_revoked", "pair_locked", "no_previous", "bad_signature", "not_listed",
+                     "bad_checksum", "unsigned", "no_asset", "unknown_pack", "pack_no_server_files", "port_taken",
+                     "no_modpack", "pack_not_updatable", "source_required", "java_unavailable",
+                     "java_download_failed", "java_unknown_version", "source_unreachable", "check_failed"):
+            self.assertNotIn("(", i18n.error_text(code), code)
+
     def test_api_error_codes_of_the_tabs_are_translated(self):
         for code in ("forbidden", "mod_not_found", "mod_exists", "mod_ambiguous", "defines_blocks", "pack_not_found",
                      "pack_nested", "pack_not_a_pack", "pack_broken_worldgen", "task_not_found", "task_name_taken",

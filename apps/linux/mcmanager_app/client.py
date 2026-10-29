@@ -227,6 +227,9 @@ class ApiClient:
     def list_servers(self):
         return self.get("/v1/servers").get("servers", [])
 
+    def list_servers_names(self):
+        return [entry.get("name") or entry.get("server") for entry in self.list_servers()]
+
     def get_server(self, server):
         return self.get("/v1/servers/" + self.ref(server))
 
@@ -370,6 +373,118 @@ class ApiClient:
             if value:
                 body[key] = value
         return self.call("POST", "/v1/servers", body)[1]
+
+    def alert_channels(self, server):
+        return self.get("/v1/servers/%s/alerts" % self.ref(server))
+
+    def add_alert(self, server, kind, events=None, name=None, **fields):
+        body = {"type": kind}
+        for key, value in (("events", events), ("name", name)):
+            if value:
+                body[key] = value
+        body.update({key: value for key, value in fields.items() if value not in (None, "")})
+        return self.call("POST", "/v1/servers/%s/alerts" % self.ref(server), body)[1]
+
+    def send_alert_test(self, server, channel=None):
+        return self.call("POST", "/v1/servers/%s/alerts/test" % self.ref(server), {"channel": channel})[1]
+
+    def remove_alert(self, server, channel):
+        return self.call("DELETE", "/v1/servers/%s/alerts/%s" % (self.ref(server), self.ref(channel)))[1]
+
+    def modpack_info(self, source):
+        return self.get("/v1/modpacks/info?source=" + quote(str(source), safe=""))
+
+    def install_modpack(self, source, accept_eula, name=None, ram=None, port=None, rcon_port=None):
+        body = {"source": source, "accept_eula": bool(accept_eula)}
+        for key, value in (("name", name), ("ram", ram), ("port", port), ("rcon_port", rcon_port)):
+            if value:
+                body[key] = value
+        return self.call("POST", "/v1/modpacks", body)[1]
+
+    def update_modpack(self, server):
+        return self.call("POST", "/v1/servers/%s/modpack/update" % self.ref(server), {})[1]
+
+    def java_runtimes(self):
+        return self.get("/v1/java")
+
+    def install_java(self, major):
+        return self.call("PUT", "/v1/java/%d" % int(major))[1]
+
+    def remove_java(self, major):
+        return self.call("DELETE", "/v1/java/%d" % int(major))[1]
+
+    def devices(self):
+        return self.get("/v1/devices")
+
+    def revoke_device(self, device):
+        return self.call("DELETE", "/v1/devices/" + self.ref(device))[1]
+
+    def set_device_roles(self, device, default, servers=None):
+        roles = {"default": default}
+        if servers:
+            roles["servers"] = servers
+        return self.call("PUT", "/v1/devices/%s/roles" % self.ref(device), {"roles": roles})[1]
+
+    def audit_log(self, limit=50, device=None, server=None):
+        query = "limit=%d" % int(limit)
+        for key, value in (("device", device), ("server", server)):
+            if value:
+                query += "&%s=%s" % (key, quote(str(value), safe=""))
+        return self.get("/v1/audit?" + query)
+
+    def pairing_code(self, name=None, role="operator", servers=None):
+        body = {"role": role}
+        if name:
+            body["name"] = name
+        if servers:
+            body["servers"] = servers
+        return self.call("POST", "/v1/pair/codes", body)[1]
+
+    def remote_status(self):
+        return self.get("/v1/remote")
+
+    def set_remote_access(self, enabled, bind=None):
+        body = {"enabled": bool(enabled)}
+        if bind:
+            body["bind"] = bind
+        return self.call("PUT", "/v1/remote", body)[1]
+
+    def check_update(self):
+        return self.get("/v1/update")
+
+    def apply_update(self, version=None):
+        return self.call("POST", "/v1/update", {"version": version})[1]
+
+    def rollback_update(self):
+        return self.call("POST", "/v1/update/rollback")[1]
+
+    def doctor(self, server=None):
+        status, document = self.transport.request(
+            "GET", "/v1/doctor" if not server else "/v1/servers/%s/doctor" % self.ref(server))
+        if status != 200:
+            raise ApiError(document.get("code") or "unknown", document.get("message") or "", status, document)
+        return document
+
+    def router(self):
+        return self.get("/v1/router")
+
+    def enable_router(self, **options):
+        return self.call("POST", "/v1/router/enable", {k: v for k, v in options.items() if v is not None})[1]
+
+    def disable_router(self):
+        return self.call("POST", "/v1/router/disable")[1]
+
+    def set_route(self, host, server):
+        return self.call("PUT", "/v1/router/routes/" + self.ref(host), {"server": server})[1]
+
+    def remove_route(self, host):
+        return self.call("DELETE", "/v1/router/routes/" + self.ref(host))[1]
+
+    def set_router_default(self, server):
+        return self.call("PUT", "/v1/router/default", {"server": server})[1]
+
+    def edit_router_access(self, kind, action, cidr):
+        return self.call("POST", "/v1/router/access", {"list": kind, "action": action, "cidr": cidr})[1]
 
     def wait_job(self, job_id, timeout=3600, step=0.5, sleep=time.sleep, now=time.time, on_progress=None):
         end = now() + timeout

@@ -111,8 +111,8 @@ class PanelModel(Observable):
             self._fail(error)
             self.notify()
             return
-        text = message(result) if callable(message) else t(message)
-        if isinstance(result, dict) and result.get("restart_required"):
+        text = message(result) if callable(message) else (t(message) if message else None)
+        if text and isinstance(result, dict) and result.get("restart_required"):
             text += " " + t("restart_required")
         self.message = text
         self.notify()
@@ -156,6 +156,14 @@ class ModsModel(PanelModel):
         self._removing = file
         return self._start("remove", lambda: self.client.remove_mod(self.name, file, confirm_blocks),
                            lambda _r: t("mod_removed", name=file), then=lambda _r: self.load())
+
+    def update_modpack(self):
+        return self._start("modpack", lambda: self.client.update_modpack(self.name), self._modpack_message, job=True,
+                           then=lambda _r: self.load())
+
+    @staticmethod
+    def _modpack_message(result):
+        return t("modpack_up_to_date" if (result or {}).get("code") == "pack_up_to_date" else "modpack_updated")
 
     def _fail(self, error):
         super()._fail(error)
@@ -462,6 +470,40 @@ class CreateServerModel(PanelModel):
     def __init__(self, client, runner=None):
         super().__init__(client, runner)
         self.created = None
+        self.pack = None
+
+    def lookup(self, source):
+        source = source.strip()
+        self.pack = None
+        if not source:
+            return self._refuse("source_required")
+        return self._start("lookup", lambda: self.client.modpack_info(source), None, then=self._looked_up)
+
+    def _looked_up(self, document):
+        self.pack = {"title": document.get("title") or "", "version": document.get("version") or "",
+                     "mc_version": document.get("mc_version") or "", "loader": document.get("loader") or ""}
+        self.notify()
+
+    def create_modpack(self, source, name="", ram="", eula=False, port="", rcon_port=""):
+        source, name, ram = source.strip(), name.strip(), ram.strip().upper()
+        if not source:
+            return self._refuse("source_required")
+        if not eula:
+            return self._refuse("eula_required")
+        if ram and not RAM_PATTERN.match(ram):
+            return self._refuse("invalid_value")
+        ports = []
+        for text in (port, rcon_port):
+            text = text.strip()
+            if text and not (text.isdigit() and 0 < int(text) < 65536):
+                return self._refuse("invalid_value")
+            ports.append(int(text) if text else None)
+        label = name or (self.pack or {}).get("title") or source
+        self.created = None
+        return self._start("create", lambda: self.client.install_modpack(source, True, name or None, ram or None,
+                                                                         ports[0], ports[1]),
+                           lambda _r: t("server_created", name=label), job=True,
+                           then=lambda result: self._done(result.get("server") or result.get("name") or name or label))
 
     def create(self, name, loader, version="", ram="", eula=False, port="", rcon_port=""):
         name, version, ram = name.strip(), version.strip(), ram.strip().upper()

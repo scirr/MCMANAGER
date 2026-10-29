@@ -72,6 +72,57 @@ class TestRequests(unittest.TestCase):
         self.assertEqual(self.last(), ("POST", "/v1/servers", {"name": "s", "loader": "Paper", "accept_eula": True,
                                                                 "version": "1.21.1", "ram": "4G"}))
 
+    def test_alerts_and_modpacks(self):
+        self.client.add_alert("a", "email", "crash,stop", "mail", host="smtp", port=587, user="", to="x@y")
+        self.assertEqual(self.last(), ("POST", "/v1/servers/a/alerts", {
+            "type": "email", "events": "crash,stop", "name": "mail", "host": "smtp", "port": 587, "to": "x@y"}))
+        self.client.send_alert_test("a", "mail")
+        self.assertEqual(self.last(), ("POST", "/v1/servers/a/alerts/test", {"channel": "mail"}))
+        self.client.remove_alert("a", "m ail")
+        self.assertEqual(self.last()[:2], ("DELETE", "/v1/servers/a/alerts/m%20ail"))
+        self.client.modpack_info("a b")
+        self.assertEqual(self.last()[:2], ("GET", "/v1/modpacks/info?source=a%20b"))
+        self.client.install_modpack("cobblemon", True, None, "4G")
+        self.assertEqual(self.last(), ("POST", "/v1/modpacks", {"source": "cobblemon", "accept_eula": True, "ram": "4G"}))
+        self.client.update_modpack("a")
+        self.assertEqual(self.last()[:2], ("POST", "/v1/servers/a/modpack/update"))
+
+    def test_host(self):
+        self.client.install_java(21)
+        self.assertEqual(self.last()[:2], ("PUT", "/v1/java/21"))
+        self.client.remove_java("17")
+        self.assertEqual(self.last()[:2], ("DELETE", "/v1/java/17"))
+        self.client.set_device_roles("d_1", "admin")
+        self.assertEqual(self.last(), ("PUT", "/v1/devices/d_1/roles", {"roles": {"default": "admin"}}))
+        self.client.revoke_device("d_1")
+        self.assertEqual(self.last()[:2], ("DELETE", "/v1/devices/d_1"))
+        self.client.audit_log(10, server="a b")
+        self.assertEqual(self.last()[1], "/v1/audit?limit=10&server=a%20b")
+        self.client.pairing_code("tab", "viewer")
+        self.assertEqual(self.last(), ("POST", "/v1/pair/codes", {"role": "viewer", "name": "tab"}))
+        self.client.set_remote_access(True)
+        self.assertEqual(self.last(), ("PUT", "/v1/remote", {"enabled": True}))
+        self.client.apply_update()
+        self.assertEqual(self.last(), ("POST", "/v1/update", {"version": None}))
+        self.client.rollback_update()
+        self.assertEqual(self.last()[:2], ("POST", "/v1/update/rollback"))
+        self.client.doctor("a")
+        self.assertEqual(self.last()[:2], ("GET", "/v1/servers/a/doctor"))
+
+    def test_router(self):
+        self.client.set_route("play.example.org", "a")
+        self.assertEqual(self.last(), ("PUT", "/v1/router/routes/play.example.org", {"server": "a"}))
+        self.client.remove_route("play.example.org")
+        self.assertEqual(self.last()[:2], ("DELETE", "/v1/router/routes/play.example.org"))
+        self.client.set_router_default("a")
+        self.assertEqual(self.last(), ("PUT", "/v1/router/default", {"server": "a"}))
+        self.client.edit_router_access("allow", "add", "10.0.0.0/8")
+        self.assertEqual(self.last(), ("POST", "/v1/router/access", {"list": "allow", "action": "add", "cidr": "10.0.0.0/8"}))
+        self.client.enable_router(port=25570, proxy_in=None)
+        self.assertEqual(self.last(), ("POST", "/v1/router/enable", {"port": 25570}))
+        self.client.disable_router()
+        self.assertEqual(self.last()[:2], ("POST", "/v1/router/disable"))
+
 
 class TestAgainstLocalApi(unittest.TestCase):
     def setUp(self):
@@ -82,9 +133,9 @@ class TestAgainstLocalApi(unittest.TestCase):
         self.addCleanup(self.api.stop)
         self.client = local_client(self.env)
 
-    def code(self, function, *args):
+    def code(self, function, *args, **kwargs):
         with self.assertRaises(ApiError) as caught:
-            function(*args)
+            function(*args, **kwargs)
         return caught.exception.code
 
     def test_empty_listings(self):
@@ -115,6 +166,28 @@ class TestAgainstLocalApi(unittest.TestCase):
         self.assertEqual(self.code(self.client.set_datapack, "a", "zz.zip", False), "pack_not_found")
         self.assertEqual(self.code(self.client.reset_dimension, "a", "nether"), "unknown_dimension")
         self.assertEqual(self.code(self.client.create_server, "s2", "Paper", False), "eula_required")
+
+    def test_alert_round_trip(self):
+        added = self.client.add_alert("a", "ntfy", "crash", "phone", topic="mc")
+        self.assertEqual(added["channel"], "phone")
+        channel = self.client.alert_channels("a")["channels"][0]
+        self.assertEqual((channel["name"], channel["type"]), ("phone", "ntfy"))
+        self.assertEqual(self.code(self.client.add_alert, "a", "ntfy", None, "phone", topic="mc"), "channel_exists")
+        self.assertEqual(self.code(self.client.add_alert, "a", "email"), "missing_host")
+        self.client.remove_alert("a", "phone")
+        self.assertEqual(self.client.alert_channels("a")["channels"], [])
+        self.assertEqual(self.code(self.client.remove_alert, "a", "phone"), "channel_not_found")
+
+    def test_host_documents(self):
+        self.assertIn("runtimes", self.client.java_runtimes())
+        self.assertIn("devices", self.client.devices())
+        self.assertIn("entries", self.client.audit_log(5))
+        self.assertIn("enabled", self.client.remote_status())
+        self.assertIn("config", self.client.router())
+        report = self.client.doctor()
+        self.assertIn("checks", report)
+        self.assertIn("checks", self.client.doctor("a"))
+        self.assertEqual(self.code(self.client.revoke_device, "d_missing"), "device_not_found")
 
     def test_java_listing(self):
         self.assertEqual(self.client.server_java("a")["servers"][0]["server"], "a")

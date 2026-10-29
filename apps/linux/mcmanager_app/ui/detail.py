@@ -7,6 +7,7 @@ from gi.repository import Adw, GLib, Gtk  # noqa: E402
 from ..i18n import t  # noqa: E402
 from ..models import ACTIONS, PLAYER_LISTS, BackupsModel, ConsoleModel, PlayersModel, ServerDetailModel, players_text  # noqa: E402
 from .common import make_runner  # noqa: E402
+from .alerts import AlertsTab  # noqa: E402
 from .content_tabs import DatapacksTab, ModsTab, WorldTab  # noqa: E402
 from .manage_tabs import SettingsTab, TasksTab  # noqa: E402
 
@@ -200,7 +201,7 @@ class BackupsTab(Adw.PreferencesPage):
 
 
 class ServerDetailPage(Adw.NavigationPage):
-    """Server sheet: action buttons and the Console, Players, Backups, Mods, Datapacks, World, Tasks and Settings tabs."""
+    """Server sheet: action buttons and the Console, Players, Backups, Mods, Datapacks, World, Tasks, Alerts and Settings tabs."""
 
     def __init__(self, client, list_model, name, toast):
         super().__init__(title=name, tag="detail")
@@ -213,6 +214,7 @@ class ServerDetailPage(Adw.NavigationPage):
         self.datapacks = DatapacksTab(client, name, toast)
         self.world = WorldTab(client, name, toast)
         self.tasks = TasksTab(client, name, toast)
+        self.alerts = AlertsTab(client, name, toast)
         self.settings = SettingsTab(client, name, toast)
         self.buttons = {}
         header = Adw.HeaderBar()
@@ -231,6 +233,7 @@ class ServerDetailPage(Adw.NavigationPage):
         self.stack.add_titled_with_icon(self.datapacks, "datapacks", t("tab_datapacks"), "package-x-generic-symbolic")
         self.stack.add_titled_with_icon(self.world, "world", t("tab_world"), "applications-science-symbolic")
         self.stack.add_titled_with_icon(self.tasks, "tasks", t("tab_tasks"), "alarm-symbolic")
+        self.stack.add_titled_with_icon(self.alerts, "alerts", t("tab_alerts"), "preferences-system-notifications-symbolic")
         self.stack.add_titled_with_icon(self.settings, "settings", t("tab_settings"), "emblem-system-symbolic")
         switcher = Adw.ViewSwitcherBar(stack=self.stack, reveal=True)
         view = Adw.ToolbarView()

@@ -5,15 +5,17 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, GLib, Gtk  # noqa: E402
+from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
 from .. import APP_ID, client as api  # noqa: E402
 from ..i18n import t  # noqa: E402
+from ..host_panels import NotificationPrefs, NotificationsModel  # noqa: E402
 from ..models import ConnectionModel, ServerListModel  # noqa: E402
 from .common import make_runner  # noqa: E402
 from .create import add_server_button  # noqa: E402
 from .detail import ServerDetailPage  # noqa: E402
 from .server_list import ServerListView, refresh_button  # noqa: E402
+from .system import SystemPage  # noqa: E402
 from .welcome import RemotePage, WelcomePage  # noqa: E402
 
 
@@ -36,6 +38,25 @@ def save_choice(mode, profile):
         json.dump({"mode": mode, "profile": profile}, handle)
 
 
+def prefs_path():
+    return os.path.join(GLib.get_user_config_dir(), "mcmanager-app", "notifications.json")
+
+
+def load_prefs():
+    try:
+        with open(prefs_path(), encoding="utf-8") as handle:
+            return json.load(handle)
+    except (OSError, ValueError):
+        return None
+
+
+def save_prefs(values):
+    path = prefs_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(values, handle)
+
+
 class MainWindow(Adw.ApplicationWindow):
     def __init__(self, application):
         super().__init__(application=application, title=t("app_title"), default_width=1000, default_height=680)
@@ -43,6 +64,8 @@ class MainWindow(Adw.ApplicationWindow):
         self.connection = ConnectionModel(api.LocalTransport.discover, api.RemoteTransport.from_profile,
                                           api.pair_remote, api.probe_fingerprint, self.runner)
         self.list_model = None
+        self.prefs = NotificationPrefs(load_prefs, save_prefs)
+        self.notifications = NotificationsModel(self.prefs, self.send_notification)
         self.detail = None
         self.warned = False
         self.overlay = Adw.ToastOverlay()
@@ -85,6 +108,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.client = client
         self.list_model = ServerListModel(client, self.runner)
         self.list_model.subscribe(self.on_list_changed)
+        self.list_model.on_event = self.notifications.on_event
         self.split = Adw.NavigationSplitView()
         sidebar_view = Adw.ToolbarView()
         header = Adw.HeaderBar(title_widget=Gtk.Label(label=t("servers")))
@@ -117,13 +141,27 @@ class MainWindow(Adw.ApplicationWindow):
         menu.update_property([Gtk.AccessibleProperty.LABEL], [t("menu")])
         popover = Gtk.Popover()
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, margin_top=6, margin_bottom=6, margin_start=6, margin_end=6)
-        for label, handler in ((t("this_machine"), self.switch_local), (t("remote_server"), self.show_welcome_again)):
+        entries = ((t("system_title"), self.show_system), (t("this_machine"), self.switch_local),
+                   (t("remote_server"), self.show_welcome_again))
+        for label, handler in entries:
             button = Gtk.Button(label=label, css_classes=["flat"])
             button.connect("clicked", lambda _b, h=handler: (popover.popdown(), h()))
             box.append(button)
         popover.set_child(box)
         menu.set_popover(popover)
         return menu
+
+    def show_system(self):
+        self.navigation.push(SystemPage(self.client, self.prefs, self.toast))
+
+    def send_notification(self, key, title, body):
+        application = self.get_application()
+        if application is None or self.is_active():
+            return
+        notification = Gio.Notification.new(title)
+        if body:
+            notification.set_body(body)
+        application.send_notification(key, notification)
 
     def switch_local(self):
         client = self.connection.use_local()
