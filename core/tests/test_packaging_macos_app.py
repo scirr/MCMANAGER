@@ -36,7 +36,8 @@ class AppBundleTests(unittest.TestCase):
         for rel in ("Contents/MacOS/MCManager", "Contents/Info.plist", "Contents/Resources/MCManager.icns",
                     "Contents/Resources/MCManager_MCManagerApp.bundle/Contents/Info.plist"):
             self.assertTrue(os.path.exists(os.path.join(self.app, rel)), rel)
-        self.assertTrue(os.stat(os.path.join(self.app, "Contents/MacOS/MCManager")).st_mode & stat.S_IXUSR)
+        if os.name != "nt":
+            self.assertTrue(os.stat(os.path.join(self.app, "Contents/MacOS/MCManager")).st_mode & stat.S_IXUSR)
 
     def test_info_plist(self):
         with open(os.path.join(self.app, "Contents", "Info.plist"), "rb") as f:

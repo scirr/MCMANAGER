@@ -153,17 +153,25 @@ jobs:
       - name: Install silently, check, uninstall
         shell: pwsh
         run: |
+          function Fail([string]$message, [string]$detail = '') {
+            $text = ($message + "`n" + $detail) -replace '%', '%25' -replace "`r", '' -replace "`n", '%0A'
+            Write-Output "::error title=Windows installer::$text"
+            exit 1
+          }
+          function Tail([string]$path, [int]$lines = 25) {
+            if (Test-Path $path) { (Get-Content $path -Tail $lines) -join "`n" } else { "($path missing)" }
+          }
           $setup = Start-Process -FilePath dist\MCManager-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/LANG=fr','/LOG=install.log' -Wait -PassThru
-          if ($setup.ExitCode -ne 0) { Get-Content install.log -Tail 80; throw "installer exit code $($setup.ExitCode)" }
+          if ($setup.ExitCode -ne 0) { Fail "installer exit code $($setup.ExitCode)" (Tail install.log) }
           $root = Join-Path $env:ProgramFiles 'MCManager'
           foreach ($p in 'python\python.exe', 'core\mc_cli.py', 'app\MCManager.exe', 'core\language.txt') {
-            if (-not (Test-Path (Join-Path $root $p))) { throw "missing after install: $p" }
+            if (-not (Test-Path (Join-Path $root $p))) { Fail "missing after install: $p" (Tail install.log) }
           }
-          if ((Get-Content "$root\core\language.txt" -Raw).Trim() -ne 'fr') { throw "language.txt is not fr" }
-          & "$root\python\python.exe" "$root\core\mc_cli.py" version
-          if ($LASTEXITCODE -ne 0) { throw "mc version failed" }
-          cmd /c mc version
-          if ($LASTEXITCODE -ne 0) { throw "the global mc command failed" }
+          if ((Get-Content "$root\core\language.txt" -Raw).Trim() -ne 'fr') { Fail "language.txt is not fr" }
+          $out = & "$root\python\python.exe" "$root\core\mc_cli.py" version 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0) { Fail "mc version failed" $out }
+          $out = cmd /c "mc version 2>&1" | Out-String
+          if ($LASTEXITCODE -ne 0) { Fail "the global mc command failed" $out }
           $service = $null
           foreach ($i in 1..30) {
             $service = Get-Service MCManagerDaemon -ErrorAction SilentlyContinue
@@ -171,27 +179,27 @@ jobs:
             Start-Sleep -Seconds 2
           }
           if (-not $service -or $service.Status -ne 'Running') {
-            Get-Content install.log -Tail 80
-            Get-ChildItem "$root\core\logs" -ErrorAction SilentlyContinue | ForEach-Object { "--- $($_.Name)"; Get-Content $_.FullName -Tail 40 }
-            throw "MCManagerDaemon is not running"
+            $logs = Get-ChildItem "$root\core\logs" -ErrorAction SilentlyContinue | ForEach-Object { "--- $($_.Name)`n" + (Tail $_.FullName 15) }
+            Fail "MCManagerDaemon is not running ($($service.Status))" ((Tail install.log 15) + "`n" + ($logs -join "`n"))
           }
           $answered = $false
+          $out = ''
           foreach ($i in 1..30) {
-            & "$root\python\python.exe" "$root\core\mc_cli.py" api status --json
+            $out = & "$root\python\python.exe" "$root\core\mc_cli.py" api status --json 2>&1 | Out-String
             if ($LASTEXITCODE -eq 0) { $answered = $true; break }
             Start-Sleep -Seconds 2
           }
-          if (-not $answered) { throw "the daemon API does not answer" }
+          if (-not $answered) { Fail "the daemon API does not answer" $out }
           New-Item -ItemType Directory -Force "$env:ProgramData\MCManager\Servers\keep-me" | Out-Null
           & "$root\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
           foreach ($i in 1..30) {
             if (-not (Test-Path "$root\core")) { break }
             Start-Sleep -Seconds 2
           }
-          if (Test-Path "$root\core") { throw "uninstall left the core behind" }
-          if (Get-Service MCManagerDaemon -ErrorAction SilentlyContinue) { throw "the service is still registered" }
-          if (Test-Path "$env:SystemRoot\System32\mc.bat") { throw "mc.bat is still there" }
-          if (-not (Test-Path "$env:ProgramData\MCManager\Servers\keep-me")) { throw "the uninstaller touched the servers folder" }
+          if (Test-Path "$root\core") { Fail "uninstall left the core behind" }
+          if (Get-Service MCManagerDaemon -ErrorAction SilentlyContinue) { Fail "the service is still registered" }
+          if (Test-Path "$env:SystemRoot\System32\mc.bat") { Fail "mc.bat is still there" }
+          if (-not (Test-Path "$env:ProgramData\MCManager\Servers\keep-me")) { Fail "the uninstaller touched the servers folder" }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dist-windows
