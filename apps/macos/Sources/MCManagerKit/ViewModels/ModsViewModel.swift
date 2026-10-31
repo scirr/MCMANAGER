@@ -77,4 +77,16 @@ public final class ModsViewModel {
             await refresh()
         }
     }
+
+    public func updateModpack() async {
+        let done = await tab.runJob("modpack_updated") { try await self.client.updateModpack(self.server) }
+        if done {
+            if tab.lastJob?.result?.code == "pack_up_to_date" {
+                tab.markDone("modpack_current")
+            } else {
+                tab.restartRequired = true
+            }
+        }
+        await refresh()
+    }
 }

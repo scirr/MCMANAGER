@@ -16,6 +16,7 @@ public final class ServerDetailViewModel {
     public let world: WorldViewModel
     public let tasks: TasksViewModel
     public let settings: SettingsViewModel
+    public let alerts: AlertsViewModel
     public private(set) var state = ""
     public private(set) var version = ""
     public private(set) var ramText = "-"
@@ -38,6 +39,7 @@ public final class ServerDetailViewModel {
         world = WorldViewModel(client: client, errors: errors, server: name)
         tasks = TasksViewModel(client: client, errors: errors, server: name)
         settings = SettingsViewModel(client: client, errors: errors, server: name)
+        alerts = AlertsViewModel(client: client, errors: errors, server: name)
     }
 
     public var canStart: Bool { !isBusy && Self.startable.contains(state) }

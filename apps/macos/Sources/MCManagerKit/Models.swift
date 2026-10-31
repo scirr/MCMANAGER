@@ -91,6 +91,7 @@ public struct JobResult: Codable, Equatable, Sendable {
     public var ok: Bool?
     public var code: String?
     public var message: String?
+    public var server: String?
 }
 
 public struct Job: Codable, Equatable, Identifiable, Sendable {

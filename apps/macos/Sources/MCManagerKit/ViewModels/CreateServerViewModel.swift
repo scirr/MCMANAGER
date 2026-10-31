@@ -15,6 +15,8 @@ public final class CreateServerViewModel {
     public var port = ""
     public var rconPort = ""
     public var acceptEula = false
+    public var modpack = ""
+    public private(set) var pack: ModpackInfo?
     public private(set) var createdName = ""
     public let tab: TabRunner
 
@@ -32,6 +34,7 @@ public final class CreateServerViewModel {
     public var isLastStep: Bool { step == Self.lastStep }
     public var canCreate: Bool { isLastStep && acceptEula && !tab.isBusy }
     public var isProxy: Bool { loader == "Velocity" }
+    public var isModpack: Bool { !modpack.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     static func ramIsValid(_ text: String) -> Bool {
         guard let unit = text.last, "GgMm".contains(unit) else { return false }
@@ -45,7 +48,7 @@ public final class CreateServerViewModel {
 
     private func validate(_ step: Int) -> String? {
         if step == 0 {
-            return name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "name_required" : nil
+            return name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isModpack ? "name_required" : nil
         }
         if step == 1 {
             if !Self.ramIsValid(ram.trimmingCharacters(in: .whitespaces)) { return "invalid_ram" }
@@ -69,6 +72,16 @@ public final class CreateServerViewModel {
         if step > 0 { step -= 1 }
     }
 
+    public func lookupModpack() async {
+        let source = modpack.trimmingCharacters(in: .whitespacesAndNewlines)
+        pack = nil
+        guard !source.isEmpty else {
+            errors.show("source_required")
+            return
+        }
+        await tab.write { self.pack = try await self.client.modpackInfo(source: source) }
+    }
+
     public func create() async {
         guard isLastStep, acceptEula else { return }
         for index in 0..<Self.lastStep {
@@ -77,6 +90,10 @@ public final class CreateServerViewModel {
                 errors.show(problem)
                 return
             }
+        }
+        if isModpack {
+            await createModpack()
+            return
         }
         let versionText = version.trimmingCharacters(in: .whitespaces)
         let portText = port.trimmingCharacters(in: .whitespaces)
@@ -88,5 +105,21 @@ public final class CreateServerViewModel {
             port: Int(portText), rconPort: Int(rconText))
         let done = await tab.runJob("create") { try await self.client.createServer(request) }
         if done { createdName = request.name }
+    }
+
+    private func createModpack() async {
+        let source = modpack.trimmingCharacters(in: .whitespacesAndNewlines)
+        let typedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let portText = port.trimmingCharacters(in: .whitespaces)
+        let rconText = rconPort.trimmingCharacters(in: .whitespaces)
+        let request = ModpackInstallRequest(
+            source: source, acceptEula: true, name: typedName.isEmpty ? nil : typedName,
+            ram: ram.trimmingCharacters(in: .whitespaces).uppercased(),
+            port: Int(portText), rconPort: Int(rconText))
+        let done = await tab.runJob("create") { try await self.client.installModpack(request) }
+        guard done else { return }
+        let job = tab.lastJob
+        let created = job?.result?.server ?? job?.server ?? typedName
+        createdName = created.isEmpty ? (pack?.title ?? source) : created
     }
 }

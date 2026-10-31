@@ -8,6 +8,8 @@ public final class TabRunner {
     public private(set) var progress = 0.0
     public private(set) var lastDone = ""
     public private(set) var isReadOnly = false
+    public private(set) var isDenied = false
+    public private(set) var lastJob: Job?
     public var restartRequired = false
 
     @ObservationIgnored public let client: McClientProtocol
@@ -41,11 +43,27 @@ public final class TabRunner {
     }
 
     @discardableResult
+    public func read(_ work: () async throws -> Void) async -> Bool {
+        do {
+            try await work()
+            return true
+        } catch let error as ApiError where error.status == 403 {
+            isDenied = true
+            isReadOnly = true
+            return false
+        } catch {
+            errors.report(error)
+            return false
+        }
+    }
+
+    @discardableResult
     public func runJob(_ kind: String, _ start: () async throws -> Job) async -> Bool {
         if isBusy { return false }
         isBusy = true
         progress = 0
         lastDone = ""
+        lastJob = nil
         defer { isBusy = false }
         let done = await write {
             var job = try await start()
@@ -57,6 +75,7 @@ public final class TabRunner {
                 polls += 1
             }
             if !job.isFinished { throw ApiError.timeout }
+            lastJob = job
             if job.state != "succeeded" || job.result?.ok == false {
                 throw ApiError(code: job.result?.code ?? job.code ?? "job_" + job.state,
                                message: job.result?.message ?? "", status: 200)

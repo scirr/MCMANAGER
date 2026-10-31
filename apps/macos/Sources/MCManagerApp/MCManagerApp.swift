@@ -13,6 +13,10 @@ final class AppModel {
     private(set) var connectionFailed = false
     var createWizard: CreateServerViewModel?
     var pairingWizard: PairingWizardViewModel?
+    var system: SystemViewModel?
+    let notificationPrefs = NotificationPrefs()
+    @ObservationIgnored private let notifier = NativeNotifier()
+    @ObservationIgnored private var watcher: EventWatcher?
     @ObservationIgnored private var client: McClientProtocol?
     @ObservationIgnored private var details: [String: ServerDetailViewModel] = [:]
 
@@ -29,6 +33,9 @@ final class AppModel {
 
     func connect() async {
         list?.stopPolling()
+        watcher?.stop()
+        watcher = nil
+        system = nil
         list = nil
         details = [:]
         client = nil
@@ -51,6 +58,16 @@ final class AppModel {
         list = model
         await model.refresh()
         model.startPolling()
+        let events = EventWatcher(client: made, prefs: notificationPrefs) { [notifier] notice in
+            notifier.deliver(notice)
+        }
+        events.start()
+        watcher = events
+    }
+
+    func openSystem() {
+        guard let client else { return }
+        system = SystemViewModel(client: client, errors: errors, notifications: notificationPrefs)
     }
 
     func select(_ id: String) {

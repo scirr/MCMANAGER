@@ -25,6 +25,8 @@ struct ModsView: View {
                 .disabled(!model.tab.canAct || model.newReference.trimmingCharacters(in: .whitespaces).isEmpty)
                 Button(tr("Update all")) { Task { await model.updateAll() } }
                     .disabled(!model.tab.canAct)
+                Button(tr("Update the modpack")) { Task { await model.updateModpack() } }
+                    .disabled(!model.tab.canAct)
                 IconButton(title: tr("Refresh"), symbol: "arrow.clockwise") {
                     Task { await model.refresh() }
                 }
