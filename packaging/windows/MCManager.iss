@@ -68,10 +68,6 @@ Filename: "{app}\python\python.exe"; Parameters: """{app}\core\mc_config.py"" --
 Filename: "{app}\python\python.exe"; Parameters: """{app}\core\mc_config.py"" --install-daemon"; WorkingDir: "{app}\core"; Flags: runhidden waituntilterminated
 Filename: "{app}\app\MCManager.exe"; Description: "{cm:LaunchProgram,MC Manager}"; WorkingDir: "{app}\app"; Flags: nowait postinstall skipifsilent
 
-[UninstallRun]
-Filename: "{app}\core\nssm\nssm.exe"; Parameters: "stop {#ServiceName}"; Flags: runhidden waituntilterminated; RunOnceId: "StopService"
-Filename: "{app}\core\nssm\nssm.exe"; Parameters: "remove {#ServiceName} confirm"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveService"
-
 [UninstallDelete]
 Type: files; Name: "{sys}\mc.bat"
 Type: filesandordirs; Name: "{app}\core"
@@ -84,12 +80,19 @@ function SetEnvironmentVariable(Name, Value: String): Boolean;
 
 procedure StopService;
 var
-  Nssm: String;
   Code: Integer;
 begin
-  Nssm := ExpandConstant('{app}\core\nssm\nssm.exe');
-  if FileExists(Nssm) then
-    Exec(Nssm, 'stop {#ServiceName}', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+    '-NoProfile -NonInteractive -Command "Stop-Service -Name {#ServiceName} -Force -ErrorAction SilentlyContinue"',
+    '', SW_HIDE, ewWaitUntilTerminated, Code);
+end;
+
+procedure RemoveService;
+var
+  Code: Integer;
+begin
+  StopService;
+  Exec(ExpandConstant('{sys}\sc.exe'), 'delete {#ServiceName}', '', SW_HIDE, ewWaitUntilTerminated, Code);
 end;
 
 procedure WriteLanguage;
@@ -113,4 +116,10 @@ begin
     WriteLanguage;
     SetEnvironmentVariable('MCMANAGER_DATA_DIR', ExpandConstant('{commonappdata}\MCManager'));
   end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usUninstall then
+    RemoveService;
 end;
