@@ -50,6 +50,18 @@ public class ResourceTests
     }
 
     [Fact]
+    public void Every_choice_of_a_list_has_a_label()
+    {
+        var en = Load("en-US");
+        var choices = PlayersViewModel.Kinds.Concat(ModsViewModel.Sources).Concat(DatapacksViewModel.Placements)
+            .Concat(TasksViewModel.Actions).Concat(SettingsViewModel.Modes).Concat(SettingsViewModel.JoinModes);
+        foreach (var choice in choices)
+        {
+            Assert.True(en.ContainsKey("Choice_" + choice.Replace('-', '_')), choice);
+        }
+    }
+
+    [Fact]
     public void Every_error_code_the_tabs_report_is_translated()
     {
         var en = Load("en-US");

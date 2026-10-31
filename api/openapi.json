@@ -4279,6 +4279,10 @@
             "description": "Sleep by freezing the process (SIGSTOP) instead of stopping it; needs hold mode.",
             "type": "boolean"
           },
+          "freeze_supported": {
+            "description": "Whether this machine can freeze a sleeping server (false on Windows).",
+            "type": "boolean"
+          },
           "hold_timeout_s": {
             "description": "Hold mode: seconds a held player waits (10 to 600).",
             "type": "integer"
@@ -4307,13 +4311,14 @@
           }
         },
         "required": [
-          "enabled",
           "after_s",
           "allow",
-          "join_mode",
-          "hold_timeout_s",
+          "enabled",
           "freeze",
+          "freeze_supported",
+          "hold_timeout_s",
           "internal_port",
+          "join_mode",
           "proxy_protocol"
         ],
         "type": "object"
@@ -7039,6 +7044,7 @@
                         ],
                         "enabled": true,
                         "freeze": false,
+                        "freeze_supported": true,
                         "hold_timeout_s": 120,
                         "internal_port": null,
                         "join_mode": "kick",
@@ -7271,6 +7277,7 @@
                     ],
                     "enabled": true,
                     "freeze": false,
+                    "freeze_supported": true,
                     "hold_timeout_s": 120,
                     "internal_port": null,
                     "join_mode": "kick",
@@ -10385,6 +10392,7 @@
                   "code": "sleep_status",
                   "enabled": true,
                   "freeze": false,
+                  "freeze_supported": true,
                   "hold_timeout_s": 120,
                   "internal_port": null,
                   "join_mode": "kick",
@@ -10446,6 +10454,7 @@
                 ],
                 "enabled": true,
                 "freeze": true,
+                "freeze_supported": true,
                 "hold_timeout_s": 120,
                 "join_mode": "hold"
               },
@@ -10469,6 +10478,7 @@
                   "code": "sleep_updated",
                   "enabled": true,
                   "freeze": true,
+                  "freeze_supported": true,
                   "hold_timeout_s": 120,
                   "internal_port": 25570,
                   "join_mode": "hold",

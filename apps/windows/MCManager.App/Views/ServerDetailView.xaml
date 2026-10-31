@@ -87,7 +87,7 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                         <TextBlock x:Uid="ListLabel" Style="{StaticResource SubtitleTextBlockStyle}" />
-                        <ComboBox x:Name="KindBox" x:Uid="KindBox" SelectedItem="{x:Bind ViewModel.Players.SelectedKind, Mode=TwoWay}" MinWidth="160" />
+                        <ComboBox x:Name="KindBox" ItemTemplate="{StaticResource ChoiceTemplate}" x:Uid="KindBox" SelectedItem="{x:Bind ViewModel.Players.SelectedKind, Mode=TwoWay}" MinWidth="160" />
                         <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.Players.CanWrite, Mode=OneWay}">
                             <TextBox x:Name="SubjectBox" x:Uid="SubjectBox" Text="{x:Bind ViewModel.Players.NewSubject, Mode=TwoWay}" MinWidth="200" />
                             <TextBox x:Name="ReasonBox" x:Uid="ReasonBox" Text="{x:Bind ViewModel.Players.Reason, Mode=TwoWay}" MinWidth="200" />
@@ -155,7 +155,7 @@
                     </Grid.RowDefinitions>
                     <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.Mods.CanWrite, Mode=OneWay}">
                         <TextBox x:Name="ModReferenceBox" x:Uid="ModReferenceBox" Text="{x:Bind ViewModel.Mods.NewReference, Mode=TwoWay}" MinWidth="280" />
-                        <ComboBox x:Name="ModSourceBox" x:Uid="ModSourceBox" SelectedItem="{x:Bind ViewModel.Mods.SelectedSource, Mode=TwoWay}" MinWidth="140" />
+                        <ComboBox x:Name="ModSourceBox" ItemTemplate="{StaticResource ChoiceTemplate}" x:Uid="ModSourceBox" SelectedItem="{x:Bind ViewModel.Mods.SelectedSource, Mode=TwoWay}" MinWidth="140" />
                         <Button x:Name="ModAddButton" x:Uid="ModAddButton" IsEnabled="{x:Bind ViewModel.Mods.CanAct, Mode=OneWay}" Command="{x:Bind ViewModel.Mods.AddCommand, Mode=OneWay}" />
                         <Button x:Name="ModUpdateButton" x:Uid="ModUpdateButton" IsEnabled="{x:Bind ViewModel.Mods.CanAct, Mode=OneWay}" Command="{x:Bind ViewModel.Mods.UpdateAllCommand, Mode=OneWay}" />
                         <Button x:Name="ModsRefreshButton" x:Uid="RefreshButton" Command="{x:Bind ViewModel.Mods.RefreshCommand, Mode=OneWay}">
@@ -200,7 +200,7 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <ComboBox x:Name="DatapackPlacementBox" x:Uid="DatapackPlacementBox" SelectedItem="{x:Bind ViewModel.Datapacks.Placement, Mode=TwoWay}" Visibility="{x:Bind ViewModel.Datapacks.CanWrite, Mode=OneWay}" MinWidth="200" />
+                        <ComboBox x:Name="DatapackPlacementBox" ItemTemplate="{StaticResource ChoiceTemplate}" x:Uid="DatapackPlacementBox" SelectedItem="{x:Bind ViewModel.Datapacks.Placement, Mode=TwoWay}" Visibility="{x:Bind ViewModel.Datapacks.CanWrite, Mode=OneWay}" MinWidth="200" />
                         <Button x:Name="DatapacksRefreshButton" x:Uid="RefreshButton" Command="{x:Bind ViewModel.Datapacks.RefreshCommand, Mode=OneWay}">
                             <SymbolIcon Symbol="Refresh" />
                         </Button>
@@ -276,7 +276,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBox x:Name="TaskNameBox" x:Uid="TaskNameBox" Text="{x:Bind ViewModel.Tasks.NewName, Mode=TwoWay}" MinWidth="160" />
                             <TextBox x:Name="TaskCronBox" x:Uid="TaskCronBox" Text="{x:Bind ViewModel.Tasks.NewCron, Mode=TwoWay}" MinWidth="160" />
-                            <ComboBox x:Name="TaskActionBox" x:Uid="TaskActionBox" SelectedItem="{x:Bind ViewModel.Tasks.NewAction, Mode=TwoWay}" MinWidth="140" />
+                            <ComboBox x:Name="TaskActionBox" ItemTemplate="{StaticResource ChoiceTemplate}" x:Uid="TaskActionBox" SelectedItem="{x:Bind ViewModel.Tasks.NewAction, Mode=TwoWay}" MinWidth="140" />
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBox x:Name="TaskCommandBox" x:Uid="TaskCommandBox" Text="{x:Bind ViewModel.Tasks.NewCommand, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.Tasks.NeedsCommand, Mode=OneWay}" MinWidth="240" />
@@ -327,7 +327,7 @@
                     <StackPanel Spacing="12">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock x:Uid="ModeLabel" VerticalAlignment="Center" MinWidth="160" />
-                            <ComboBox x:Name="ModeBox" x:Uid="ModeBox" SelectedItem="{x:Bind ViewModel.Settings.Mode, Mode=OneWay}" SelectionChanged="OnModeChanged" MinWidth="160" />
+                            <ComboBox x:Name="ModeBox" ItemTemplate="{StaticResource ChoiceTemplate}" x:Uid="ModeBox" SelectedItem="{x:Bind ViewModel.Settings.Mode, Mode=OneWay}" SelectionChanged="OnModeChanged" MinWidth="160" />
                             <Button x:Name="SettingsRefreshButton" x:Uid="RefreshButton" Command="{x:Bind ViewModel.Settings.RefreshCommand, Mode=OneWay}">
                                 <SymbolIcon Symbol="Refresh" />
                             </Button>
@@ -348,10 +348,10 @@
                         <CheckBox x:Name="SleepEnabledBox" x:Uid="SleepEnabledBox" IsChecked="{x:Bind ViewModel.Settings.SleepEnabled, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.Settings.CanWrite, Mode=OneWay}" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBox x:Name="SleepMinutesBox" x:Uid="SleepMinutesBox" Text="{x:Bind ViewModel.Settings.SleepMinutes, Mode=TwoWay}" Width="200" />
-                            <ComboBox x:Name="SleepJoinBox" x:Uid="SleepJoinBox" SelectedItem="{x:Bind ViewModel.Settings.SleepJoinMode, Mode=TwoWay}" MinWidth="140" />
+                            <ComboBox x:Name="SleepJoinBox" ItemTemplate="{StaticResource ChoiceTemplate}" x:Uid="SleepJoinBox" SelectedItem="{x:Bind ViewModel.Settings.SleepJoinMode, Mode=TwoWay}" MinWidth="140" />
                         </StackPanel>
-                        <CheckBox x:Name="SleepFreezeBox" x:Uid="SleepFreezeBox" IsChecked="{x:Bind ViewModel.Settings.SleepFreeze, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.Settings.CanWrite, Mode=OneWay}" />
-                        <TextBlock x:Uid="SleepFreezeHint" TextWrapping="Wrap" Opacity="0.7" />
+                        <CheckBox x:Name="SleepFreezeBox" x:Uid="SleepFreezeBox" IsChecked="{x:Bind ViewModel.Settings.SleepFreeze, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.Settings.CanWrite, Mode=OneWay}" Visibility="{x:Bind ViewModel.Settings.SleepFreezeSupported, Mode=OneWay}" />
+                        <TextBlock x:Uid="SleepFreezeHint" TextWrapping="Wrap" Opacity="0.7" Visibility="{x:Bind ViewModel.Settings.SleepFreezeSupported, Mode=OneWay}" />
                         <Button x:Name="SleepSaveButton" x:Uid="SaveButton" Command="{x:Bind ViewModel.Settings.SaveSleepCommand, Mode=OneWay}" Visibility="{x:Bind ViewModel.Settings.CanWrite, Mode=OneWay}" />
                         <TextBlock x:Uid="SettingsLabel" Style="{StaticResource SubtitleTextBlockStyle}" />
                         <ItemsControl ItemsSource="{x:Bind ViewModel.Settings.Items, Mode=OneWay}">

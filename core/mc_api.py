@@ -764,6 +764,7 @@ def sleep_info(config):
         "join_mode": config.get("sleep_join_mode", "kick"),
         "hold_timeout_s": int(config.get("sleep_hold_timeout", DEFAULT_HOLD_TIMEOUT)),
         "freeze": config.get("sleep_freeze", 0) == 1,
+        "freeze_supported": mc_core.freeze_supported(),
         "internal_port": config.get("internal_port") if config.get("sleep_join_mode") == "hold" else None,
         "proxy_protocol": mc_core.use_proxy_protocol(config) if config.get("sleep_join_mode") == "hold" else None,
     }
