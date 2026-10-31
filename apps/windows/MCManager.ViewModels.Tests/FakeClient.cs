@@ -313,7 +313,7 @@ internal sealed class FakeClient : IMcClient
     private JavaRuntimes JavaState(string server) => new()
     {
         Ok = true,
-        Runtimes = new Dictionary<string, string>(JavaRuntimesFound),
+        Runtimes = new Dictionary<string, string>(JavaRuntimesFound.Concat(InstalledJava).GroupBy(p => p.Key).ToDictionary(g => g.Key, g => g.First().Value)),
         Servers = new List<JavaServerChoice>
         {
             new() { Server = server, Java = System.Text.Json.JsonDocument.Parse("\"" + ServerJava + "\"").RootElement },
@@ -338,6 +338,193 @@ internal sealed class FakeClient : IMcClient
         Created = request;
         return Task.FromResult(NextJob("create-server " + request.Name));
     }
+
+    public List<AlertChannel> Alerts { get; } = new();
+    public AlertAddRequest? AlertRequest { get; private set; }
+    public Dictionary<string, string> InstalledJava { get; } = new();
+    public RemoteStatus Remote { get; set; } = new() { Ok = true, Enabled = false, Fingerprint = "AB:CD" };
+    public List<DeviceEntry> Devices { get; } = new();
+    public List<AuditEntry> AuditLog { get; } = new();
+    public UpdateInfo Update { get; set; } = new() { Ok = true, Current = "3.0.0", Latest = "3.0.0" };
+    public DoctorReport Doctor { get; set; } = new() { Ok = true };
+    public RouterDocument Router { get; set; } = new() { Ok = true };
+    public ModpackInfo? Pack { get; set; }
+    public ModpackInstallRequest? PackInstalled { get; private set; }
+    public List<ConsoleEvent> Events { get; } = new();
+
+    public async IAsyncEnumerable<ConsoleEvent> StreamEventsAsync([EnumeratorCancellation] CancellationToken ct = default)
+    {
+        Record("events");
+        foreach (var item in Events)
+        {
+            await Task.Yield();
+            yield return item;
+        }
+    }
+
+    public Task<AlertList> ListAlertChannelsAsync(string server, CancellationToken ct = default)
+    {
+        Record("alerts");
+        return Task.FromResult(new AlertList { Ok = true, Channels = Alerts.ToList() });
+    }
+
+    public Task<AlertAdded> AddAlertChannelAsync(string server, AlertAddRequest request, CancellationToken ct = default)
+    {
+        Record($"alert-add {request.Type} {request.Events} {request.Name}".TrimEnd());
+        AlertRequest = request;
+        Alerts.Add(new AlertChannel { Name = request.Name ?? request.Type, Type = request.Type, Topic = request.Topic });
+        return Task.FromResult(new AlertAdded { Ok = true, Channel = request.Name ?? request.Type });
+    }
+
+    public Task<AlertTested> TestAlertChannelsAsync(string server, string? channel = null, CancellationToken ct = default)
+    {
+        Record($"alert-test {channel}".TrimEnd());
+        return Task.FromResult(new AlertTested { Ok = true });
+    }
+
+    public Task<OperationResult> RemoveAlertChannelAsync(string server, string channel, CancellationToken ct = default)
+    {
+        Record("alert-remove " + channel);
+        Alerts.RemoveAll(a => a.Name == channel);
+        return Task.FromResult(Ok("removed"));
+    }
+
+    public Task<Job> InstallJavaAsync(int major, CancellationToken ct = default)
+    {
+        var job = NextJob("java-install " + major);
+        InstalledJava[major.ToString()] = "/java/" + major;
+        return Task.FromResult(job);
+    }
+
+    public Task<OperationResult> RemoveJavaAsync(int major, CancellationToken ct = default)
+    {
+        Record("java-remove " + major);
+        InstalledJava.Remove(major.ToString());
+        return Task.FromResult(Ok("removed"));
+    }
+
+    public Task<RemoteStatus> GetRemoteStatusAsync(CancellationToken ct = default)
+    {
+        Record("remote");
+        return Task.FromResult(Remote);
+    }
+
+    public Task<RemoteStatus> SetRemoteAccessAsync(bool enabled, CancellationToken ct = default)
+    {
+        Record("remote-set " + enabled);
+        Remote = Remote with { Enabled = enabled };
+        return Task.FromResult(Remote);
+    }
+
+    public Task<PairingCodeDocument> CreatePairingCodeAsync(string role, string? name = null, CancellationToken ct = default)
+    {
+        Record($"pair-code {role} {name}".TrimEnd());
+        return Task.FromResult(new PairingCodeDocument { Ok = true, PairingCode = "ABCD-1234", ExpiresInS = 300, Role = role });
+    }
+
+    public Task<DeviceList> ListDevicesAsync(CancellationToken ct = default)
+    {
+        Record("devices");
+        return Task.FromResult(new DeviceList { Ok = true, Devices = Devices.ToList() });
+    }
+
+    public Task<DeviceEntry> SetDeviceRoleAsync(string device, string role, CancellationToken ct = default)
+    {
+        Record($"device-role {device} {role}");
+        var index = Devices.FindIndex(d => d.Id == device);
+        Devices[index] = Devices[index] with { Roles = new DeviceRoles { Default = role } };
+        return Task.FromResult(Devices[index]);
+    }
+
+    public Task<OperationResult> RevokeDeviceAsync(string device, CancellationToken ct = default)
+    {
+        Record("device-revoke " + device);
+        Devices.RemoveAll(d => d.Id == device);
+        return Task.FromResult(Ok("revoked"));
+    }
+
+    public Task<AuditList> ListAuditLogAsync(int limit = 50, CancellationToken ct = default)
+    {
+        Record("audit");
+        return Task.FromResult(new AuditList { Ok = true, Entries = AuditLog.ToList() });
+    }
+
+    public Task<UpdateInfo> CheckUpdateAsync(CancellationToken ct = default)
+    {
+        Record("update-check");
+        return Task.FromResult(Update);
+    }
+
+    public Task<Job> ApplyUpdateAsync(CancellationToken ct = default)
+    {
+        var job = NextJob("update-apply");
+        Update = Update with { Current = Update.Latest, UpdateAvailable = false, RollbackAvailable = true };
+        return Task.FromResult(job);
+    }
+
+    public Task<OperationResult> RollbackUpdateAsync(CancellationToken ct = default)
+    {
+        Record("update-rollback");
+        Update = Update with { RollbackAvailable = false };
+        return Task.FromResult(Ok("rolled_back"));
+    }
+
+    public Task<DoctorReport> GetDoctorReportAsync(CancellationToken ct = default)
+    {
+        Record("doctor");
+        return Task.FromResult(Doctor);
+    }
+
+    public Task<RouterDocument> GetRouterAsync(CancellationToken ct = default)
+    {
+        Record("router");
+        return Task.FromResult(Router);
+    }
+
+    private Task<RouterDocument> ChangeRouter(string call, Func<RouterConfig, RouterConfig> change)
+    {
+        Record(call);
+        Router = Router with { Config = change(Router.Config) };
+        return Task.FromResult(Router);
+    }
+
+    public Task<RouterDocument> SetRouterEnabledAsync(bool enabled, CancellationToken ct = default)
+        => ChangeRouter("router-enabled " + enabled, c => c with { Enabled = enabled });
+
+    public Task<RouterDocument> SetRouterRouteAsync(string host, string server, CancellationToken ct = default)
+        => ChangeRouter($"router-route {host} {server}", c => c with { Routes = new Dictionary<string, string>(c.Routes) { [host] = server } });
+
+    public Task<RouterDocument> RemoveRouterRouteAsync(string host, CancellationToken ct = default)
+        => ChangeRouter("router-route-remove " + host, c => c with { Routes = c.Routes.Where(r => r.Key != host).ToDictionary(r => r.Key, r => r.Value) });
+
+    public Task<RouterDocument> SetRouterDefaultAsync(string server, CancellationToken ct = default)
+        => ChangeRouter("router-default " + server, c => c with { Default = server });
+
+    public Task<RouterDocument> EditRouterAccessAsync(string list, string action, string cidr, CancellationToken ct = default)
+        => ChangeRouter($"router-access {list} {action} {cidr}", c =>
+        {
+            var current = (list == "allow" ? c.Allow : c.Deny).Where(x => x != cidr).ToList();
+            if (action == "add")
+            {
+                current.Add(cidr);
+            }
+            return list == "allow" ? c with { Allow = current } : c with { Deny = current };
+        });
+
+    public Task<ModpackInfo> GetModpackInfoAsync(string source, CancellationToken ct = default)
+    {
+        Record("modpack-info " + source);
+        return Task.FromResult(Pack ?? new ModpackInfo { Ok = true, Title = "Pack", McVersion = "1.21.1", Loader = "neoforge" });
+    }
+
+    public Task<Job> InstallModpackAsync(ModpackInstallRequest request, CancellationToken ct = default)
+    {
+        PackInstalled = request;
+        return Task.FromResult(NextJob($"modpack-install {request.Source} {request.Name}".TrimEnd()));
+    }
+
+    public Task<Job> UpdateModpackAsync(string server, CancellationToken ct = default)
+        => Task.FromResult(NextJob("modpack-update " + server));
 
     public Task<IReadOnlyList<Job>> ListJobsAsync(string? state = null, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<Job>>(new List<Job>());

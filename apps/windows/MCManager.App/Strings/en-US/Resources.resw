@@ -306,4 +306,220 @@
   <data name="Choice_maintenance" xml:space="preserve"><value>Maintenance</value></data>
   <data name="Choice_kick" xml:space="preserve"><value>Refuse while waking</value></data>
   <data name="Choice_hold" xml:space="preserve"><value>Keep the player waiting</value></data>
+  <data name="NavSystem.Content" xml:space="preserve"><value>System</value></data>
+  <data name="SystemTitle.Text" xml:space="preserve"><value>System</value></data>
+  <data name="JavaTab.Header" xml:space="preserve"><value>Java</value></data>
+  <data name="JavaHint.Text" xml:space="preserve"><value>Java runtimes installed by MC Manager. Each server can pick one in its settings.</value></data>
+  <data name="JavaEmpty.Text" xml:space="preserve"><value>No runtime installed by MC Manager</value></data>
+  <data name="JavaRemoveButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Remove this Java</value></data>
+  <data name="JavaRemoveButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Remove this Java</value></data>
+  <data name="JavaInstallBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Java version to install</value></data>
+  <data name="JavaInstallButton.Content" xml:space="preserve"><value>Install</value></data>
+  <data name="DevicesTab.Header" xml:space="preserve"><value>Devices</value></data>
+  <data name="RemoteHint.Text" xml:space="preserve"><value>Lets other devices control this MC Manager over an encrypted connection.</value></data>
+  <data name="RemoteSwitch.Header" xml:space="preserve"><value>Allow remote access</value></data>
+  <data name="FingerprintLabel.Text" xml:space="preserve"><value>Certificate fingerprint</value></data>
+  <data name="PairNewLabel.Text" xml:space="preserve"><value>Pair a device</value></data>
+  <data name="PairHint.Text" xml:space="preserve"><value>Generate a single-use code to enter on the new device. It stays valid for a few minutes.</value></data>
+  <data name="PairNameBox.PlaceholderText" xml:space="preserve"><value>Device name (optional)</value></data>
+  <data name="PairNameBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Device name (optional)</value></data>
+  <data name="PairRoleBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Role of the new device</value></data>
+  <data name="PairButton.Content" xml:space="preserve"><value>Generate a code</value></data>
+  <data name="DevicesLabel.Text" xml:space="preserve"><value>Paired devices</value></data>
+  <data name="DevicesEmpty.Text" xml:space="preserve"><value>No paired device</value></data>
+  <data name="DeviceRevokeButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Revoke this device</value></data>
+  <data name="DeviceRevokeButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Revoke this device</value></data>
+  <data name="AuditLabel.Text" xml:space="preserve"><value>Recent activity</value></data>
+  <data name="AuditEmpty.Text" xml:space="preserve"><value>No activity recorded</value></data>
+  <data name="RouterTab.Header" xml:space="preserve"><value>Router</value></data>
+  <data name="RouterHint.Text" xml:space="preserve"><value>One public port in front of several servers, routed by the host name players type.</value></data>
+  <data name="RouterSwitch.Header" xml:space="preserve"><value>Router enabled</value></data>
+  <data name="RouterDefaultLabel.Text" xml:space="preserve"><value>Default server</value></data>
+  <data name="RouterDefaultBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Default server</value></data>
+  <data name="RoutesLabel.Text" xml:space="preserve"><value>Routes</value></data>
+  <data name="RoutesEmpty.Text" xml:space="preserve"><value>No route</value></data>
+  <data name="RouteRemoveButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Remove this route</value></data>
+  <data name="RouteRemoveButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Remove this route</value></data>
+  <data name="RouteHostBox.PlaceholderText" xml:space="preserve"><value>Host name</value></data>
+  <data name="RouteHostBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Host name</value></data>
+  <data name="RouteServerBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Server of the route</value></data>
+  <data name="RouteAddButton.Content" xml:space="preserve"><value>Add the route</value></data>
+  <data name="AccessLabel.Text" xml:space="preserve"><value>Access control</value></data>
+  <data name="AccessHint.Text" xml:space="preserve"><value>Allowed and denied address ranges (CIDR).</value></data>
+  <data name="AccessRemoveButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Remove this range</value></data>
+  <data name="AccessRemoveButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Remove this range</value></data>
+  <data name="AccessKindBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>List</value></data>
+  <data name="AccessCidrBox.PlaceholderText" xml:space="preserve"><value>Address range, for example 10.0.0.0/8</value></data>
+  <data name="AccessCidrBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Address range, for example 10.0.0.0/8</value></data>
+  <data name="AccessAddButton.Content" xml:space="preserve"><value>Add the range</value></data>
+  <data name="UpdateTab.Header" xml:space="preserve"><value>Update</value></data>
+  <data name="UpdateHint.Text" xml:space="preserve"><value>Updates are verified by signature and checksum. The daemon restarts afterwards.</value></data>
+  <data name="UpdateCheckButton.Content" xml:space="preserve"><value>Check again</value></data>
+  <data name="UpdateApplyButton.Content" xml:space="preserve"><value>Install the update</value></data>
+  <data name="UpdateRollbackButton.Content" xml:space="preserve"><value>Go back to the previous version</value></data>
+  <data name="DoctorTab.Header" xml:space="preserve"><value>Diagnostics</value></data>
+  <data name="DoctorHint.Text" xml:space="preserve"><value>Checks the machine and every server, with the fix to apply when something is wrong.</value></data>
+  <data name="DoctorRunButton.Content" xml:space="preserve"><value>Run the diagnostics</value></data>
+  <data name="NotificationsTab.Header" xml:space="preserve"><value>Notifications</value></data>
+  <data name="NotificationsHint.Text" xml:space="preserve"><value>System notifications while the window is in the background.</value></data>
+  <data name="NotifyCrashSwitch.Header" xml:space="preserve"><value>A server crashes</value></data>
+  <data name="NotifyBackupSwitch.Header" xml:space="preserve"><value>A backup fails</value></data>
+  <data name="NotifyJoinSwitch.Header" xml:space="preserve"><value>A player connects</value></data>
+  <data name="AlertsTab.Header" xml:space="preserve"><value>Alerts</value></data>
+  <data name="AlertsHint.Text" xml:space="preserve"><value>Messages sent when something happens to this server. Secret values are never shown: they can only be sent.</value></data>
+  <data name="AlertTestAllButton.Content" xml:space="preserve"><value>Send a test to every channel</value></data>
+  <data name="AlertsEmpty.Text" xml:space="preserve"><value>No alert channel</value></data>
+  <data name="AlertTestButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Send a test to this channel</value></data>
+  <data name="AlertTestButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Send a test to this channel</value></data>
+  <data name="AlertRemoveButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Remove this channel</value></data>
+  <data name="AlertRemoveButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Remove this channel</value></data>
+  <data name="AlertNewLabel.Text" xml:space="preserve"><value>Add a channel</value></data>
+  <data name="AlertTypeBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Channel type</value></data>
+  <data name="AlertNameBox.PlaceholderText" xml:space="preserve"><value>Channel name (optional)</value></data>
+  <data name="AlertNameBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Channel name (optional)</value></data>
+  <data name="AlertHostBox.PlaceholderText" xml:space="preserve"><value>SMTP server</value></data>
+  <data name="AlertHostBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>SMTP server</value></data>
+  <data name="AlertPortBox.PlaceholderText" xml:space="preserve"><value>Port (587 by default)</value></data>
+  <data name="AlertPortBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Port (587 by default)</value></data>
+  <data name="AlertUserBox.PlaceholderText" xml:space="preserve"><value>User</value></data>
+  <data name="AlertUserBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>User</value></data>
+  <data name="AlertPasswordBox.PlaceholderText" xml:space="preserve"><value>Password</value></data>
+  <data name="AlertPasswordBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Password</value></data>
+  <data name="AlertSenderBox.PlaceholderText" xml:space="preserve"><value>Sender address</value></data>
+  <data name="AlertSenderBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Sender address</value></data>
+  <data name="AlertToBox.PlaceholderText" xml:space="preserve"><value>Recipients (comma separated)</value></data>
+  <data name="AlertToBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Recipients (comma separated)</value></data>
+  <data name="AlertTokenBox.PlaceholderText" xml:space="preserve"><value>Token</value></data>
+  <data name="AlertTokenBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Token</value></data>
+  <data name="AlertChatIdBox.PlaceholderText" xml:space="preserve"><value>Chat identifier</value></data>
+  <data name="AlertChatIdBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Chat identifier</value></data>
+  <data name="AlertServerBox.PlaceholderText" xml:space="preserve"><value>ntfy server (optional)</value></data>
+  <data name="AlertServerBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>ntfy server (optional)</value></data>
+  <data name="AlertTopicBox.PlaceholderText" xml:space="preserve"><value>Topic</value></data>
+  <data name="AlertTopicBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Topic</value></data>
+  <data name="AlertUrlBox.PlaceholderText" xml:space="preserve"><value>URL</value></data>
+  <data name="AlertUrlBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>URL</value></data>
+  <data name="AlertSecretBox.PlaceholderText" xml:space="preserve"><value>Signing secret (optional)</value></data>
+  <data name="AlertSecretBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Signing secret (optional)</value></data>
+  <data name="AlertEventsLabel.Text" xml:space="preserve"><value>Events</value></data>
+  <data name="AlertEventsHint.Text" xml:space="preserve"><value>None selected means every event.</value></data>
+  <data name="AlertAddButton.Content" xml:space="preserve"><value>Add the channel</value></data>
+  <data name="ModpackUpdateButton.Content" xml:space="preserve"><value>Update the modpack</value></data>
+  <data name="CreateModpackBox.PlaceholderText" xml:space="preserve"><value>Modpack (name or URL, optional)</value></data>
+  <data name="CreateModpackBox.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Modpack (name or URL, optional)</value></data>
+  <data name="CreateModpackLookupButton.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve"><value>Look up the modpack</value></data>
+  <data name="CreateModpackLookupButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve"><value>Look up the modpack</value></data>
+  <data name="Choice_email" xml:space="preserve"><value>Email</value></data>
+  <data name="Choice_telegram" xml:space="preserve"><value>Telegram</value></data>
+  <data name="Choice_ntfy" xml:space="preserve"><value>ntfy</value></data>
+  <data name="Choice_webhook" xml:space="preserve"><value>Webhook</value></data>
+  <data name="Choice_discord" xml:space="preserve"><value>Discord</value></data>
+  <data name="Choice_viewer" xml:space="preserve"><value>Viewer</value></data>
+  <data name="Choice_operator" xml:space="preserve"><value>Operator</value></data>
+  <data name="Choice_admin" xml:space="preserve"><value>Administrator</value></data>
+  <data name="Choice_allow" xml:space="preserve"><value>Allowed</value></data>
+  <data name="Choice_deny" xml:space="preserve"><value>Denied</value></data>
+  <data name="AlertEvent_start" xml:space="preserve"><value>Start</value></data>
+  <data name="AlertEvent_stop" xml:space="preserve"><value>Stop</value></data>
+  <data name="AlertEvent_crash" xml:space="preserve"><value>Crash</value></data>
+  <data name="AlertEvent_crash_loop" xml:space="preserve"><value>Crash loop</value></data>
+  <data name="AlertEvent_backup_failed" xml:space="preserve"><value>Backup failed</value></data>
+  <data name="AlertEvent_update" xml:space="preserve"><value>Update</value></data>
+  <data name="AlertEvent_sleep" xml:space="preserve"><value>Sleep</value></data>
+  <data name="AlertEvent_wake" xml:space="preserve"><value>Wake</value></data>
+  <data name="AlertEventAll" xml:space="preserve"><value>all events</value></data>
+  <data name="AlertLegacy" xml:space="preserve"><value>announcement channel, read-only</value></data>
+  <data name="JavaRuntime" xml:space="preserve"><value>Java {0}</value></data>
+  <data name="JavaUnused" xml:space="preserve"><value>Not used by any server</value></data>
+  <data name="JavaUsedBy" xml:space="preserve"><value>Used by {0}</value></data>
+  <data name="DeviceNeverSeen" xml:space="preserve"><value>never connected</value></data>
+  <data name="DeviceLastSeen" xml:space="preserve"><value>seen {0}</value></data>
+  <data name="DeviceRoleName" xml:space="preserve"><value>Role of {0}</value></data>
+  <data name="AuditRefused" xml:space="preserve"><value>refused</value></data>
+  <data name="PairCodeValue" xml:space="preserve"><value>{0} (valid {1} min)</value></data>
+  <data name="UpdateCurrent" xml:space="preserve"><value>Version {0}, up to date</value></data>
+  <data name="UpdateAvailable" xml:space="preserve"><value>Version {0}, {1} is available</value></data>
+  <data name="DoctorLevel_ok" xml:space="preserve"><value>OK</value></data>
+  <data name="DoctorLevel_info" xml:space="preserve"><value>Info</value></data>
+  <data name="DoctorLevel_warn" xml:space="preserve"><value>Warning</value></data>
+  <data name="DoctorLevel_err" xml:space="preserve"><value>Error</value></data>
+  <data name="DoctorFix" xml:space="preserve"><value>Fix: {0}</value></data>
+  <data name="DoctorErrors" xml:space="preserve"><value>{0} error(s) to fix</value></data>
+  <data name="DoctorWarnings" xml:space="preserve"><value>{0} warning(s)</value></data>
+  <data name="DoctorClean" xml:space="preserve"><value>Nothing to report</value></data>
+  <data name="RouterPending" xml:space="preserve"><value>Restart needed: {0}</value></data>
+  <data name="Notify_crash" xml:space="preserve"><value>{0} crashed</value></data>
+  <data name="Notify_crash_loop" xml:space="preserve"><value>{0} keeps crashing</value></data>
+  <data name="Notify_backup_failed" xml:space="preserve"><value>Backup of {0} failed</value></data>
+  <data name="Notify_join" xml:space="preserve"><value>Player connected on {0}</value></data>
+  <data name="AlertRemoveDialogTitle" xml:space="preserve"><value>Remove this channel?</value></data>
+  <data name="AlertRemoveDialogBody" xml:space="preserve"><value>The channel {0} will no longer receive alerts.</value></data>
+  <data name="AlertRemoveDialogConfirm" xml:space="preserve"><value>Remove</value></data>
+  <data name="JavaRemoveDialogTitle" xml:space="preserve"><value>Remove this Java?</value></data>
+  <data name="JavaRemoveDialogBody" xml:space="preserve"><value>Java {0} will be deleted. Servers that use it will not start until you pick another one.</value></data>
+  <data name="JavaRemoveDialogConfirm" xml:space="preserve"><value>Remove</value></data>
+  <data name="DeviceRevokeDialogTitle" xml:space="preserve"><value>Revoke this device?</value></data>
+  <data name="DeviceRevokeDialogBody" xml:space="preserve"><value>{0} will lose access immediately and its open connections are closed.</value></data>
+  <data name="DeviceRevokeDialogConfirm" xml:space="preserve"><value>Revoke</value></data>
+  <data name="RouteRemoveDialogTitle" xml:space="preserve"><value>Remove this route?</value></data>
+  <data name="RouteRemoveDialogBody" xml:space="preserve"><value>Players using {0} will no longer reach their server.</value></data>
+  <data name="RouteRemoveDialogConfirm" xml:space="preserve"><value>Remove</value></data>
+  <data name="UpdateApplyDialogTitle" xml:space="preserve"><value>Install the update?</value></data>
+  <data name="UpdateApplyDialogBody" xml:space="preserve"><value>Version {0} will be installed and MC Manager will restart. Running servers are not stopped.</value></data>
+  <data name="UpdateApplyDialogConfirm" xml:space="preserve"><value>Install</value></data>
+  <data name="UpdateRollbackDialogTitle" xml:space="preserve"><value>Go back?</value></data>
+  <data name="UpdateRollbackDialogBody" xml:space="preserve"><value>The previous version of MC Manager will be restored.</value></data>
+  <data name="UpdateRollbackDialogConfirm" xml:space="preserve"><value>Go back</value></data>
+  <data name="Done_test" xml:space="preserve"><value>Test message sent</value></data>
+  <data name="Done_added" xml:space="preserve"><value>Channel added</value></data>
+  <data name="Done_removed" xml:space="preserve"><value>Channel removed</value></data>
+  <data name="Done_java_installed" xml:space="preserve"><value>Java installed</value></data>
+  <data name="Done_java_removed" xml:space="preserve"><value>Java removed</value></data>
+  <data name="Done_remote_on" xml:space="preserve"><value>Remote access enabled</value></data>
+  <data name="Done_remote_off" xml:space="preserve"><value>Remote access disabled</value></data>
+  <data name="Done_code" xml:space="preserve"><value>Pairing code generated</value></data>
+  <data name="Done_role" xml:space="preserve"><value>Role updated</value></data>
+  <data name="Done_revoked" xml:space="preserve"><value>Device revoked</value></data>
+  <data name="Done_update" xml:space="preserve"><value>Update installed</value></data>
+  <data name="Done_rollback" xml:space="preserve"><value>Previous version restored</value></data>
+  <data name="Done_doctor" xml:space="preserve"><value>Diagnostics finished</value></data>
+  <data name="Done_router_on" xml:space="preserve"><value>Router enabled</value></data>
+  <data name="Done_router_off" xml:space="preserve"><value>Router disabled</value></data>
+  <data name="Done_route" xml:space="preserve"><value>Route saved</value></data>
+  <data name="Done_route_removed" xml:space="preserve"><value>Route removed</value></data>
+  <data name="Done_default" xml:space="preserve"><value>Default server saved</value></data>
+  <data name="Done_access" xml:space="preserve"><value>Access list updated</value></data>
+  <data name="Done_modpack" xml:space="preserve"><value>Modpack updated</value></data>
+  <data name="Done_modpack_current" xml:space="preserve"><value>The modpack is already up to date</value></data>
+  <data name="Error_bad_port" xml:space="preserve"><value>Invalid port</value></data>
+  <data name="Error_java_unknown_version" xml:space="preserve"><value>Unknown Java version</value></data>
+  <data name="Error_source_required" xml:space="preserve"><value>Enter a modpack name or address</value></data>
+  <data name="Error_bad_type" xml:space="preserve"><value>Unknown channel type</value></data>
+  <data name="Error_bad_events" xml:space="preserve"><value>Unknown event</value></data>
+  <data name="Error_bad_channel_name" xml:space="preserve"><value>Invalid channel name</value></data>
+  <data name="Error_missing_host" xml:space="preserve"><value>The SMTP server is required</value></data>
+  <data name="Error_missing_addresses" xml:space="preserve"><value>Sender and recipients are required</value></data>
+  <data name="Error_missing_telegram" xml:space="preserve"><value>Token and chat identifier are required</value></data>
+  <data name="Error_missing_topic" xml:space="preserve"><value>The topic is required</value></data>
+  <data name="Error_bad_url" xml:space="preserve"><value>Invalid URL</value></data>
+  <data name="Error_channel_exists" xml:space="preserve"><value>A channel already has this name</value></data>
+  <data name="Error_channel_not_found" xml:space="preserve"><value>Channel not found</value></data>
+  <data name="Error_no_channel" xml:space="preserve"><value>This server has no alert channel</value></data>
+  <data name="Error_alert_test_failed" xml:space="preserve"><value>The test message could not be delivered</value></data>
+  <data name="Error_router_port_conflict" xml:space="preserve"><value>This port is already used by a server</value></data>
+  <data name="Error_router_usage" xml:space="preserve"><value>Invalid router option</value></data>
+  <data name="Error_tls_unavailable" xml:space="preserve"><value>Encryption is not available on this machine</value></data>
+  <data name="Error_device_not_found" xml:space="preserve"><value>Device not found</value></data>
+  <data name="Error_device_revoked" xml:space="preserve"><value>This device was revoked</value></data>
+  <data name="Error_no_previous" xml:space="preserve"><value>There is no previous version to go back to</value></data>
+  <data name="Error_bad_signature" xml:space="preserve"><value>The update signature is invalid</value></data>
+  <data name="Error_not_listed" xml:space="preserve"><value>This file is not in the release</value></data>
+  <data name="Error_bad_checksum" xml:space="preserve"><value>The update is corrupted</value></data>
+  <data name="Error_unsigned" xml:space="preserve"><value>This release is not signed</value></data>
+  <data name="Error_no_asset" xml:space="preserve"><value>No file for this system in the release</value></data>
+  <data name="Error_downgrade_refused" xml:space="preserve"><value>Going back to an older version is refused</value></data>
+  <data name="Error_unknown_pack" xml:space="preserve"><value>Modpack not found</value></data>
+  <data name="Error_pack_no_server_files" xml:space="preserve"><value>This modpack has no server files</value></data>
+  <data name="Error_no_modpack" xml:space="preserve"><value>This server was not installed from a modpack</value></data>
+  <data name="Error_pack_not_updatable" xml:space="preserve"><value>This modpack cannot be updated automatically</value></data>
 </root>

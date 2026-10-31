@@ -25,6 +25,7 @@ public sealed partial class ServerDetailViewModel : ObservableObject, IDisposabl
         World = new WorldViewModel(client, errors, name);
         Tasks = new TasksViewModel(client, errors, name);
         Settings = new SettingsViewModel(client, errors, name);
+        Alerts = new AlertsViewModel(client, errors, name);
     }
 
     public string Name { get; }
@@ -44,6 +45,8 @@ public sealed partial class ServerDetailViewModel : ObservableObject, IDisposabl
     public TasksViewModel Tasks { get; }
 
     public SettingsViewModel Settings { get; }
+
+    public AlertsViewModel Alerts { get; }
 
     public TimeSpan JobPollInterval { get; set; } = TimeSpan.FromSeconds(1);
 

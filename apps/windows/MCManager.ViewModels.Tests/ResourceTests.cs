@@ -54,7 +54,8 @@ public class ResourceTests
     {
         var en = Load("en-US");
         var choices = PlayersViewModel.Kinds.Concat(ModsViewModel.Sources).Concat(DatapacksViewModel.Placements)
-            .Concat(TasksViewModel.Actions).Concat(SettingsViewModel.Modes).Concat(SettingsViewModel.JoinModes);
+            .Concat(TasksViewModel.Actions).Concat(SettingsViewModel.Modes).Concat(SettingsViewModel.JoinModes)
+            .Concat(AlertsViewModel.Types).Concat(DevicesViewModel.Roles).Concat(RouterViewModel.AccessKinds);
         foreach (var choice in choices)
         {
             Assert.True(en.ContainsKey("Choice_" + choice.Replace('-', '_')), choice);
@@ -70,6 +71,12 @@ public class ResourceTests
             "forbidden", "invalid_radius", "cron_required", "command_required", "invalid_time",
             "name_required", "invalid_ram", "invalid_port", "defines_blocks", "eula_required",
             "invalid_value", "sleep_after_too_short", "sleep_needs_rcon", "unsupported_on_windows",
+            "bad_port", "java_unknown_version", "source_required", "bad_type", "bad_events", "bad_channel_name",
+            "missing_host", "missing_addresses", "missing_telegram", "missing_topic", "bad_url", "channel_exists",
+            "channel_not_found", "no_channel", "alert_test_failed", "router_port_conflict", "router_usage",
+            "tls_unavailable", "device_not_found", "device_revoked", "no_previous", "bad_signature", "not_listed",
+            "bad_checksum", "unsigned", "no_asset", "downgrade_refused", "unknown_pack", "pack_no_server_files",
+            "no_modpack", "pack_not_updatable",
         })
         {
             Assert.True(en.ContainsKey("Error_" + code), code);
@@ -83,6 +90,33 @@ public class ResourceTests
         foreach (var key in SettingsViewModel.Keys)
         {
             Assert.True(en.ContainsKey("Setting_" + key), key);
+        }
+    }
+
+    [Fact]
+    public void Every_alert_event_notification_and_status_has_a_label()
+    {
+        var en = Load("en-US");
+        foreach (var key in AlertsViewModel.EventKeys)
+        {
+            Assert.True(en.ContainsKey("AlertEvent_" + key), key);
+        }
+        foreach (var kind in new[] { "crash", "crash_loop", "backup_failed", "join" })
+        {
+            Assert.True(en.ContainsKey("Notify_" + kind), kind);
+        }
+        foreach (var level in new[] { "ok", "info", "warn", "err" })
+        {
+            Assert.True(en.ContainsKey("DoctorLevel_" + level), level);
+        }
+        foreach (var done in new[]
+        {
+            "test", "added", "removed", "java_installed", "java_removed", "remote_on", "remote_off", "code", "role", "revoked",
+            "update", "rollback", "doctor", "router_on", "router_off", "route", "route_removed", "default", "access",
+            "modpack", "modpack_current",
+        })
+        {
+            Assert.True(en.ContainsKey("Done_" + done), done);
         }
     }
 }

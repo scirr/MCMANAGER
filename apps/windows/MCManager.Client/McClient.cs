@@ -184,10 +184,96 @@ public sealed class McClient : IMcClient, IDisposable
     public Task<Job> GetJobAsync(string id, CancellationToken ct = default)
         => SendAsync(HttpMethod.Get, "/v1/jobs/" + Ref(id), null, McJson.Default.Job, ct);
 
-    public async IAsyncEnumerable<ConsoleEvent> StreamConsoleAsync(
-        string server, int tail = 200, [EnumeratorCancellation] CancellationToken ct = default)
+    public Task<AlertList> ListAlertChannelsAsync(string server, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Get, ServerPath(server) + "/alerts", null, McJson.Default.AlertList, ct);
+
+    public Task<AlertAdded> AddAlertChannelAsync(string server, AlertAddRequest request, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, ServerPath(server) + "/alerts", request, McJson.Default.AlertAdded, ct);
+
+    public Task<AlertTested> TestAlertChannelsAsync(string server, string? channel = null, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, ServerPath(server) + "/alerts/test", new AlertTestRequest { Channel = channel }, McJson.Default.AlertTested, ct);
+
+    public Task<OperationResult> RemoveAlertChannelAsync(string server, string channel, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Delete, ServerPath(server) + "/alerts/" + Ref(channel), null, McJson.Default.OperationResult, ct);
+
+    public Task<Job> InstallJavaAsync(int major, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Put, "/v1/java/" + major, null, McJson.Default.Job, ct);
+
+    public Task<OperationResult> RemoveJavaAsync(int major, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Delete, "/v1/java/" + major, null, McJson.Default.OperationResult, ct);
+
+    public Task<RemoteStatus> GetRemoteStatusAsync(CancellationToken ct = default)
+        => SendAsync(HttpMethod.Get, "/v1/remote", null, McJson.Default.RemoteStatus, ct);
+
+    public Task<RemoteStatus> SetRemoteAccessAsync(bool enabled, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Put, "/v1/remote", new RemoteAccessRequest { Enabled = enabled }, McJson.Default.RemoteStatus, ct);
+
+    public Task<PairingCodeDocument> CreatePairingCodeAsync(string role, string? name = null, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, "/v1/pair/codes", new PairingCodeRequest { Role = role, Name = name }, McJson.Default.PairingCodeDocument, ct);
+
+    public Task<DeviceList> ListDevicesAsync(CancellationToken ct = default)
+        => SendAsync(HttpMethod.Get, "/v1/devices", null, McJson.Default.DeviceList, ct);
+
+    public Task<DeviceEntry> SetDeviceRoleAsync(string device, string role, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Put, "/v1/devices/" + Ref(device) + "/roles",
+            new DeviceRolesRequest { Roles = new DeviceRoles { Default = role } }, McJson.Default.DeviceEntry, ct);
+
+    public Task<OperationResult> RevokeDeviceAsync(string device, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Delete, "/v1/devices/" + Ref(device), null, McJson.Default.OperationResult, ct);
+
+    public Task<AuditList> ListAuditLogAsync(int limit = 50, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Get, "/v1/audit?limit=" + limit, null, McJson.Default.AuditList, ct);
+
+    public Task<UpdateInfo> CheckUpdateAsync(CancellationToken ct = default)
+        => SendAsync(HttpMethod.Get, "/v1/update", null, McJson.Default.UpdateInfo, ct);
+
+    public Task<Job> ApplyUpdateAsync(CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, "/v1/update", new UpdateRequest(), McJson.Default.Job, ct);
+
+    public Task<OperationResult> RollbackUpdateAsync(CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, "/v1/update/rollback", null, McJson.Default.OperationResult, ct);
+
+    public Task<DoctorReport> GetDoctorReportAsync(CancellationToken ct = default)
+        => SendAsync(HttpMethod.Get, "/v1/doctor", null, McJson.Default.DoctorReport, ct);
+
+    public Task<RouterDocument> GetRouterAsync(CancellationToken ct = default)
+        => SendAsync(HttpMethod.Get, "/v1/router", null, McJson.Default.RouterDocument, ct);
+
+    public Task<RouterDocument> SetRouterEnabledAsync(bool enabled, CancellationToken ct = default)
+        => enabled
+            ? SendAsync(HttpMethod.Post, "/v1/router/enable", new RouterEnableRequest(), McJson.Default.RouterDocument, ct)
+            : SendAsync(HttpMethod.Post, "/v1/router/disable", null, McJson.Default.RouterDocument, ct);
+
+    public Task<RouterDocument> SetRouterRouteAsync(string host, string server, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Put, "/v1/router/routes/" + Ref(host), new RouterServerRequest { Server = server }, McJson.Default.RouterDocument, ct);
+
+    public Task<RouterDocument> RemoveRouterRouteAsync(string host, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Delete, "/v1/router/routes/" + Ref(host), null, McJson.Default.RouterDocument, ct);
+
+    public Task<RouterDocument> SetRouterDefaultAsync(string server, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Put, "/v1/router/default", new RouterServerRequest { Server = server }, McJson.Default.RouterDocument, ct);
+
+    public Task<RouterDocument> EditRouterAccessAsync(string list, string action, string cidr, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, "/v1/router/access", new RouterAccessRequest { List = list, Action = action, Cidr = cidr }, McJson.Default.RouterDocument, ct);
+
+    public Task<ModpackInfo> GetModpackInfoAsync(string source, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Get, "/v1/modpacks/info?source=" + Ref(source), null, McJson.Default.ModpackInfo, ct);
+
+    public Task<Job> InstallModpackAsync(ModpackInstallRequest request, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, "/v1/modpacks", request, McJson.Default.Job, ct);
+
+    public Task<Job> UpdateModpackAsync(string server, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, ServerPath(server) + "/modpack/update", new ModpackUpdateRequest(), McJson.Default.Job, ct);
+
+    public IAsyncEnumerable<ConsoleEvent> StreamEventsAsync(CancellationToken ct = default)
+        => StreamAsync("/v1/events", ct);
+
+    public IAsyncEnumerable<ConsoleEvent> StreamConsoleAsync(string server, int tail = 200, CancellationToken ct = default)
+        => StreamAsync(ServerPath(server) + "/console?tail=" + tail, ct);
+
+    private async IAsyncEnumerable<ConsoleEvent> StreamAsync(string path, [EnumeratorCancellation] CancellationToken ct)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, ServerPath(server) + "/console?tail=" + tail);
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
         HttpResponseMessage response;
         try

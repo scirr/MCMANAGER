@@ -87,4 +87,58 @@ public interface IMcClient
     Task<JavaRuntimes> ListJavaAsync(CancellationToken ct = default);
 
     Task<Job> CreateServerAsync(CreateServerRequest request, CancellationToken ct = default);
+
+    IAsyncEnumerable<ConsoleEvent> StreamEventsAsync(CancellationToken ct = default);
+
+    Task<AlertList> ListAlertChannelsAsync(string server, CancellationToken ct = default);
+
+    Task<AlertAdded> AddAlertChannelAsync(string server, AlertAddRequest request, CancellationToken ct = default);
+
+    Task<AlertTested> TestAlertChannelsAsync(string server, string? channel = null, CancellationToken ct = default);
+
+    Task<OperationResult> RemoveAlertChannelAsync(string server, string channel, CancellationToken ct = default);
+
+    Task<Job> InstallJavaAsync(int major, CancellationToken ct = default);
+
+    Task<OperationResult> RemoveJavaAsync(int major, CancellationToken ct = default);
+
+    Task<RemoteStatus> GetRemoteStatusAsync(CancellationToken ct = default);
+
+    Task<RemoteStatus> SetRemoteAccessAsync(bool enabled, CancellationToken ct = default);
+
+    Task<PairingCodeDocument> CreatePairingCodeAsync(string role, string? name = null, CancellationToken ct = default);
+
+    Task<DeviceList> ListDevicesAsync(CancellationToken ct = default);
+
+    Task<DeviceEntry> SetDeviceRoleAsync(string device, string role, CancellationToken ct = default);
+
+    Task<OperationResult> RevokeDeviceAsync(string device, CancellationToken ct = default);
+
+    Task<AuditList> ListAuditLogAsync(int limit = 50, CancellationToken ct = default);
+
+    Task<UpdateInfo> CheckUpdateAsync(CancellationToken ct = default);
+
+    Task<Job> ApplyUpdateAsync(CancellationToken ct = default);
+
+    Task<OperationResult> RollbackUpdateAsync(CancellationToken ct = default);
+
+    Task<DoctorReport> GetDoctorReportAsync(CancellationToken ct = default);
+
+    Task<RouterDocument> GetRouterAsync(CancellationToken ct = default);
+
+    Task<RouterDocument> SetRouterEnabledAsync(bool enabled, CancellationToken ct = default);
+
+    Task<RouterDocument> SetRouterRouteAsync(string host, string server, CancellationToken ct = default);
+
+    Task<RouterDocument> RemoveRouterRouteAsync(string host, CancellationToken ct = default);
+
+    Task<RouterDocument> SetRouterDefaultAsync(string server, CancellationToken ct = default);
+
+    Task<RouterDocument> EditRouterAccessAsync(string list, string action, string cidr, CancellationToken ct = default);
+
+    Task<ModpackInfo> GetModpackInfoAsync(string source, CancellationToken ct = default);
+
+    Task<Job> InstallModpackAsync(ModpackInstallRequest request, CancellationToken ct = default);
+
+    Task<Job> UpdateModpackAsync(string server, CancellationToken ct = default);
 }

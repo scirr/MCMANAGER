@@ -30,6 +30,11 @@
                         <SymbolIcon Symbol="List" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItem x:Name="SystemItem" x:Uid="NavSystem" Tag="system">
+                    <NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Setting" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
                 <NavigationViewItem x:Name="ConnectionItem" x:Uid="NavConnection" Tag="connection">
                     <NavigationViewItem.Icon>
                         <SymbolIcon Symbol="World" />
@@ -40,6 +45,7 @@
                 <views:ServersView x:Name="ServersPage" />
                 <views:ServerDetailView x:Name="DetailPage" Visibility="Collapsed" />
                 <views:CreateServerView x:Name="CreatePage" Visibility="Collapsed" />
+                <views:SystemView x:Name="SystemPage" Visibility="Collapsed" />
                 <views:ConnectionView x:Name="ConnectionPage" Visibility="Collapsed" />
             </Grid>
         </NavigationView>

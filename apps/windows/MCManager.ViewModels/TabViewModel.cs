@@ -80,6 +80,10 @@ public abstract partial class TabViewModel : ObservableObject
         });
     }
 
+    protected Task<bool> ReadAsync(Func<Task> action) => WriteAsync(action);
+
+    public Job? LastJob { get; private set; }
+
     protected async Task<bool> RunJobAsync(string kind, Func<Task<Job>> start)
     {
         if (IsBusy)
@@ -89,6 +93,7 @@ public abstract partial class TabViewModel : ObservableObject
         IsBusy = true;
         Progress = 0;
         LastDone = "";
+        LastJob = null;
         var ok = false;
         try
         {
@@ -105,6 +110,7 @@ public abstract partial class TabViewModel : ObservableObject
                 {
                     throw new ApiException("daemon_timeout", "", 0);
                 }
+                LastJob = job;
                 if (job.State != "succeeded" || job.Result is { Ok: false })
                 {
                     throw new ApiException(job.Result?.Code ?? job.Code ?? "job_" + job.State, job.Result?.Message ?? "", 200);

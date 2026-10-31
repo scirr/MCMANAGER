@@ -8,16 +8,19 @@ public sealed partial class MainViewModel : ObservableObject
 {
     private readonly IMcClient? _client;
 
-    public MainViewModel(IMcClient? client, ErrorReporter errors)
+    public MainViewModel(IMcClient? client, ErrorReporter errors, NotificationPrefs? prefs = null)
     {
         _client = client;
         Errors = errors;
         ServerList = client is null ? null : new ServerListViewModel(client, errors);
+        Host = client is null ? null : new SystemViewModel(client, errors, prefs ?? new NotificationPrefs());
     }
 
     public ErrorReporter Errors { get; }
 
     public ServerListViewModel? ServerList { get; }
+
+    public SystemViewModel? Host { get; }
 
     [ObservableProperty]
     private ServerDetailViewModel? _detail;

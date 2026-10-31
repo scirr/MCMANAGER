@@ -158,6 +158,7 @@
                         <ComboBox x:Name="ModSourceBox" ItemTemplate="{StaticResource ChoiceTemplate}" x:Uid="ModSourceBox" SelectedItem="{x:Bind ViewModel.Mods.SelectedSource, Mode=TwoWay}" MinWidth="140" />
                         <Button x:Name="ModAddButton" x:Uid="ModAddButton" IsEnabled="{x:Bind ViewModel.Mods.CanAct, Mode=OneWay}" Command="{x:Bind ViewModel.Mods.AddCommand, Mode=OneWay}" />
                         <Button x:Name="ModUpdateButton" x:Uid="ModUpdateButton" IsEnabled="{x:Bind ViewModel.Mods.CanAct, Mode=OneWay}" Command="{x:Bind ViewModel.Mods.UpdateAllCommand, Mode=OneWay}" />
+                        <Button x:Name="ModpackUpdateButton" x:Uid="ModpackUpdateButton" IsEnabled="{x:Bind ViewModel.Mods.CanAct, Mode=OneWay}" Command="{x:Bind ViewModel.Mods.UpdateModpackCommand, Mode=OneWay}" />
                         <Button x:Name="ModsRefreshButton" x:Uid="RefreshButton" Command="{x:Bind ViewModel.Mods.RefreshCommand, Mode=OneWay}">
                             <SymbolIcon Symbol="Refresh" />
                         </Button>
@@ -165,6 +166,7 @@
                     <StackPanel Grid.Row="1" Spacing="4">
                         <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ViewModel.Mods.Progress, Mode=OneWay}" Visibility="{x:Bind ViewModel.Mods.IsBusy, Mode=OneWay}" />
                         <TextBlock x:Uid="RestartHint" Visibility="{x:Bind ViewModel.Mods.RestartRequired, Mode=OneWay}" />
+                        <TextBlock Text="{x:Bind app:Strings.Done(ViewModel.Mods.LastDone), Mode=OneWay}" Opacity="0.7" />
                     </StackPanel>
                     <TextBlock x:Uid="ModsEmpty" Grid.Row="2" Visibility="{x:Bind ViewModel.Mods.IsEmpty, Mode=OneWay}" />
                     <ListView x:Name="ModsListView" x:Uid="ModsListView" Grid.Row="3" ItemsSource="{x:Bind ViewModel.Mods.Items, Mode=OneWay}" SelectionMode="None">
@@ -369,6 +371,76 @@
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <Button x:Name="SettingsSaveButton" x:Uid="SaveButton" Command="{x:Bind ViewModel.Settings.SaveCommand, Mode=OneWay}" Visibility="{x:Bind ViewModel.Settings.CanWrite, Mode=OneWay}" />
                             <TextBlock x:Uid="RestartHint" VerticalAlignment="Center" Visibility="{x:Bind ViewModel.Settings.RestartRequired, Mode=OneWay}" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </PivotItem>
+            <PivotItem x:Uid="AlertsTab">
+                <ScrollViewer>
+                    <StackPanel Spacing="12">
+                        <TextBlock x:Uid="AlertsHint" TextWrapping="Wrap" Opacity="0.7" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="AlertTestAllButton" x:Uid="AlertTestAllButton" Visibility="{x:Bind ViewModel.Alerts.CanWrite, Mode=OneWay}" Click="OnAlertTestAllClick" />
+                            <Button x:Name="AlertsRefreshButton" x:Uid="RefreshButton" Command="{x:Bind ViewModel.Alerts.RefreshCommand, Mode=OneWay}">
+                                <SymbolIcon Symbol="Refresh" />
+                            </Button>
+                            <TextBlock Text="{x:Bind app:Strings.Done(ViewModel.Alerts.LastDone), Mode=OneWay}" VerticalAlignment="Center" Opacity="0.7" />
+                        </StackPanel>
+                        <TextBlock x:Uid="AlertsEmpty" Visibility="{x:Bind ViewModel.Alerts.IsEmpty, Mode=OneWay}" />
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Alerts.Items, Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:AlertItem">
+                                    <Grid ColumnSpacing="8" Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" />
+                                            <StackPanel Orientation="Horizontal" Spacing="8" Opacity="0.7">
+                                                <TextBlock Text="{x:Bind app:Strings.Choice(Type)}" />
+                                                <TextBlock Text="{x:Bind Target}" />
+                                                <TextBlock Text="{x:Bind app:Strings.AlertEvents(Events)}" />
+                                                <TextBlock Text="{x:Bind app:Strings.AlertLegacy(Legacy)}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <Button x:Uid="AlertTestButton" Grid.Column="1" Visibility="{x:Bind CanWrite}" Tag="{x:Bind Name}" Click="OnAlertTestClick">
+                                            <SymbolIcon Symbol="Mail" />
+                                        </Button>
+                                        <Button x:Uid="AlertRemoveButton" Grid.Column="2" Visibility="{x:Bind CanRemove}" Tag="{x:Bind Name}" Click="OnAlertRemoveClick">
+                                            <SymbolIcon Symbol="Delete" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.Alerts.CanWrite, Mode=OneWay}">
+                            <TextBlock x:Uid="AlertNewLabel" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <ComboBox x:Name="AlertTypeBox" ItemTemplate="{StaticResource ChoiceTemplate}" x:Uid="AlertTypeBox" SelectedItem="{x:Bind ViewModel.Alerts.NewType, Mode=TwoWay}" MinWidth="200" />
+                            <TextBox x:Name="AlertNameBox" x:Uid="AlertNameBox" Text="{x:Bind ViewModel.Alerts.NewName, Mode=TwoWay}" MinWidth="280" />
+                            <TextBox x:Name="AlertHostBox" x:Uid="AlertHostBox" Text="{x:Bind ViewModel.Alerts.NewHost, Mode=TwoWay}" Visibility="{x:Bind ViewModel.Alerts.ShowHost, Mode=OneWay}" MinWidth="280" />
+                            <TextBox x:Name="AlertPortBox" x:Uid="AlertPortBox" Text="{x:Bind ViewModel.Alerts.NewPort, Mode=TwoWay}" Visibility="{x:Bind ViewModel.Alerts.ShowPort, Mode=OneWay}" MinWidth="280" />
+                            <TextBox x:Name="AlertUserBox" x:Uid="AlertUserBox" Text="{x:Bind ViewModel.Alerts.NewUser, Mode=TwoWay}" Visibility="{x:Bind ViewModel.Alerts.ShowUser, Mode=OneWay}" MinWidth="280" />
+                            <PasswordBox x:Name="AlertPasswordBox" x:Uid="AlertPasswordBox" Password="{x:Bind ViewModel.Alerts.NewPassword, Mode=TwoWay}" Visibility="{x:Bind ViewModel.Alerts.ShowPassword, Mode=OneWay}" MinWidth="280" />
+                            <TextBox x:Name="AlertSenderBox" x:Uid="AlertSenderBox" Text="{x:Bind ViewModel.Alerts.NewSender, Mode=TwoWay}" Visibility="{x:Bind ViewModel.Alerts.ShowSender, Mode=OneWay}" MinWidth="280" />
+                            <TextBox x:Name="AlertToBox" x:Uid="AlertToBox" Text="{x:Bind ViewModel.Alerts.NewTo, Mode=TwoWay}" Visibility="{x:Bind ViewModel.Alerts.ShowTo, Mode=OneWay}" MinWidth="280" />
+                            <PasswordBox x:Name="AlertTokenBox" x:Uid="AlertTokenBox" Password="{x:Bind ViewModel.Alerts.NewToken, Mode=TwoWay}" Visibility="{x:Bind ViewModel.Alerts.ShowToken, Mode=OneWay}" MinWidth="280" />
+                            <TextBox x:Name="AlertChatIdBox" x:Uid="AlertChatIdBox" Text="{x:Bind ViewModel.Alerts.NewChatId, Mode=TwoWay}" Visibility="{x:Bind ViewModel.Alerts.ShowChatId, Mode=OneWay}" MinWidth="280" />
+                            <TextBox x:Name="AlertServerBox" x:Uid="AlertServerBox" Text="{x:Bind ViewModel.Alerts.NewServer, Mode=TwoWay}" Visibility="{x:Bind ViewModel.Alerts.ShowServer, Mode=OneWay}" MinWidth="280" />
+                            <TextBox x:Name="AlertTopicBox" x:Uid="AlertTopicBox" Text="{x:Bind ViewModel.Alerts.NewTopic, Mode=TwoWay}" Visibility="{x:Bind ViewModel.Alerts.ShowTopic, Mode=OneWay}" MinWidth="280" />
+                            <PasswordBox x:Name="AlertUrlBox" x:Uid="AlertUrlBox" Password="{x:Bind ViewModel.Alerts.NewUrl, Mode=TwoWay}" Visibility="{x:Bind ViewModel.Alerts.ShowUrl, Mode=OneWay}" MinWidth="280" />
+                            <PasswordBox x:Name="AlertSecretBox" x:Uid="AlertSecretBox" Password="{x:Bind ViewModel.Alerts.NewSecret, Mode=TwoWay}" Visibility="{x:Bind ViewModel.Alerts.ShowSecret, Mode=OneWay}" MinWidth="280" />
+                            <TextBlock x:Uid="AlertEventsLabel" />
+                            <TextBlock x:Uid="AlertEventsHint" Opacity="0.7" TextWrapping="Wrap" />
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.Alerts.EventChoices}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:AlertEventChoice">
+                                        <CheckBox Content="{x:Bind app:Strings.AlertEvent(Key)}" IsChecked="{x:Bind IsSelected, Mode=TwoWay}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button x:Name="AlertAddButton" x:Uid="AlertAddButton" Command="{x:Bind ViewModel.Alerts.AddCommand, Mode=OneWay}" />
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>

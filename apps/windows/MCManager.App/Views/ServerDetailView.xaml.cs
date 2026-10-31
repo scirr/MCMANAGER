@@ -20,6 +20,7 @@ public sealed partial class ServerDetailView : UserControl
         ModeBox.ItemsSource = SettingsViewModel.Modes;
         SleepJoinBox.ItemsSource = SettingsViewModel.JoinModes;
         DatapackPlacementBox.ItemsSource = DatapacksViewModel.Placements;
+        AlertTypeBox.ItemsSource = AlertsViewModel.Types;
         _timer.Tick += OnTick;
     }
 
@@ -42,6 +43,7 @@ public sealed partial class ServerDetailView : UserControl
         _ = viewModel.World.RefreshAsync();
         _ = viewModel.Tasks.RefreshAsync();
         _ = viewModel.Settings.RefreshAsync();
+        _ = viewModel.Alerts.RefreshAsync();
         _timer.Start();
     }
 
@@ -97,19 +99,8 @@ public sealed partial class ServerDetailView : UserControl
         }
     }
 
-    private async Task<bool> ConfirmAsync(string title, string body, string confirm)
-    {
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot,
-            Title = title,
-            Content = body,
-            PrimaryButtonText = confirm,
-            CloseButtonText = Strings.Get("RestoreDialogCancel"),
-            DefaultButton = ContentDialogButton.Close,
-        };
-        return await dialog.ShowAsync() == ContentDialogResult.Primary;
-    }
+    private Task<bool> ConfirmAsync(string title, string body, string confirm)
+        => Dialogs.ConfirmAsync(XamlRoot, title, body, confirm);
 
     private async void OnRestoreClick(object sender, RoutedEventArgs e)
     {
@@ -206,6 +197,33 @@ public sealed partial class ServerDetailView : UserControl
         var confirmed = await ConfirmAsync(
             Strings.Get("TaskDeleteDialogTitle"), string.Format(Strings.Get("TaskDeleteDialogBody"), item.Name), Strings.Get("TaskDeleteDialogConfirm"));
         await _viewModel.Tasks.DeleteAsync(item.Id, confirmed);
+    }
+
+    private async void OnAlertTestClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null && sender is FrameworkElement { Tag: string name })
+        {
+            await _viewModel.Alerts.TestAsync(name);
+        }
+    }
+
+    private async void OnAlertTestAllClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null)
+        {
+            await _viewModel.Alerts.TestAsync(null);
+        }
+    }
+
+    private async void OnAlertRemoveClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || sender is not FrameworkElement { Tag: string name })
+        {
+            return;
+        }
+        var confirmed = await ConfirmAsync(
+            Strings.Get("AlertRemoveDialogTitle"), string.Format(Strings.Get("AlertRemoveDialogBody"), name), Strings.Get("AlertRemoveDialogConfirm"));
+        await _viewModel.Alerts.RemoveAsync(name, confirmed);
     }
 
     private void OnModeChanged(object sender, SelectionChangedEventArgs e)
