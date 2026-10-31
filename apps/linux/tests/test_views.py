@@ -92,6 +92,64 @@ class TestViews(unittest.TestCase):
             tab.model.read_only = True
             tab.model.notify()
 
+    def test_alerts_tab_and_system_page_follow_their_models(self):
+        from mcmanager_app.host_panels import NotificationPrefs
+        from mcmanager_app.ui import alerts, common, system
+        for module in (common, alerts, system):
+            module.make_runner = sync_runner
+        self.client.channels = [{"name": "ntfy", "type": "ntfy", "events": ["crash"], "topic": "mc"},
+                                {"name": "discord", "type": "discord", "events": ["*"], "legacy": True}]
+        self.client.java_host = {"runtimes": {"21": "/j"}, "servers": [{"server": "a", "java": 21}]}
+        self.client.device_list = [{"id": "d_1", "name": "Phone", "roles": {"default": "operator"},
+                                    "last_seen": None, "servers": None}]
+        self.client.audit = [{"at": "2026-10-29T10:00:00", "action": "stopServer", "ok": True}]
+        self.client.remote = {"enabled": True, "fingerprint": "AA"}
+        self.client.update_doc = {"current": "3.0.0", "latest": "3.1.0", "update_available": True,
+                                  "rollback_available": True}
+        self.client.doctor_doc = {"checks": [{"server": "a", "name": "port", "ok": False, "level": "err",
+                                              "detail": "busy", "fix": "fix it"}], "errors": 1, "warnings": 0}
+        self.client.router_doc = {"config": {"enabled": True, "default": "a", "routes": {"h.example.org": "a"},
+                                             "allow": ["10.0.0.0/8"], "deny": []}, "pending_restart": ["a"]}
+        toasts = []
+        tab = alerts.AlertsTab(self.client, "a", toasts.append)
+        self.assertEqual([row.get_title() for row in tab.rows], ["ntfy", "discord"])
+        tab.kind.set_selected(0)
+        tab.fields["host"].set_text("smtp")
+        tab.model.read_only = True
+        tab.model.notify()
+        self.assertFalse(tab.form.get_visible())
+        prefs = NotificationPrefs()
+        page = system.SystemPage(self.client, prefs, toasts.append)
+        tabs = page.tabs
+        self.assertEqual(tabs["java"].rows[0].get_title(), "Java 21")
+        self.assertEqual(tabs["devices"].device_rows[0].get_title(), "Phone")
+        self.assertTrue(tabs["devices"].remote_switch.get_active())
+        self.assertEqual(tabs["router"].route_rows[0].get_title(), "h.example.org")
+        self.assertTrue(tabs["router"].pending.get_visible())
+        self.assertTrue(tabs["update"].apply_button.get_visible())
+        self.assertEqual(len(tabs["doctor"].rows), 1)
+        tabs["notifications"].switches["join"].set_active(False)
+        self.assertFalse(prefs.enabled["join"])
+        for tab in tabs.values():
+            if hasattr(tab, "model"):
+                tab.model.read_only = True
+                tab.model.notify()
+        self.assertFalse(tabs["update"].apply_button.get_visible())
+
+    def test_creation_dialog_creates_from_a_modpack(self):
+        from mcmanager_app.ui import common, create
+        common.make_runner = create.make_runner = sync_runner
+        self.client.result = {"server": "pack"}
+        created = []
+        dialog = create.CreateServerDialog(self.client, lambda message: None, created.append)
+        dialog.pack.set_text("cobblemon")
+        self.assertFalse(dialog.loader.get_visible())
+        dialog.check.emit("clicked")
+        self.assertTrue(dialog.pack_info.get_visible())
+        dialog.eula.set_active(True)
+        dialog.send()
+        self.assertEqual(created, ["pack"])
+
     def test_creation_dialog_reports_the_new_server(self):
         from mcmanager_app.ui import common, create
         common.make_runner = create.make_runner = sync_runner

@@ -24,9 +24,12 @@ class ModsTab(Adw.PreferencesPage):
         self.add_button.connect("clicked", lambda _b: self.add_mod())
         self.update_button = text_button(t("mod_update_all"))
         self.update_button.connect("clicked", lambda _b: self.model.update())
+        self.pack_button = text_button(t("modpack_update"))
+        self.pack_button.connect("clicked", lambda _b: self.model.update_modpack())
         buttons = Gtk.Box(spacing=6, margin_top=6)
         buttons.append(self.add_button)
         buttons.append(self.update_button)
+        buttons.append(self.pack_button)
         self.progress = progress_bar()
         self.install.add(self.ref)
         self.install.add(self.source)
@@ -78,6 +81,7 @@ class ModsTab(Adw.PreferencesPage):
         self.install.set_visible(editable)
         self.add_button.set_sensitive(not busy)
         self.update_button.set_sensitive(not busy)
+        self.pack_button.set_sensitive(not busy)
         show_progress(self.progress, self.model)
         pending = self.model.blocks_pending
         if pending:

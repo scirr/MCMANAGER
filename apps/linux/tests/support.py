@@ -50,6 +50,15 @@ class FakeClient:
         self.sleep_doc = {"enabled": False, "after_s": 7200, "allow": [], "join_mode": "kick", "hold_timeout_s": 120,
                           "freeze": False}
         self.result = {}
+        self.channels = []
+        self.pack_doc = {"title": "Pack", "version": "1.0", "mc_version": "1.21.1", "loader": "fabric"}
+        self.java_host = {"runtimes": {}, "servers": []}
+        self.device_list = []
+        self.audit = []
+        self.remote = {"enabled": False}
+        self.update_doc = {"current": "3.0.0", "latest": "3.0.0", "update_available": False}
+        self.doctor_doc = {"checks": [], "errors": 0, "warnings": 0}
+        self.router_doc = {"config": {"enabled": False, "routes": {}, "allow": [], "deny": []}, "pending_restart": []}
 
     def _check(self, name):
         if name in self.fail:
@@ -195,6 +204,101 @@ class FakeClient:
 
     def create_server(self, name, loader, accept_eula, version=None, ram=None, port=None, rcon_port=None):
         return self._record("create_server", name, loader, version, ram, port, rcon_port)
+
+    def alert_channels(self, name):
+        self._check("alert_channels")
+        return {"channels": self.channels, "count": len(self.channels)}
+
+    def add_alert(self, name, kind, events=None, channel_name=None, **fields):
+        return self._record("add_alert", kind, events, channel_name, fields)
+
+    def send_alert_test(self, name, channel=None):
+        return self._record("test_alert", channel)
+
+    def remove_alert(self, name, channel):
+        return self._record("remove_alert", channel)
+
+    def modpack_info(self, source):
+        return self._record("modpack_info", source) | self.pack_doc
+
+    def install_modpack(self, source, accept_eula, name=None, ram=None, port=None, rcon_port=None):
+        return self._record("install_modpack", source, name, ram, port, rcon_port)
+
+    def update_modpack(self, name):
+        return self._record("update_modpack")
+
+    def java_runtimes(self):
+        self._check("java_runtimes")
+        return self.java_host
+
+    def install_java(self, major):
+        return self._record("install_java", major)
+
+    def remove_java(self, major):
+        return self._record("remove_java", major)
+
+    def devices(self):
+        self._check("devices")
+        return {"devices": self.device_list}
+
+    def revoke_device(self, device):
+        return self._record("revoke_device", device)
+
+    def set_device_roles(self, device, default, servers=None):
+        return self._record("set_roles", device, default)
+
+    def audit_log(self, limit=50, device=None, server=None):
+        self._check("audit")
+        return {"entries": self.audit}
+
+    def pairing_code(self, name=None, role="operator", servers=None):
+        return self._record("pairing_code", name, role) | {"pairing_code": "12345678", "expires_in_s": 300}
+
+    def remote_status(self):
+        self._check("remote_status")
+        return self.remote
+
+    def set_remote_access(self, enabled, bind=None):
+        return self._record("set_remote", enabled)
+
+    def check_update(self):
+        self._check("check_update")
+        return self.update_doc
+
+    def apply_update(self, version=None):
+        return self._record("apply_update")
+
+    def rollback_update(self):
+        return self._record("rollback_update")
+
+    def doctor(self, server=None):
+        self._check("doctor")
+        return self.doctor_doc
+
+    def router(self):
+        self._check("router")
+        return self.router_doc
+
+    def list_servers_names(self):
+        return ["a", "b"]
+
+    def enable_router(self, **options):
+        return self._record("enable_router")
+
+    def disable_router(self):
+        return self._record("disable_router")
+
+    def set_route(self, host, server):
+        return self._record("set_route", host, server)
+
+    def remove_route(self, host):
+        return self._record("remove_route", host)
+
+    def set_router_default(self, server):
+        return self._record("router_default", server)
+
+    def edit_router_access(self, kind, action, cidr):
+        return self._record("router_access", kind, action, cidr)
 
     def send_command(self, name, command):
         self.calls.append((name, "cmd", command))
