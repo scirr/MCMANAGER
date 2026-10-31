@@ -329,7 +329,12 @@ class TestSettings(PanelCase):
         self.assertEqual(self.model.error, "Invalid value")
 
     def test_sleep_is_loaded_in_minutes(self):
-        self.assertEqual(self.model.sleep, {"enabled": False, "minutes": "120", "join_mode": "kick", "freeze": False})
+        self.assertEqual(self.model.sleep, {"enabled": False, "minutes": "120", "join_mode": "kick", "freeze": False,
+                                            "freeze_supported": True})
+
+    def test_sleep_knows_when_freezing_is_impossible(self):
+        self.model._sleep_loaded({"enabled": True, "after_s": 600, "freeze_supported": False})
+        self.assertFalse(self.model.sleep["freeze_supported"])
 
     def test_sleep_sends_only_what_changed(self):
         self.assertTrue(self.model.set_sleep(True, "30", "kick", False))

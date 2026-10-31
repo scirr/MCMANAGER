@@ -187,6 +187,7 @@ class SettingsTab(Adw.PreferencesPage):
             self.sleep_minutes.set_text(sleep["minutes"])
             self.sleep_join.set_selected(JOIN_MODES.index(sleep["join_mode"]) if sleep["join_mode"] in JOIN_MODES else 0)
             self.sleep_freeze.set_active(sleep["freeze"])
+            self.sleep_freeze.set_visible(sleep["freeze_supported"])
         for key, entry in self.secrets.items():
             state = t("secret_set") if key in model.secrets_set else t("secret_unset")
             entry.set_title("%s (%s)" % (t("secret_" + key), state))

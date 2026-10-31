@@ -230,6 +230,7 @@ public struct SleepSettings: Codable, Equatable, Sendable {
     public var joinMode: String?
     public var holdTimeoutS: Int?
     public var freeze: Bool?
+    public var freezeSupported: Bool?
     public var notes: [String]?
 }
 

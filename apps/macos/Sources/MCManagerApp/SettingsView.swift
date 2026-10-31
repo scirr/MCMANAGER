@@ -65,10 +65,12 @@ struct SettingsView: View {
                             }
                             .frame(maxWidth: 320)
                         }
-                        Toggle(tr("Freeze instead of stopping"), isOn: $model.sleepFreeze)
-                        Text(verbatim: tr("Freezing needs the hold join mode and is not available on a Windows server."))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        if model.sleepFreezeSupported {
+                            Toggle(tr("Freeze instead of stopping"), isOn: $model.sleepFreeze)
+                            Text(verbatim: tr("Freezing needs the hold join mode and is not available on a Windows server."))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                         HStack {
                             Spacer()
                             Button(tr("Save")) { Task { await model.saveSleep() } }

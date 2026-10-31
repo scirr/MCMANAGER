@@ -51,6 +51,7 @@ public final class SettingsViewModel {
     public var sleepMinutes = ""
     public var sleepJoinMode = "kick"
     public var sleepFreeze = false
+    public var sleepFreezeSupported = true
     public let tab: TabRunner
 
     @ObservationIgnored private let client: McClientProtocol
@@ -112,6 +113,7 @@ public final class SettingsViewModel {
         sleepMinutes = String(sleep.afterS / 60)
         sleepJoinMode = Self.joinModes.contains(sleep.joinMode ?? "") ? sleep.joinMode ?? "kick" : "kick"
         sleepFreeze = sleep.freeze ?? false
+        sleepFreezeSupported = sleep.freezeSupported ?? true
     }
 
     public func saveSleep() async {

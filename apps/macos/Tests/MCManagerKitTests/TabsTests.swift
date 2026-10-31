@@ -377,6 +377,7 @@ final class TabsTests: XCTestCase {
         XCTAssertFalse(model.sleepEnabled)
         XCTAssertEqual(model.sleepMinutes, "120")
         XCTAssertEqual(model.sleepJoinMode, "kick")
+        XCTAssertTrue(model.sleepFreezeSupported)
         model.sleepEnabled = true
         model.sleepMinutes = " 30 "
         await model.saveSleep()
@@ -407,6 +408,14 @@ final class TabsTests: XCTestCase {
         XCTAssertTrue(body.contains("\"join_mode\":\"hold\""))
         XCTAssertTrue(body.contains("\"freeze\":true"))
         XCTAssertTrue(model.tab.restartRequired)
+    }
+
+    func testSleepSettingsSayWhenFreezingIsImpossible() throws {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let json = #"{"enabled":false,"after_s":7200,"freeze":false,"freeze_supported":false}"#
+        let sleep = try decoder.decode(SleepSettings.self, from: Data(json.utf8))
+        XCTAssertEqual(sleep.freezeSupported, false)
     }
 
     func testSleepRejectsABadDelayBeforeCalling() async {

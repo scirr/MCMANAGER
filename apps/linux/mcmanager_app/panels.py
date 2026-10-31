@@ -391,7 +391,8 @@ class SettingsModel(PanelModel):
 
     def _sleep_loaded(self, document):
         self.sleep = {"enabled": bool(document.get("enabled")), "minutes": str(int(document.get("after_s") or 0) // 60),
-                      "join_mode": document.get("join_mode") or "kick", "freeze": bool(document.get("freeze"))}
+                      "join_mode": document.get("join_mode") or "kick", "freeze": bool(document.get("freeze")),
+                      "freeze_supported": document.get("freeze_supported") is not False}
 
     def _java_loaded(self, document):
         self.java_choices = ["system"] + sorted(document.get("runtimes") or {}, key=lambda v: (len(v), v))
