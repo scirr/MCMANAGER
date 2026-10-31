@@ -1,0 +1,239 @@
+<UserControl
+    x:Class="MCManager.App.Views.SystemView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:MCManager.ViewModels"
+    xmlns:app="using:MCManager.App">
+    <Grid Padding="24" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <TextBlock x:Uid="SystemTitle" Style="{StaticResource TitleTextBlockStyle}" />
+        <Pivot Grid.Row="1">
+            <PivotItem x:Uid="JavaTab">
+                <ScrollViewer>
+                    <StackPanel Spacing="12">
+                        <TextBlock x:Uid="JavaHint" TextWrapping="Wrap" Opacity="0.7" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="JavaRefreshButton" x:Uid="RefreshButton" Command="{x:Bind ViewModel.Java.RefreshCommand, Mode=OneWay}">
+                                <SymbolIcon Symbol="Refresh" />
+                            </Button>
+                            <TextBlock Text="{x:Bind app:Strings.Done(ViewModel.Java.LastDone), Mode=OneWay}" VerticalAlignment="Center" Opacity="0.7" />
+                        </StackPanel>
+                        <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ViewModel.Java.Progress, Mode=OneWay}" Visibility="{x:Bind ViewModel.Java.IsBusy, Mode=OneWay}" />
+                        <TextBlock x:Uid="JavaEmpty" Visibility="{x:Bind ViewModel.Java.IsEmpty, Mode=OneWay}" />
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Java.Items, Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:JavaRuntimeItem">
+                                    <Grid ColumnSpacing="8" Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="{x:Bind app:Strings.JavaRuntime(Major)}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{x:Bind app:Strings.JavaUsedBy(Servers)}" Opacity="0.7" />
+                                        </StackPanel>
+                                        <Button x:Uid="JavaRemoveButton" Grid.Column="1" Visibility="{x:Bind CanWrite}" Tag="{x:Bind Major}" Click="OnJavaRemoveClick">
+                                            <SymbolIcon Symbol="Delete" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.Java.CanWrite, Mode=OneWay}">
+                            <ComboBox x:Name="JavaInstallBox" x:Uid="JavaInstallBox" ItemsSource="{x:Bind ViewModel.Java.Installable, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Java.SelectedMajor, Mode=TwoWay}" MinWidth="140" />
+                            <Button x:Name="JavaInstallButton" x:Uid="JavaInstallButton" IsEnabled="{x:Bind ViewModel.Java.CanAct, Mode=OneWay}" Command="{x:Bind ViewModel.Java.InstallCommand, Mode=OneWay}" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </PivotItem>
+            <PivotItem x:Uid="DevicesTab">
+                <ScrollViewer>
+                    <StackPanel Spacing="12">
+                        <TextBlock x:Uid="RemoteHint" TextWrapping="Wrap" Opacity="0.7" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <ToggleSwitch x:Name="RemoteSwitch" x:Uid="RemoteSwitch" IsOn="{x:Bind ViewModel.Devices.RemoteEnabled, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.Devices.CanWrite, Mode=OneWay}" Toggled="OnRemoteToggled" OnContent="" OffContent="" />
+                            <Button x:Name="DevicesRefreshButton" x:Uid="RefreshButton" Command="{x:Bind ViewModel.Devices.RefreshCommand, Mode=OneWay}">
+                                <SymbolIcon Symbol="Refresh" />
+                            </Button>
+                            <TextBlock Text="{x:Bind app:Strings.Done(ViewModel.Devices.LastDone), Mode=OneWay}" VerticalAlignment="Center" Opacity="0.7" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.Devices.HasFingerprint, Mode=OneWay}">
+                            <TextBlock x:Uid="FingerprintLabel" VerticalAlignment="Center" />
+                            <TextBlock Text="{x:Bind ViewModel.Devices.Fingerprint, Mode=OneWay}" IsTextSelectionEnabled="True" FontFamily="Consolas" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.Devices.CanWrite, Mode=OneWay}">
+                            <TextBlock x:Uid="PairNewLabel" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <TextBlock x:Uid="PairHint" TextWrapping="Wrap" Opacity="0.7" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBox x:Name="PairNameBox" x:Uid="PairNameBox" Text="{x:Bind ViewModel.Devices.PairName, Mode=TwoWay}" MinWidth="200" />
+                                <ComboBox x:Name="PairRoleBox" ItemTemplate="{StaticResource ChoiceTemplate}" x:Uid="PairRoleBox" SelectedItem="{x:Bind ViewModel.Devices.PairRole, Mode=TwoWay}" MinWidth="160" />
+                                <Button x:Name="PairButton" x:Uid="PairButton" Command="{x:Bind ViewModel.Devices.NewCodeCommand, Mode=OneWay}" />
+                            </StackPanel>
+                            <TextBlock Text="{x:Bind app:Strings.PairCode(ViewModel.Devices.Code, ViewModel.Devices.CodeMinutes), Mode=OneWay}" IsTextSelectionEnabled="True" FontFamily="Consolas" FontWeight="SemiBold" />
+                        </StackPanel>
+                        <TextBlock x:Uid="DevicesLabel" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <TextBlock x:Uid="DevicesEmpty" Visibility="{x:Bind ViewModel.Devices.IsEmpty, Mode=OneWay}" />
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Devices.Items, Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DeviceItem">
+                                    <Grid ColumnSpacing="8" Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{x:Bind app:Strings.DeviceDetail(LastIp, LastSeen, Servers)}" Opacity="0.7" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="1" Text="{x:Bind app:Strings.Choice(Role)}" Visibility="{x:Bind ReadOnly}" VerticalAlignment="Center" />
+                                        <ComboBox Grid.Column="1" ItemTemplate="{StaticResource ChoiceTemplate}" Tag="{x:Bind Id}" Visibility="{x:Bind CanWrite}" Loaded="OnDeviceRoleLoaded" MinWidth="140" />
+                                        <Button x:Uid="DeviceRevokeButton" Grid.Column="2" Visibility="{x:Bind CanWrite}" Tag="{x:Bind Id}" Click="OnDeviceRevokeClick">
+                                            <SymbolIcon Symbol="Delete" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Spacing="4" Visibility="{x:Bind ViewModel.Devices.CanWrite, Mode=OneWay}">
+                            <TextBlock x:Uid="AuditLabel" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <TextBlock x:Uid="AuditEmpty" Visibility="{x:Bind ViewModel.Devices.AuditEmpty, Mode=OneWay}" />
+                            <ItemsControl ItemsSource="{x:Bind ViewModel.Devices.Audit, Mode=OneWay}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:AuditItem">
+                                        <StackPanel Margin="0,2">
+                                            <TextBlock Text="{x:Bind Action}" />
+                                            <TextBlock Text="{x:Bind app:Strings.AuditLine(At, Device, Server, Ok)}" Opacity="0.7" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </PivotItem>
+            <PivotItem x:Uid="RouterTab">
+                <ScrollViewer>
+                    <StackPanel Spacing="12">
+                        <TextBlock x:Uid="RouterHint" TextWrapping="Wrap" Opacity="0.7" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <ToggleSwitch x:Name="RouterSwitch" x:Uid="RouterSwitch" IsOn="{x:Bind ViewModel.Router.Enabled, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.Router.CanWrite, Mode=OneWay}" Toggled="OnRouterToggled" OnContent="" OffContent="" />
+                            <Button x:Name="RouterRefreshButton" x:Uid="RefreshButton" Command="{x:Bind ViewModel.Router.RefreshCommand, Mode=OneWay}">
+                                <SymbolIcon Symbol="Refresh" />
+                            </Button>
+                            <TextBlock Text="{x:Bind app:Strings.Done(ViewModel.Router.LastDone), Mode=OneWay}" VerticalAlignment="Center" Opacity="0.7" />
+                        </StackPanel>
+                        <TextBlock Text="{x:Bind app:Strings.RouterPending(ViewModel.Router.Pending), Mode=OneWay}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock x:Uid="RouterDefaultLabel" VerticalAlignment="Center" MinWidth="160" />
+                            <ComboBox x:Name="RouterDefaultBox" x:Uid="RouterDefaultBox" ItemsSource="{x:Bind ViewModel.Router.ServerNames, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Router.DefaultServer, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.Router.CanWrite, Mode=OneWay}" SelectionChanged="OnRouterDefaultChanged" MinWidth="200" />
+                        </StackPanel>
+                        <TextBlock x:Uid="RoutesLabel" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <TextBlock x:Uid="RoutesEmpty" Visibility="{x:Bind ViewModel.Router.RoutesEmpty, Mode=OneWay}" />
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Router.Routes, Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RouteItem">
+                                    <Grid ColumnSpacing="8" Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="{x:Bind Host}" />
+                                            <TextBlock Text="{x:Bind Server}" Opacity="0.7" />
+                                        </StackPanel>
+                                        <Button x:Uid="RouteRemoveButton" Grid.Column="1" Visibility="{x:Bind CanWrite}" Tag="{x:Bind Host}" Click="OnRouteRemoveClick">
+                                            <SymbolIcon Symbol="Delete" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.Router.CanWrite, Mode=OneWay}">
+                            <TextBox x:Name="RouteHostBox" x:Uid="RouteHostBox" Text="{x:Bind ViewModel.Router.NewHost, Mode=TwoWay}" MinWidth="220" />
+                            <ComboBox x:Name="RouteServerBox" x:Uid="RouteServerBox" ItemsSource="{x:Bind ViewModel.Router.ServerNames, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.Router.NewServer, Mode=TwoWay}" MinWidth="200" />
+                            <Button x:Name="RouteAddButton" x:Uid="RouteAddButton" Command="{x:Bind ViewModel.Router.AddRouteCommand, Mode=OneWay}" />
+                        </StackPanel>
+                        <TextBlock x:Uid="AccessLabel" Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <TextBlock x:Uid="AccessHint" TextWrapping="Wrap" Opacity="0.7" />
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Router.Access, Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:AccessItem">
+                                    <Grid ColumnSpacing="8" Margin="0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="{x:Bind Cidr}" />
+                                            <TextBlock Text="{x:Bind app:Strings.Choice(Kind)}" Opacity="0.7" />
+                                        </StackPanel>
+                                        <Button x:Uid="AccessRemoveButton" Grid.Column="1" Visibility="{x:Bind CanWrite}" Tag="{x:Bind Cidr}" Click="OnAccessRemoveClick">
+                                            <SymbolIcon Symbol="Delete" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Orientation="Horizontal" Spacing="8" Visibility="{x:Bind ViewModel.Router.CanWrite, Mode=OneWay}">
+                            <ComboBox x:Name="AccessKindBox" ItemTemplate="{StaticResource ChoiceTemplate}" x:Uid="AccessKindBox" SelectedItem="{x:Bind ViewModel.Router.AccessKind, Mode=TwoWay}" MinWidth="140" />
+                            <TextBox x:Name="AccessCidrBox" x:Uid="AccessCidrBox" Text="{x:Bind ViewModel.Router.NewCidr, Mode=TwoWay}" MinWidth="220" />
+                            <Button x:Name="AccessAddButton" x:Uid="AccessAddButton" Command="{x:Bind ViewModel.Router.AddAccessCommand, Mode=OneWay}" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </PivotItem>
+            <PivotItem x:Uid="UpdateTab">
+                <ScrollViewer>
+                    <StackPanel Spacing="12">
+                        <TextBlock x:Uid="UpdateHint" TextWrapping="Wrap" Opacity="0.7" />
+                        <TextBlock Text="{x:Bind app:Strings.UpdateStatus(ViewModel.Update.Current, ViewModel.Update.Latest, ViewModel.Update.Available), Mode=OneWay}" />
+                        <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind ViewModel.Update.Progress, Mode=OneWay}" Visibility="{x:Bind ViewModel.Update.IsBusy, Mode=OneWay}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="UpdateCheckButton" x:Uid="UpdateCheckButton" Command="{x:Bind ViewModel.Update.RefreshCommand, Mode=OneWay}" />
+                            <Button x:Name="UpdateApplyButton" x:Uid="UpdateApplyButton" IsEnabled="{x:Bind ViewModel.Update.CanApply, Mode=OneWay}" Visibility="{x:Bind ViewModel.Update.CanWrite, Mode=OneWay}" Click="OnUpdateApplyClick" />
+                            <Button x:Name="UpdateRollbackButton" x:Uid="UpdateRollbackButton" IsEnabled="{x:Bind ViewModel.Update.CanRollback, Mode=OneWay}" Visibility="{x:Bind ViewModel.Update.CanWrite, Mode=OneWay}" Click="OnUpdateRollbackClick" />
+                        </StackPanel>
+                        <TextBlock Text="{x:Bind app:Strings.Done(ViewModel.Update.LastDone), Mode=OneWay}" Opacity="0.7" />
+                    </StackPanel>
+                </ScrollViewer>
+            </PivotItem>
+            <PivotItem x:Uid="DoctorTab">
+                <ScrollViewer>
+                    <StackPanel Spacing="12">
+                        <TextBlock x:Uid="DoctorHint" TextWrapping="Wrap" Opacity="0.7" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="DoctorRunButton" x:Uid="DoctorRunButton" Command="{x:Bind ViewModel.Doctor.RunCommand, Mode=OneWay}" />
+                            <TextBlock Text="{x:Bind app:Strings.DoctorSummary(ViewModel.Doctor.HasRun, ViewModel.Doctor.ErrorCount, ViewModel.Doctor.WarningCount), Mode=OneWay}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                        </StackPanel>
+                        <ItemsControl ItemsSource="{x:Bind ViewModel.Doctor.Items, Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DoctorItem">
+                                    <StackPanel Margin="0,4">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{x:Bind app:Strings.DoctorLevel(Level)}" FontWeight="SemiBold" MinWidth="80" />
+                                            <TextBlock Text="{x:Bind app:Strings.DoctorTitle(Server, Name)}" />
+                                        </StackPanel>
+                                        <TextBlock Text="{x:Bind Detail}" Opacity="0.7" TextWrapping="Wrap" />
+                                        <TextBlock Text="{x:Bind app:Strings.DoctorFix(Fix)}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </PivotItem>
+            <PivotItem x:Uid="NotificationsTab">
+                <StackPanel Spacing="12">
+                    <TextBlock x:Uid="NotificationsHint" TextWrapping="Wrap" Opacity="0.7" />
+                    <ToggleSwitch x:Name="NotifyCrashSwitch" x:Uid="NotifyCrashSwitch" IsOn="{x:Bind ViewModel.Notifications.Crash, Mode=TwoWay}" OnContent="" OffContent="" />
+                    <ToggleSwitch x:Name="NotifyBackupSwitch" x:Uid="NotifyBackupSwitch" IsOn="{x:Bind ViewModel.Notifications.BackupFailed, Mode=TwoWay}" OnContent="" OffContent="" />
+                    <ToggleSwitch x:Name="NotifyJoinSwitch" x:Uid="NotifyJoinSwitch" IsOn="{x:Bind ViewModel.Notifications.Join, Mode=TwoWay}" OnContent="" OffContent="" />
+                </StackPanel>
+            </PivotItem>
+        </Pivot>
+    </Grid>
+</UserControl>

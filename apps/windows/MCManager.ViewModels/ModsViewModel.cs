@@ -77,6 +77,23 @@ public sealed partial class ModsViewModel : TabViewModel
         await RefreshAsync();
     }
 
+    [RelayCommand]
+    public async Task UpdateModpackAsync()
+    {
+        if (await RunJobAsync("modpack", () => Api.UpdateModpackAsync(Server)))
+        {
+            if (LastJob?.Result?.Code == "pack_up_to_date")
+            {
+                LastDone = "modpack_current";
+            }
+            else
+            {
+                RestartRequired = true;
+            }
+        }
+        await RefreshAsync();
+    }
+
     public async Task RemoveAsync(string? file, bool confirmed)
     {
         if (!confirmed || string.IsNullOrEmpty(file) || IsBusy)

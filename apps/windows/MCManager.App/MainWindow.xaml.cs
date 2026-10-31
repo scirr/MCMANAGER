@@ -12,6 +12,10 @@ public sealed partial class MainWindow : Window
     private MainViewModel _viewModel;
     private McClient? _remoteClient;
     private CancellationTokenSource _polling = new();
+    private readonly NotificationPrefs _prefs = new(NotificationStore.Load(), NotificationStore.Save);
+    private readonly NativeNotifier _notifier = new();
+    private EventWatcher? _watcher;
+    private bool _active = true;
 
     public MainWindow()
     {
@@ -22,7 +26,10 @@ public sealed partial class MainWindow : Window
         var store = new ProfileStore(ProfileStore.DefaultPath(), new DpapiProtector());
         _connection = new ConnectionViewModel(
             store, new PairingClient(), Strings.Get("LocalMachine", "This machine"), LocalClient);
-        _viewModel = new MainViewModel(null, _errors);
+        _viewModel = new MainViewModel(null, _errors, _prefs);
+        _notifier.Register();
+        _notifier.Invoked += () => DispatcherQueue.TryEnqueue(Activate);
+        Activated += (_, args) => _active = args.WindowActivationState != WindowActivationState.Deactivated;
 
         ServersPage.ServerOpened += OnServerOpened;
         DetailPage.BackRequested += OnBackRequested;
@@ -45,8 +52,11 @@ public sealed partial class MainWindow : Window
     private void Connect()
     {
         _polling.Cancel();
+        _watcher?.Stop();
+        _watcher = null;
         DetailPage.Detach();
         CreatePage.Detach();
+        SystemPage.Detach();
         _viewModel.CloseDetail();
         _remoteClient?.Dispose();
         _remoteClient = null;
@@ -63,8 +73,13 @@ public sealed partial class MainWindow : Window
             _errors.Report(ex);
         }
         _remoteClient = _connection.Selected.IsLocal ? null : client as McClient;
-        _viewModel = new MainViewModel(client, _errors);
+        _viewModel = new MainViewModel(client, _errors, _prefs);
         ServersPage.ViewModel = _viewModel.ServerList;
+        if (client is not null)
+        {
+            _watcher = new EventWatcher(client, _prefs, Notify);
+            _watcher.Start();
+        }
         if (_viewModel.ServerList is null)
         {
             if (!_errors.IsOpen)
@@ -77,6 +92,17 @@ public sealed partial class MainWindow : Window
             _ = _viewModel.ServerList.RefreshAsync();
             _ = _viewModel.ServerList.PollAsync(TimeSpan.FromSeconds(5), _polling.Token);
         }
+    }
+
+    private void Notify(AppNotice notice)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (!_active)
+            {
+                _notifier.Show(notice);
+            }
+        });
     }
 
     private void OnConnectRequested()
@@ -99,15 +125,22 @@ public sealed partial class MainWindow : Window
 
     private void OnNavSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
-        if (args.SelectedItemContainer?.Tag as string == "connection")
+        var tag = args.SelectedItemContainer?.Tag as string;
+        if (tag is "connection" or "system")
         {
             DetailPage.Detach();
             CreatePage.Detach();
+            SystemPage.Detach();
             _viewModel.CloseDetail();
             DetailPage.Visibility = Visibility.Collapsed;
             ServersPage.Visibility = Visibility.Collapsed;
             CreatePage.Visibility = Visibility.Collapsed;
-            ConnectionPage.Visibility = Visibility.Visible;
+            ConnectionPage.Visibility = tag == "connection" ? Visibility.Visible : Visibility.Collapsed;
+            SystemPage.Visibility = tag == "system" ? Visibility.Visible : Visibility.Collapsed;
+            if (tag == "system" && _viewModel.Host is not null)
+            {
+                SystemPage.Attach(_viewModel.Host);
+            }
             return;
         }
         ShowList();
@@ -155,6 +188,7 @@ public sealed partial class MainWindow : Window
         DetailPage.Visibility = Visibility.Collapsed;
         CreatePage.Visibility = Visibility.Collapsed;
         ConnectionPage.Visibility = Visibility.Collapsed;
+        SystemPage.Visibility = Visibility.Collapsed;
         ServersPage.Visibility = Visibility.Visible;
         if (_viewModel.ServerList is not null)
         {
@@ -165,6 +199,8 @@ public sealed partial class MainWindow : Window
     private void OnClosed(object sender, WindowEventArgs args)
     {
         _polling.Cancel();
+        _watcher?.Stop();
+        _notifier.Unregister();
         DetailPage.Detach();
         CreatePage.Detach();
         _viewModel.CloseDetail();

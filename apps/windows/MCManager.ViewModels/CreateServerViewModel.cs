@@ -50,6 +50,39 @@ public sealed partial class CreateServerViewModel : TabViewModel
     [ObservableProperty]
     private string _createdName = "";
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsModpack), nameof(ShowLoader))]
+    private string _modpackSource = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPackInfo))]
+    private string _packInfo = "";
+
+    public bool IsModpack => ModpackSource.Trim().Length > 0;
+
+    public bool ShowLoader => !IsModpack;
+
+    public bool HasPackInfo => IsModpack && PackInfo.Length > 0;
+
+    partial void OnModpackSourceChanged(string value) => PackInfo = "";
+
+    [RelayCommand]
+    public async Task LookupModpackAsync()
+    {
+        var source = ModpackSource.Trim();
+        if (source.Length == 0)
+        {
+            Errors.Show("source_required", "");
+            return;
+        }
+        PackInfo = "";
+        ModpackInfo? info = null;
+        if (await WriteAsync(async () => info = await Api.GetModpackInfoAsync(source)) && info is not null)
+        {
+            PackInfo = string.Join(" - ", new[] { info.Title, info.Version, info.McVersion, info.Loader }.Where(s => !string.IsNullOrEmpty(s)));
+        }
+    }
+
     public bool CanBack => Step > 0 && !IsBusy;
 
     public bool CanNext => Step < LastStep;
@@ -79,7 +112,7 @@ public sealed partial class CreateServerViewModel : TabViewModel
     {
         if (step == 0)
         {
-            return Name.Trim().Length == 0 ? "name_required" : null;
+            return Name.Trim().Length == 0 && !IsModpack ? "name_required" : null;
         }
         if (step == 1)
         {
@@ -140,6 +173,23 @@ public sealed partial class CreateServerViewModel : TabViewModel
         var version = Version.Trim();
         var port = Port.Trim();
         var rconPort = RconPort.Trim();
+        if (IsModpack)
+        {
+            var pack = new ModpackInstallRequest
+            {
+                Source = ModpackSource.Trim(),
+                AcceptEula = true,
+                Name = Name.Trim().Length == 0 ? null : Name.Trim(),
+                Ram = Ram.Trim().ToUpperInvariant(),
+                Port = port.Length == 0 ? null : int.Parse(port),
+                RconPort = rconPort.Length == 0 ? null : int.Parse(rconPort),
+            };
+            if (await RunJobAsync("create", () => Api.InstallModpackAsync(pack)))
+            {
+                CreatedName = LastJob?.Server ?? pack.Name ?? pack.Source;
+            }
+            return;
+        }
         var request = new CreateServerRequest
         {
             Name = Name.Trim(),
