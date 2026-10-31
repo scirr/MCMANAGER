@@ -98,9 +98,19 @@ jobs:
         working-directory: ${{ matrix.dir }}
         run: python -m unittest discover tests
 
+  build:
+    name: Build packages and apps
+    needs: prepare
+    permissions:
+      contents: read
+    uses: ./.github/workflows/build.yml
+    with:
+      ref: ${{ needs.prepare.outputs.sha }}
+    secrets: inherit
+
   release:
-    name: Build, sign and publish
-    needs: [prepare, tests]
+    name: Sign and publish
+    needs: [prepare, tests, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -116,11 +126,19 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-      - name: Build the packages
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+      - name: Check every promised file is there
         run: |
-          (cd Linux && python build_release.py)
-          (cd Windows && python build_release.py)
-          (cd macOS && python build_release.py)
+          ls -l dist
+          for f in MCManager.zip MCManager-Linux.zip MCManager-macOS.zip MCManager-Setup.exe MCManager-App-macOS.zip; do
+            test -f "dist/$f" || { echo "::error::dist/$f is missing"; exit 1; }
+          done
+          test "$(ls dist/mcmanager_*_all.deb | wc -l)" -eq 1
+          test "$(ls dist/mcmanager-*.noarch.rpm | wc -l)" -eq 1
       - name: Sign
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
@@ -134,6 +152,10 @@ jobs:
             dist/MCManager.zip
             dist/MCManager-Linux.zip
             dist/MCManager-macOS.zip
+            dist/MCManager-App-macOS.zip
+            dist/MCManager-Setup.exe
+            dist/mcmanager_*_all.deb
+            dist/mcmanager-*.noarch.rpm
             dist/SHA256SUMS
       - name: Publish the release
         env:
@@ -149,7 +171,10 @@ jobs:
             target="--target=$SHA"
           fi
           gh release create "$TAG" \
-            dist/MCManager.zip dist/MCManager-Linux.zip dist/MCManager-macOS.zip dist/SHA256SUMS dist/SHA256SUMS.sig \
+            dist/MCManager.zip dist/MCManager-Linux.zip dist/MCManager-macOS.zip \
+            dist/MCManager-Setup.exe dist/MCManager-App-macOS.zip \
+            dist/mcmanager_*_all.deb dist/mcmanager-*.noarch.rpm \
+            dist/SHA256SUMS dist/SHA256SUMS.sig \
             --repo "$GITHUB_REPOSITORY" \
             --title "MC Manager $TAG" \
             --notes-file "release-notes/$TAG.md" \

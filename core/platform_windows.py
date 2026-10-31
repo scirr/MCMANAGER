@@ -97,7 +97,7 @@ def service_install(user=None):
 
 def service_unit_drift():
     nssm, python_exe, daemon, base = _service_paths()
-    expected = {"Application": python_exe, "AppParameters": daemon, "AppDirectory": base}
+    expected = {"Application": python_exe, "AppParameters": f'"{daemon}"', "AppDirectory": base}
     return _service.service_unit_drift(expected, nssm)
 
 
@@ -115,7 +115,7 @@ def install_launcher():
         return False, "elevation required"
     root = os.environ.get("SystemRoot") or r"C:\Windows"
     dst = ntpath.join(root, "System32", "mc.bat")
-    content = f'@echo off\r\npython "{ntpath.join(BASE_DIR, "mc_cli.py")}" %*\r\n'
+    content = f'@echo off\r\n"{sys.executable}" "{ntpath.join(BASE_DIR, "mc_cli.py")}" %*\r\n'
     try:
         with open(dst, "w", encoding="utf-8", newline="") as f:
             f.write(content)

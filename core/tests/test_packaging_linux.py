@@ -42,7 +42,8 @@ class ControlTests(unittest.TestCase):
         self.assertEqual(fields["Version"], "3.0.0")
         self.assertEqual(fields["Architecture"], "all")
         self.assertEqual(fields["Depends"], "python3 (>= 3.10)")
-        self.assertEqual(fields["Recommends"], "python3-pil")
+        self.assertEqual(fields["Recommends"], "python3-pil, python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1")
+        self.assertNotIn("gtk", fields["Depends"])
         self.assertNotIn("java", text.split("Description:")[0].lower())
 
     def test_deb_scripts_are_shell_and_keep_servers(self):
@@ -116,10 +117,21 @@ class StageTests(PackagingTestCase):
         self.assertEqual(files["/opt/mcmanager/mc_core.py"], 0o644)
         self.assertIn("/opt/mcmanager/mc_daemon.py", files)
 
+    def test_desktop_app_is_installed_where_the_desktop_looks(self):
+        files = dict(build_packages.staged_files(self.stage("deb")))
+        self.assertEqual(files["/usr/bin/mcmanager-app"], 0o755)
+        self.assertIn("/opt/mcmanager/app/mcmanager_app/__main__.py", files)
+        self.assertIn("/opt/mcmanager/app/mcmanager_app/ui/application.py", files)
+        self.assertIn("/usr/share/applications/io.github.scirr.MCManager.desktop", files)
+        self.assertIn("/usr/share/metainfo/io.github.scirr.MCManager.metainfo.xml", files)
+        self.assertIn("/usr/share/icons/hicolor/scalable/apps/io.github.scirr.MCManager.svg", files)
+        self.assertFalse([p for p in files if "__pycache__" in p or p.endswith(".pyc")])
+        self.assertNotIn("/opt/mcmanager/app/mcmanager-app", files)
+
     def test_no_installer_and_no_user_data(self):
         files = [p for p, _m in build_packages.staged_files(self.stage("rpm"))]
         for path in files:
-            self.assertTrue(path.startswith(("/opt/mcmanager/", "/usr/bin/", "/usr/sbin/", "/usr/lib/systemd/")), path)
+            self.assertTrue(path.startswith(("/opt/mcmanager/", "/usr/bin/", "/usr/sbin/", "/usr/lib/systemd/", "/usr/share/")), path)
             name = os.path.basename(path)
             self.assertNotIn(name, ("install.sh", "uninstall.sh", "servers.json", "config.json", "language.txt"))
         self.assertIn("/usr/lib/systemd/system/mc_manager.service", files)
@@ -156,7 +168,8 @@ class SpecTests(PackagingTestCase):
         self.assertIn("Release:        1\n", spec)
         self.assertIn("BuildArch:      noarch\n", spec)
         self.assertIn("Requires:       python3 >= 3.10\n", spec)
-        self.assertIn("Recommends:     python3-pillow\n", spec)
+        self.assertIn("Recommends:     python3-pillow, python3-gobject, gtk4, libadwaita\n", spec)
+        self.assertIn("%dir %attr(0755,root,root) /opt/mcmanager/app\n", spec)
         self.assertNotIn("java", spec.split("%description")[0].lower())
 
     def test_files_and_scriptlets(self):

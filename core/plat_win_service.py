@@ -248,7 +248,8 @@ def service_install(nssm_exe, python_exe, daemon_path, app_dir, logs_dir, shared
     nssm("stop", SERVICE_NAME)
     nssm("remove", SERVICE_NAME, "confirm")
     steps = [
-        ("install", SERVICE_NAME, python_exe, daemon_path),
+        ("install", SERVICE_NAME, python_exe),
+        ("set", SERVICE_NAME, "AppParameters", f'"{daemon_path}"'),
         ("set", SERVICE_NAME, "AppDirectory", app_dir),
         ("set", SERVICE_NAME, "Start", "SERVICE_AUTO_START"),
         ("set", SERVICE_NAME, "AppStderr", ntpath.join(logs_dir, "daemon_error.log")),
@@ -273,6 +274,11 @@ def service_install(nssm_exe, python_exe, daemon_path, app_dir, logs_dir, shared
 
 
 def _norm(directive, value):
+    if directive == "AppParameters":
+        value = " ".join((value or "").split()).lower()
+        if len(value) > 1 and value[0] == value[-1] == '"' and " " not in value:
+            value = value[1:-1]
+        return value
     value = (value or "").strip().strip('"')
     if directive in ("Application", "AppDirectory"):
         return ntpath.normcase(ntpath.normpath(value))
