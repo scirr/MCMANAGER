@@ -7,8 +7,9 @@ Automatic Minecraft server management tool for Windows, driven by a Windows serv
 ## Requirements
 
 - Windows 10/11
-- [Python 3.10+](https://www.python.org/downloads/) — check **"Add Python to PATH"** during installation
-- [Java 21](https://adoptium.net/temurin/releases/?version=21) (Temurin recommended)
+- With `MCManager-Setup.exe`: nothing else (it embeds its own Python)
+- With the zip only: [Python 3.10+](https://www.python.org/downloads/) — check **"Add Python to PATH"** during installation
+- **No Java to install**: MC Manager downloads the right Eclipse Temurin for each server, see [Java](#java). A system Java is used only if you ask for it (`mc java use system`)
 - Internet connection (NSSM downloaded automatically)
 
 ---
@@ -17,13 +18,13 @@ Automatic Minecraft server management tool for Windows, driven by a Windows serv
 
 ### With the installer (recommended)
 
-Run `MCManager-Setup.exe` from the release. It installs MC Manager in `C:\Program Files\MCManager` with its own Python (nothing to install first), registers the `MCManagerDaemon` service, adds the global `mc` command and the **MC Manager** app to the Start menu. The installer is not code-signed unless the release was built with a certificate: SmartScreen then shows "Windows protected your PC", choose *More info*, then *Run anyway*.
+Download `MCManager-Setup.exe` from the [latest release](https://github.com/scirr/MCMANAGER/releases/latest) and run it. It installs MC Manager in `C:\Program Files\MCManager` with its own Python (nothing to install first), registers the `MCManagerDaemon` service, adds the global `mc` command and the **MC Manager** app to the Start menu. The installer is not code-signed unless the release was built with a certificate: SmartScreen then shows "Windows protected your PC", choose *More info*, then *Run anyway*.
 
-Servers, the registry and the worlds live in `C:\ProgramData\MCManager` (`MCMANAGER_DATA_DIR`), outside the installation folder. Uninstalling (Settings, Apps) removes the program, the service and the `mc` command, and never touches that folder. A registry created by the zip install (next to the program) is not read by the installer version: copy `servers.json` to `C:\ProgramData\MCManager` to keep it. `mc update` needs an administrator terminal on this install.
+Servers, the registry and the worlds live in `C:\ProgramData\MCManager` (`MCMANAGER_DATA_DIR`), outside the installation folder. See [Uninstallation](#uninstallation) for what a removal deletes and keeps. A registry created by the zip install (next to the program) is not read by the installer version: copy `servers.json` to `C:\ProgramData\MCManager` to keep it. `mc update` needs an administrator terminal on this install. To update, either run `mc update` or run a newer `MCManager-Setup.exe` over the existing installation.
 
 ### From the zip
 
-1. Place the MC Manager files in a folder (e.g. `D:\Code\MCMANAGER\Windows`) — this is the **program** folder, not the Minecraft server folder (servers live elsewhere, see [Multi-server](#multi-server)).
+1. Extract `MCManager.zip` and place the MC Manager files in a folder (e.g. `D:\Code\MCMANAGER\Windows`) — this is the **program** folder, not the Minecraft server folder (servers live elsewhere, see [Multi-server](#multi-server)).
 2. Right-click `install.bat` → **Run as administrator**.
 3. Open a **new** terminal and create your first server:
 
@@ -86,9 +87,16 @@ mc stop creative       # stop "creative" without changing the active server
 
 When a command acts on the active server without an explicit target, a line `[i] Target: <name> (<number>)` reminds you which one was used.
 
-### Default data location
+### Where the files are
 
-By default, `mc deploy`/`mc add` suggest:
+| What | Installer (`MCManager-Setup.exe`) | Zip install |
+|---|---|---|
+| Program, `language.txt`, `logs\`, `run\`, `java\`, `previous\` | `C:\Program Files\MCManager\core` | the program folder |
+| `servers.json` and the servers | `C:\ProgramData\MCManager` | `servers.json` in the program folder; servers in `%APPDATA%\MCManager\<name>\Server` and `...\Backup` |
+| `mc` command | `C:\Windows\System32\mc.bat` | same |
+| Service | `MCManagerDaemon` (NSSM) | same |
+
+`MCMANAGER_DATA_DIR` (set machine-wide by the installer) moves `servers.json` and the servers to that folder. Every path can be changed at the prompt. With the installer, `mc deploy`/`mc add` suggest:
 - `C:\ProgramData\MCManager\Servers\<server-name>\Server\` — server files (jar, world, mods…)
 - `C:\ProgramData\MCManager\Servers\<server-name>\Backup\` — its backups
 
@@ -154,17 +162,25 @@ mc update --rollback   # go back to the version installed before the last update
 
 Every release is **signed**: `mc update` downloads the package with `SHA256SUMS` and its Ed25519 signature `SHA256SUMS.sig`, checks the signature against the key built into MC Manager, then the package hash, and refuses, changing nothing, at the slightest mismatch. Before installing, the current version is kept in `previous\`, which `--rollback` puts back (and a second `--rollback` undoes).
 
-Only program files are replaced: servers, `servers.json`, configs, backups, logs and the chosen language are never touched. The daemon is restarted automatically.
+Only program files are replaced: servers, `servers.json`, configs, backups, logs, the chosen language and the `java\` runtimes are never touched. The daemon is restarted automatically; running servers are not stopped.
 
-`mc update` never replaces the Windows service or re-runs the installer. When a release changes them, the release notes say so, and `mc update` (and `mc doctor`) warns about an outdated service: right-click `install.bat` in the MC Manager folder and run it as administrator again. Servers and settings are kept.
+- **From a 2.x install (2.4.8 and later in the 2.x line):** run `mc update` in an administrator terminal. 3.0 still publishes the `MCManager.zip` that 2.x looks for, and its `MCManager\` layout is unchanged, so the update goes through. Your servers, `servers.json`, configs and backups are kept. If you come from 2.4.8 or earlier, read the [2.4.9 notes](../release-notes/v2.4.9.md) too (`mc stop` now waits for the process to exit). Updating by hand: stop the service with `mc daemon stop`, extract `MCManager.zip` over the program folder, then `mc daemon start`. To get the installer's embedded Python and the desktop app, run `MCManager-Setup.exe` instead (a registry created by the zip install is not read by the installer version, see [Installation](#installation)).
+- **Back to an older version:** `mc update --to 2.11.0`, or `mc update --rollback` to restore the copy kept in `previous\`.
+- **Check the result:** `mc version`, then `mc doctor`.
 
-The release ZIP keeps its `MCManager\` layout, so `mc update` also works from a 2.x Windows install. Updating by hand: stop the service with `mc daemon stop`, extract `MCManager.zip` over the program folder, then `mc daemon start`.
+`mc update` never replaces the Windows service or re-runs the installer. When a release changes them, the release notes say so, and `mc update` (and `mc doctor`) warns about an outdated service: run `MCManager-Setup.exe` again, or right-click `install.bat` in the MC Manager folder and run it as administrator. Servers and settings are kept.
 
 > Your server files, configs, and backups are stored outside the program folder and are never affected by an update.
 
 ---
 
 ## Uninstallation
+
+### Installer
+
+Settings, Apps, **MC Manager**, Uninstall. It stops and removes the `MCManagerDaemon` service and the `mc` command, deletes the program folder (`C:\Program Files\MCManager`, including its logs and downloaded `java\` runtimes) and the `MCMANAGER_DATA_DIR` variable. **What stays:** `C:\ProgramData\MCManager` with `servers.json`, your servers, worlds, mods and backups. Reinstalling picks them up again; delete that folder by hand only if you want them gone.
+
+### Zip install
 
 Right-click `uninstall.bat` → **Run as administrator**.
 
@@ -173,7 +189,7 @@ The script:
 2. Removes the `MCManagerDaemon` Windows service and the global `mc` command.
 3. Cleans up files generated by the program (`logs/`, `server.pid`, `nssm/`, `__pycache__/`, `mc.bat`).
 
-> **Your Minecraft server files (worlds, mods, backups) are never deleted.** The script displays the location of each server at the end.
+> **Your Minecraft server files (worlds, mods, backups) are never deleted.** The script displays the location of each server at the end. The program folder stays, with the `.py` scripts, `servers.json`, `language.txt` and `java\`: delete it by hand to finish.
 
 ---
 
@@ -186,8 +202,8 @@ mc deploy
 Steps:
 1. **Server name and description** — asked first (used to suggest a default folder).
 2. **Installation folder** — default `C:\ProgramData\MCManager\Servers\<name-slug>\Server\`, editable. Detects if a server already exists inside and asks for confirmation before overwriting.
-3. **Server type** — Vanilla, Paper, Fabric, Forge or NeoForge.
-4. **Minecraft version** — lists the 15 latest releases (Mojang API) or free input.
+3. **Server type** — Vanilla, Paper, Fabric, Forge, NeoForge, Purpur, Folia, Quilt, Spigot, or a proxy (Velocity, Waterfall, BungeeCord).
+4. **Minecraft version** — lists the 15 latest releases (Mojang API) or free input of any release; see [Minecraft versions and Java](#minecraft-versions-and-java).
 5. **Port** — checked against already registered servers; on collision, another value is immediately requested.
 6. **Download / installation** — fetches the correct JAR (or runs the official installer for Forge/NeoForge), accepts `eula.txt` automatically.
 7. **RCON (mandatory)** — RCON lets MC Manager send commands to the server and verify it has actually stopped. Without it, `mc stop`, backups and the interactive console do not work. Sets up password/port — the RCON protocol is spoken natively by MC Manager, no external binary is downloaded. Not skippable.
@@ -269,9 +285,9 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc` | Dashboard (all servers) + command summary |
 | `mc help` | Full command list |
 | `mc version` | Show the installed MC Manager version |
-| `mc update` | Download and apply the latest version |
+| `mc update [--check\|--to <version>\|--rollback] [--json]` | Check for, install (latest or a given version, older ones included) or roll back a signed MC Manager update |
 | `mc language [fr\|en]` | Show or change the interface language |
-| `mc deploy` | Deploy a new server (Vanilla/Paper/Fabric/Forge/NeoForge) |
+| `mc deploy` | Deploy a new server (Vanilla, Paper, Folia, Purpur, Fabric, Quilt, Forge, NeoForge, Spigot, Velocity, Waterfall, BungeeCord) |
 | `mc add [path]` | Register an existing server without downloading anything |
 | `mc status [target]` | Dashboard; filtered to a single server if `target` is given. Shows the state, and when running: PID, real RAM (RSS), uptime, players, next backup |
 | `mc status [target] --json` | Same information as JSON, for scripts (see [Scripting](#scripting-json-api)) |
@@ -303,7 +319,7 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc mod list\|add\|remove\|update [<mod>] [target]` | Manage mods and plugins: add a `.jar` or a name from Modrinth/CurseForge/Hangar (dependencies included), update, remove to quarantine; AutoModpack copy included |
 | `mc modpack install\|update\|info <source>` | Create a server from a modpack (Modrinth `.mrpack` or slug, `curseforge:<slug>`, `ftb:<id>`), update it, or describe it |
 | `mc upgrade <version\|latest> [target]` | Move a server to another Minecraft version: backup first, refused while running, for a downgrade, or when the loader does not exist for that version |
-| `mc java list\|install\|use\|remove` | Java runtimes (Eclipse Temurin) managed per server |
+| `mc java list\|install\|use\|remove` | Java runtimes (Eclipse Temurin) managed per server: `use auto\|system\|<major> <server>` |
 | `mc use <name/number>` | Change the active server (argument required) |
 | `mc configure [target]` | Reconfigure an already registered server (also guarantees RCON/AutoModpack) |
 | `mc remove <name/number>` | Unregister a server from the registry (deletes NO files) |
@@ -324,13 +340,17 @@ Unless otherwise noted, `[target]` is optional (server name or number) and falls
 | `mc backup restore <id\|file\|latest> [target] [--yes]` | Replace the world with a backup (server stopped; safety backup first) |
 | `mc backup remote add <name> <url> [target]` / `remove <name>` / `list` / `test [name]` | Remote destinations: `sftp://`, `s3://`, `restic:` |
 | `mc alert add <type> [options] [target]` / `list` / `remove <name>` / `test [name]` | Alert channels: `email`, `telegram`, `ntfy`, `webhook`, `discord` |
+| `mc api status\|enable\|disable [--json]` | Local API of the service (`/v1`): state, switch it on or off |
+| `mc remote enable\|disable\|status` | Remote access over TLS 1.3, off by default (`--bind addr:port`) |
+| `mc remote pair [--role viewer\|operator\|admin] [--servers a,b\|all] [--name N]` / `devices list\|revoke <id>` | Pair a device with an 8-digit code; list or revoke paired devices |
+| `mc remote add <profile> <host:port>` / `profiles` / `forget <profile>` | Client side: pin a remote MC Manager, list or remove profiles; then `mc --remote <profile> <command>` |
 | `mc image add <path> [target]` | Set the server icon (64×64 PNG, converted automatically) |
 | `mc image rm [target]` | Remove the server icon |
 | `mc edit config [target]` | Edit `config.json` in `%EDITOR%` (default: Notepad) |
 | `mc edit webhooks [target]` | Edit `webhooks.json` in `%EDITOR%` (default: Notepad) |
 | `mc logs [target]` | Show the last 30 log lines (filtered to `target` if given) |
 | `mc daemon run` | Run the daemon in the foreground (debug) |
-| `mc daemon start/stop/restart` | Control the `MCManagerDaemon` service |
+| `mc daemon start\|stop\|restart\|status [--json]` | Control the `MCManagerDaemon` service |
 
 > `mc doctor` with no target diagnoses **all registered servers** — all other commands fall back to the active server.
 
@@ -452,6 +472,8 @@ mc router enable --port 25565
 
 One listener reads the server address of each handshake and relays the connection to the matching server. Names are lower-cased and cleaned of the DNS dot and of Forge markers (`host\0FML2\0`). A route marks its server as a router backend: it moves to an internal port on `127.0.0.1` (restart needed) and is woken on demand like a sleeping server. Status pings of a stopped server get its "sleeping" description. The table lives in `router.json`, next to `servers.json` (mode 0600, atomic writes), and the daemon applies changes within 5 seconds.
 
+`router.json` keys: `enabled`, `port` (25565), `bind_host` (`0.0.0.0`), `proxy_in`, `proxy_out`, `trusted_proxies` (CIDR list), `max_connections` (128), `per_ip` (16), `per_second` (8), `routes` (host to server), `default`, `allow` and `deny` (CIDR lists). Use `mc router ...` rather than editing it.
+
 Limits (`--per-ip`, `--per-second`), `allow`/`deny` CIDR lists (a deny always wins; with an allow list, only listed addresses connect), and PROXY v2 on input (`--proxy-in on --trusted-proxy CIDR`, accepted only from trusted peers) and on output (`--proxy-out on`, or automatic for servers that expect it) are available. `mc router enable` refuses a port that a server still listens on: add the routes first (a routed server moves to its internal port), or use another port.
 
 ---
@@ -544,6 +566,19 @@ mc task disable nightly
 
 `mc deploy` installs: **Vanilla, Paper, Folia, Purpur, Fabric, Quilt, Forge, NeoForge, Spigot** (compiled with BuildTools; needs `git`, takes a few minutes), and the proxies **Velocity, Waterfall, BungeeCord**. Every download is checked against the hash its publisher gives. Proxies have no world and no RCON: MC Manager writes their port into `velocity.toml` / `config.yml` and stops them with `SIGTERM`.
 
+### Minecraft versions and Java
+
+`mc deploy` and `mc upgrade` accept any release of Mojang's manifest, from **1.7.10** to the **26.x** line (year-based versions, from 26.1). Without `--version`, `mc deploy` takes the latest release, and `mc upgrade latest` moves a server to it. Whether a version exists depends on the server type, because each project publishes its own builds; when the type has no build for a version, the command says so and downloads nothing.
+
+| Minecraft | Java used |
+|---|---|
+| 1.7.10 to 1.16.5 | 8 |
+| 1.17 to 1.20.4 | 17 (1.17 and 1.17.1 ask for 16; no Temurin 16 is kept, 17 runs them) |
+| 1.20.5 to 1.21.x | 21 |
+| 26.x | 25 |
+
+The version comes from Mojang's own metadata for that Minecraft version; this table is also the built-in fallback when Mojang cannot be reached.
+
 ### Upgrading Minecraft (`mc upgrade`)
 
 ```powershell
@@ -557,14 +592,19 @@ Refused while the server runs, for a downgrade (a world cannot go back), and whe
 
 ### Java
 
-Every server runs on its own **Eclipse Temurin** runtime, the version its Minecraft version requires (Mojang's own metadata: Java 8, 17, 21, 25...), downloaded once into `java/` in the MC Manager folder and verified by its SHA-256. The system Java is no longer needed.
+Every server runs on its own **Eclipse Temurin** runtime, the version its Minecraft version requires (see the table above), downloaded once into `java/` in the MC Manager folder and verified by its SHA-256. The choice is automatic: `mc deploy`, `mc upgrade` and `mc modpack install` install the runtime they need and record it in the server's `config.json` (`java_major`, `java_path`). The system Java is no longer needed.
 
 ```powershell
 mc java list                    # runtimes, and which server uses which
+mc java list survival           # only that server
+mc java install 21              # download a runtime without using it
 mc java use auto survival       # back to the version Minecraft requires
-mc java use 21 survival         # force a version
-mc java use system survival     # use the system Java
+mc java use 17 survival         # force a version for this server
+mc java use system survival     # use the system Java found on the PATH
+mc java remove 17               # delete a runtime no server uses
 ```
+
+To force a Java, use `mc java use <major> <server>`; it stays until you run `mc java use auto`. Forcing a version older than Minecraft requires makes the server refuse to start. Extra JVM flags go in `java_flags` of `config.json`.
 
 ### Mods and plugins by name
 
@@ -588,7 +628,7 @@ mc modpack install ftb:126 --accept-eula
 mc modpack update survival
 ```
 
-`install` creates a new server: the right loader and version, the server-side files only (client-only files are skipped), the pack's overrides, its own Java. `update` backs the world up, sets the old version's files aside in `mods_quarantine/`, and installs the new version; the world and your own additions are kept.
+Sources: a **Modrinth** slug or a local `.mrpack` file; **CurseForge** as `curseforge:<slug>` (optionally `@<fileId>`), which needs a free API key: `mc config set curseforge_api_key <key>` (or the `CURSEFORGE_API_KEY` environment variable); **FTB** as `ftb:<id>`, with no key. `install` creates a new server: the right loader and version, the server-side files only (client-only files are skipped), the pack's overrides, its own Java. `update` backs the world up, sets the old version's files aside in `mods_quarantine/`, and installs the new version; the world and your own additions are kept.
 
 ---
 
@@ -757,6 +797,20 @@ Each server has its own `config.json` in its server folder. `mc edit config [tar
 | `status_page_dir` | Folder of the status page — set by `mc status-page enable`, removed by `disable` | `"/var/www/status"` |
 | `status_page_interval` | Seconds between two regenerations (10 minimum) | `60` |
 | `status_page_players` | 1 publishes the names of connected players in the page and `status.json` | `0` |
+| `loader_version` | Loader build installed (set by `mc deploy`, `mc upgrade`, `mc modpack`) | `"0.16.9"` |
+| `description_serveur` | MOTD written to `server.properties` by `mc deploy` / `mc configure` | `"Survival server"` |
+| `java` | `"system"` when `mc java use system` was chosen; absent otherwise | `"system"` |
+| `java_major` | Java version used, recorded by MC Manager (`mc java use <major>`) | `21` |
+| `java_path` | Path of that Java executable, recorded by MC Manager | `"C:\\Program Files\\MCManager\\core\\java\\21\\bin\\java.exe"` |
+| `java_flags` | JVM flags added by MC Manager (default: Aikar-style G1 flags) | `"-XX:+UseG1GC"` |
+| `curseforge_api_key` | CurseForge API key for `--source curseforge` and `curseforge:` modpacks (secret) | `"..."` |
+| `modpack` | Pack the server was installed from (source, version, files); used by `mc modpack update` | `{...}` |
+| `sleep_enabled` | Sleep mode on (1) or off (0), set by `mc sleep enable\|disable` | `1` |
+| `sleep_after` | Seconds without players before the server sleeps, set by `--after` | `7200` |
+| `sleep_allow` | Players allowed to wake the server even if they never joined (`mc sleep allow`) | `["Steve"]` |
+| `router_backend` | 1 when a router route points at this server: it listens on `internal_port`, on `127.0.0.1` — set by `mc router route add` | `1` |
+| `proxy_protocol_yaml_managed` | 1 when MC Manager itself turned on PROXY protocol in the server's own config (so it can turn it off again) — internal, do not edit | `1` |
+| `announce_next_start` | 1 = the next start sends the opening announcement to Discord, then the key is removed | `1` |
 
 `config.json` is the **single source of truth** for the ports and RCON: on every start, `server-port`, `enable-rcon`, `rcon.port` and `rcon.password` in `server.properties` (and the ports cached in `servers.json`) are brought in line with it, and each correction is printed. JSON files saved with a UTF-8 BOM (Windows editors, PowerShell) are read normally. An unreadable `config.json` only affects its own server: `mc status` and `mc doctor` show the error and how to fix it, and the daemon keeps supervising the other servers.
 
