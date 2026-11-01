@@ -31,7 +31,7 @@ API = f"https://api.github.com/repos/{REPO}/releases"
 ASSET_NAME = "MCManager-Linux.zip"
 SUMS_NAME = "SHA256SUMS"
 SIG_NAME = "SHA256SUMS.sig"
-RELEASE_PUBLIC_KEY = bytes.fromhex("3b6de7bf90729201ba040a923be3e278c0fb1e8ece57daab3bd40900d7a44099")
+RELEASE_PUBLIC_KEY = bytes.fromhex("cc75fb9d05652f093dac072a03fe42180649b4508f5ad42aa54241ea68ad0a73")
 
 CACHE_FILE = os.path.join(BASE_DIR, "update_check.json")
 PREVIOUS_DIR = os.path.join(BASE_DIR, "previous")
