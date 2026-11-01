@@ -18,7 +18,7 @@ The app follows the language of the system. Labels quoted in this guide are the 
 
 **Windows.** `MCManager-Setup.exe` installs the daemon, the `mc` command and the app. If SmartScreen shows "Windows protected your PC", choose *More info*, then *Run anyway* (see [Troubleshooting](TROUBLESHOOTING.md#windows-smartscreen)).
 
-**Linux.** The `.deb` and `.rpm` packages install the app (`mcmanager-app`) with GTK as a recommended package. With the zip, run `./app/mcmanager-app` from the MC Manager folder; it needs `python3-gi`, `gir1.2-gtk-4.0` and `gir1.2-adw-1` (Fedora: `python3-gobject`, `gtk4`, `libadwaita`). The Flatpak (`io.github.scirr.MCManager`) talks to the daemon of a package install in `/opt/mcmanager`, and reaches remote machines over the network.
+**Linux.** The `.deb` and `.rpm` packages install the app (`mcmanager-app`) with GTK as a recommended package. With the zip, run `./mcmanager-app` from the MC Manager folder; it needs `python3-gi`, `gir1.2-gtk-4.0` and `gir1.2-adw-1` (Fedora: `python3-gobject`, `gtk4`, `libadwaita`). The Flatpak (`io.github.scirr.MCManager`) talks to the daemon of a package install in `/opt/mcmanager`, and reaches remote machines over the network.
 
 **macOS.** Unzip `MCManager-App-macOS.zip`, drag `MCManager.app` to Applications, and on the first launch right-click it, choose **Open**, then **Open** again (the app is not signed or notarized; see [Troubleshooting](TROUBLESHOOTING.md#macos-gatekeeper)).
 

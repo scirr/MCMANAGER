@@ -2,6 +2,11 @@
 
 All notable changes to MC Manager, newest first. Each version links to its full release notes.
 
+## [3.0.1](release-notes/v3.0.1.md)
+
+- `mc update` from 2.4.8 no longer breaks the installation (flat Linux zip)
+- The Linux desktop app is a single file, `mcmanager-app`, kept up to date by `mc update`
+
 ## [3.0.0](release-notes/v3.0.0.md)
 
 - Windows at full parity with Linux: the same modules, every command, the daemon as the NSSM service `MCManagerDaemon`.

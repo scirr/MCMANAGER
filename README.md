@@ -19,7 +19,7 @@ Get the files for your system from the **[latest release](https://github.com/sci
 | `MCManager.zip` | Windows: manual install with `install.bat`; the package `mc update` uses |
 | `mcmanager_<version>_all.deb` | Debian, Ubuntu: command line, daemon and desktop app |
 | `mcmanager-<version>-1.noarch.rpm` | Fedora: command line, daemon and desktop app |
-| `MCManager-Linux.zip` | Linux: manual install with `install.sh`, desktop app included in `app/` |
+| `MCManager-Linux.zip` | Linux: manual install with `install.sh`, desktop app included as the single file `mcmanager-app` |
 | `MCManager-macOS.zip` | macOS: command line and daemon (`install.sh`) |
 | `MCManager-App-macOS.zip` | macOS: the desktop app, `MCManager.app` |
 | `SHA256SUMS`, `SHA256SUMS.sig` | Signed hashes of every file above |

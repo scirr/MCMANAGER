@@ -16,6 +16,7 @@
     <binary>mcmanager-app</binary>
   </provides>
   <releases>
-    <release version="3.0.0" date="2026-10-18"/>
+    <release version="3.0.1" date="2026-11-01"/>
+    <release version="3.0.0" date="2026-11-01"/>
   </releases>
 </component>
