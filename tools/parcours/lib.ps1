@@ -85,7 +85,7 @@ function Uninstall-Core([string]$root) {
 function Install-Setup([string]$setup, [string]$dir) {
   $log = Join-Path $env:RUNNER_TEMP 'install.log'
   $args = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LANG=en', "/LOG=$log")
-  if ($dir) { $args += "/DIR=$dir" }
+  if ($dir) { $args += "`"/DIR=$dir`"" }
   $p = Start-Process -FilePath $setup -ArgumentList $args -Wait -PassThru
   if ($p.ExitCode -ne 0) { Fail "installer exit code $($p.ExitCode)" (Tail $log 30) }
   Refresh-Env

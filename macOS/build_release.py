@@ -105,7 +105,7 @@ def build_zip(zip_name="MCManager-macOS.zip", dist_dir=DIST_DIR):
                     info = zipfile.ZipInfo.from_file(filepath, arcname)
                     # Keep shell scripts executable when extracted
                     if file.endswith(".sh"):
-                        info.external_attr = 0o755 << 16
+                        info.external_attr = 0o100755 << 16
                     with open(filepath, "rb") as src:
                         zf.writestr(info, src.read(), zipfile.ZIP_DEFLATED)
 

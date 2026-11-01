@@ -14,6 +14,11 @@ $src = Get-ChildItem $env:RUNNER_TEMP\x248 -Recurse -Filter install.bat | Select
 if (-not $src) { Fail 'install.bat not found in the 2.4.8 zip' }
 Copy-Item "$($src.DirectoryName)\*" $old -Recurse -Force
 Set-Content "$old\language.txt" 'en' -NoNewline
+if (-not (Test-Path "$old\nssm\nssm.exe")) {
+  choco install nssm -y --no-progress | Out-Null
+  $n = Get-Command nssm.exe -ErrorAction SilentlyContinue
+  if ($n) { New-Item -ItemType Directory -Force "$old\nssm" | Out-Null; Copy-Item $n.Source "$old\nssm\nssm.exe" }
+}
 Push-Location $old
 $out = cmd /c "install.bat < NUL 2>&1" | Out-String
 $code = $LASTEXITCODE

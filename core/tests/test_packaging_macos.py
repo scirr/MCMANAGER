@@ -29,8 +29,8 @@ class TestMacPackage(unittest.TestCase):
                 names = set(zf.namelist())
                 self.assertIn("MCManager/mc_config.py", names)
                 self.assertIn("MCManager/install.sh", names)
-                self.assertEqual(zf.getinfo("MCManager/install.sh").external_attr >> 16, 0o755)
-                self.assertEqual(zf.getinfo("MCManager/uninstall.sh").external_attr >> 16, 0o755)
+                self.assertEqual(zf.getinfo("MCManager/install.sh").external_attr >> 16, 0o100755)
+                self.assertEqual(zf.getinfo("MCManager/uninstall.sh").external_attr >> 16, 0o100755)
 
     def test_install_script_refuses_sudo_and_source_folder(self):
         with open(os.path.join(ROOT, "macOS", "install.sh"), encoding="utf-8") as f:
