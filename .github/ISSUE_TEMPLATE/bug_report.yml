@@ -1,0 +1,41 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: MC Manager version
+      description: Output of `mc --version`
+      placeholder: "3.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: system
+    attributes:
+      label: System
+      options: [Linux, Windows, macOS]
+    validations:
+      required: true
+  - type: input
+    id: server
+    attributes:
+      label: Server type and version
+      placeholder: "Paper 1.21.4"
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `mc doctor --json`
+      description: Remove anything private first.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What you did, what you expected, what happened instead.
+    validations:
+      required: true
