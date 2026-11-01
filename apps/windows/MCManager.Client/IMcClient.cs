@@ -12,6 +12,8 @@ public interface IMcClient
 
     Task<Job> RestartServerAsync(string server, CancellationToken ct = default);
 
+    Task<OperationResult> WakeServerAsync(string server, CancellationToken ct = default);
+
     Task<OperationResult> ResumeServerAsync(string server, CancellationToken ct = default);
 
     Task<OperationResult> SendConsoleCommandAsync(string server, string command, CancellationToken ct = default);

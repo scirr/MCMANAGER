@@ -263,7 +263,7 @@ class ApiClient:
         return self.get("/v1/jobs/" + self.ref(job_id))
 
     def action(self, server, name):
-        """Start, stop, restart or wake. Returns (status, document); 202 carries a job."""
+        """Start, stop, restart, wake or resume. Returns (status, document); 202 carries a job."""
         return self.call("POST", "/v1/servers/%s/%s" % (self.ref(server), name))
 
     def send_command(self, server, command):

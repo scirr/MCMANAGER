@@ -58,6 +58,13 @@ internal sealed class FakeClient : IMcClient
         return Task.FromResult(new Job { Id = "j1", State = "running" });
     }
 
+    public Task<OperationResult> WakeServerAsync(string server, CancellationToken ct = default)
+    {
+        Record("wake " + server);
+        State = "running";
+        return Task.FromResult(Ok("started"));
+    }
+
     public Task<OperationResult> ResumeServerAsync(string server, CancellationToken ct = default)
     {
         Record("resume " + server);

@@ -53,7 +53,7 @@ public sealed partial class ServerDetailViewModel : ObservableObject, IDisposabl
     public int JobPollLimit { get; set; } = 120;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanStart), nameof(CanStop), nameof(CanResume))]
+    [NotifyPropertyChangedFor(nameof(CanStart), nameof(CanStop), nameof(CanResume), nameof(CanWake))]
     private string _state = "";
 
     [ObservableProperty]
@@ -71,6 +71,8 @@ public sealed partial class ServerDetailViewModel : ObservableObject, IDisposabl
 
     public bool CanRestart => !IsBusy && State == "running";
 
+    public bool CanWake => !IsBusy && State == "sleeping";
+
     public bool CanResume => !IsBusy && State == "maintenance";
 
     partial void OnIsBusyChanged(bool value)
@@ -79,6 +81,7 @@ public sealed partial class ServerDetailViewModel : ObservableObject, IDisposabl
         OnPropertyChanged(nameof(CanStop));
         OnPropertyChanged(nameof(CanRestart));
         OnPropertyChanged(nameof(CanResume));
+        OnPropertyChanged(nameof(CanWake));
     }
 
     partial void OnStateChanged(string value) => OnPropertyChanged(nameof(CanRestart));
@@ -101,6 +104,9 @@ public sealed partial class ServerDetailViewModel : ObservableObject, IDisposabl
 
     [RelayCommand]
     public Task StopAsync() => ActAsync(() => _client.StopServerAsync(Name));
+
+    [RelayCommand]
+    public Task WakeAsync() => ActAsync(() => _client.WakeServerAsync(Name));
 
     [RelayCommand]
     public Task ResumeAsync() => ActAsync(() => _client.ResumeServerAsync(Name));

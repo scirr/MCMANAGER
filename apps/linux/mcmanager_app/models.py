@@ -7,7 +7,7 @@ from .i18n import error_text, t
 
 CONSOLE_LIMIT = 2000
 BUSY_STATES = ("starting",)
-ACTIONS = ("start", "stop", "restart", "wake")
+ACTIONS = ("start", "stop", "restart", "wake", "resume")
 
 
 def thread_spawn(function):
@@ -217,10 +217,11 @@ class ServerDetailModel(Observable):
         if self.busy:
             return {action: False for action in ACTIONS}
         return {
-            "start": state in ("stopped", "stopped-by-user", "crashed", "closed", "maintenance"),
+            "start": state in ("stopped", "stopped-by-user", "crashed", "closed"),
             "stop": state in ("running", "starting"),
             "restart": state == "running",
             "wake": state == "sleeping",
+            "resume": state == "maintenance",
         }
 
 

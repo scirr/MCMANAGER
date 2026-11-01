@@ -39,6 +39,20 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(model.players.onlineText, "-")
     }
 
+    func testWakeIsOnlyAvailableWhenSleeping() async {
+        let transport = FakeTransport()
+        transport.on("GET", "/v1/servers/survie", json: Samples.serverStopped.replacingOccurrences(of: "\"stopped\"", with: "\"sleeping\""))
+        transport.on("GET", "/v1/servers/survie/players", status: 409, json: Samples.offline)
+        transport.on("POST", "/v1/servers/survie/wake", json: #"{"ok":true,"code":"started"}"#)
+        let model = ServerDetailViewModel(client: McClient(transport: transport), errors: ErrorReporter(), name: "survie")
+        XCTAssertFalse(model.canWake)
+        await model.refresh()
+        XCTAssertTrue(model.canWake)
+        XCTAssertFalse(model.canResume)
+        await model.wake()
+        XCTAssertTrue(transport.requests.contains { $0.method == "POST" && $0.path == "/v1/servers/survie/wake" })
+    }
+
     func testStartThenRefreshShowsRunning() async {
         let transport = FakeTransport()
         transport.on("POST", "/v1/servers/survie/start", json: #"{"ok":true,"code":"started"}"#)

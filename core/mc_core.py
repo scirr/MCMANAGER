@@ -650,7 +650,11 @@ def build_launch_args(config, java_exe, dossier):
         if args_file:
             return [java_exe, marker, "@user_jvm_args.txt", "@" + args_file, "nogui"], True
         return plat.script_launch_args(jar_name), False
-    args = [java_exe] + java_flags.split() + [
+    flags = java_flags.split()
+    major = config.get("java_major")
+    if isinstance(major, int) and major < 16:
+        flags = [f for f in flags if f != "--add-modules=jdk.incubator.vector"]
+    args = [java_exe] + flags + [
         marker, f"-Xms{ram}", f"-Xmx{ram}",
         "-jar", os.path.join(dossier, jar_name),
     ]

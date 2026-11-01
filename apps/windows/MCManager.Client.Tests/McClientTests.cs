@@ -97,6 +97,16 @@ public class McClientTests
     }
 
     [Fact]
+    public async Task Wake_posts_to_the_wake_path()
+    {
+        var handler = FakeHandler.Json(HttpStatusCode.OK, Samples.Stopped);
+        var result = await handler.Client().WakeServerAsync("survie");
+        Assert.Equal(HttpMethod.Post, handler.Requests[0].Method);
+        Assert.Equal("/v1/servers/survie/wake", handler.Requests[0].Path);
+        Assert.Equal("stopped", result.Code);
+    }
+
+    [Fact]
     public async Task Resume_parses_the_result()
     {
         var handler = FakeHandler.Json(HttpStatusCode.OK, Samples.Resumed);

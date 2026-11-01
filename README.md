@@ -1,20 +1,56 @@
-# 🎮 MC Manager
+# MC Manager
 
-**MC Manager** is a lightweight, cross-platform Minecraft server management tool built in Python. It automates server scheduling, backups, Discord notifications, and provides a simple `mc` CLI — available on **Linux**, **Windows** and **macOS**, with the same commands everywhere.
+[![CI](https://img.shields.io/github/actions/workflow/status/scirr/MCMANAGER/ci.yml?branch=main&label=CI)](https://github.com/scirr/MCMANAGER/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/scirr/MCMANAGER)](https://github.com/scirr/MCMANAGER/releases/latest)
+[![License: MPL-2.0](https://img.shields.io/badge/license-MPL--2.0-blue)](LICENSE)
+[![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)](#download)
 
-> Designed for personal or small community Minecraft servers running Fabric, Paper, Forge or any JAR-based server.
+**MC Manager** starts, backs up, puts to sleep and wakes up your Minecraft servers. It is a lightweight, cross-platform manager written in Python, with a simple `mc` command line and native desktop apps, the same on **Linux**, **Windows** and **macOS**.
 
-## 📖 Full documentation
+> Designed for personal or small community Minecraft servers running Vanilla, Paper, Fabric, Forge or any JAR-based server.
+
+## Download
+
+Get the files for your system from the **[latest release](https://github.com/scirr/MCMANAGER/releases/latest)**.
+
+| File | Platform |
+|---|---|
+| `MCManager-Setup.exe` | Windows: installer (embedded Python, service, desktop app, Start menu shortcut) |
+| `MCManager.zip` | Windows: manual install with `install.bat`; the package `mc update` uses |
+| `mcmanager_<version>_all.deb` | Debian, Ubuntu: command line, daemon and desktop app |
+| `mcmanager-<version>-1.noarch.rpm` | Fedora: command line, daemon and desktop app |
+| `MCManager-Linux.zip` | Linux: manual install with `install.sh`, desktop app included in `app/` |
+| `MCManager-macOS.zip` | macOS: command line and daemon (`install.sh`) |
+| `MCManager-App-macOS.zip` | macOS: the desktop app, `MCManager.app` |
+| `SHA256SUMS`, `SHA256SUMS.sig` | Signed hashes of every file above |
+
+See [Quick Start](#quick-start) for the installation steps and the [changelog](CHANGELOG.md) for what changed.
+
+## Desktop apps
+
+Native apps for each platform, with the same features: server list, live console, players, backups, mods, datapacks, world, tasks, alerts, settings and a server creation wizard. They talk to MC Manager only through its API, on this machine or on a paired remote one.
+
+- **Windows**: WinUI 3, installed by `MCManager-Setup.exe`.
+- **Linux**: GTK 4 and libadwaita, included in the `.deb` and `.rpm` packages, also available as a Flatpak.
+- **macOS**: SwiftUI, `MCManager.app` from `MCManager-App-macOS.zip`.
+
+Details for each app are in [Desktop apps](#desktop-app-linux) below.
+
+## Full documentation
 
 This README is a high-level overview only. For installation steps and the complete, up-to-date command reference for your platform, see:
 
-- 🪟 **[Windows guide](Windows/README_Windows.md)** — multi-server management, `mc deploy`/`mc add`/`mc configure`, full command reference
-- 🐧 **[Linux guide](Linux/README_Linux.md)** — installation, configuration, command reference
-- 🍎 **[macOS guide](macOS/README_macOS.md)** — LaunchAgent install, configuration, command reference
+- **[Windows guide](Windows/README_Windows.md)** — multi-server management, `mc deploy`/`mc add`/`mc configure`, full command reference
+- **[Linux guide](Linux/README_Linux.md)** — installation, configuration, command reference
+- **[macOS guide](macOS/README_macOS.md)** — LaunchAgent install, configuration, what differs from Linux
+- **[Desktop apps guide](docs/APPS.md)** — every tab of the Windows, Linux and macOS apps, pairing with a remote machine
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** — reading `mc doctor`, servers that do not start, players who cannot connect
+- **[HTTP API](api/README.md)** — the OpenAPI contract of the local and remote API
+- **[Changelog](CHANGELOG.md)**, **[Security](SECURITY.md)**, **[Contributing](CONTRIBUTING.md)**
 
 ---
 
-## ✨ Features
+## Features
 
 - **Automatic scheduling** — Opens and closes the server at configured hours every day
 - **Automatic backups** — Mid-session, nightly and manual ZIP backups with `save-off` / `save-on` safety
@@ -40,7 +76,7 @@ This README is a high-level overview only. For installation steps and the comple
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 All platforms are built from the same `core/` modules and share one command surface; each platform directory only holds its packaging.
 
@@ -103,6 +139,7 @@ MC_Manager/
 ├── apps/windows/       # Desktop app (WinUI 3, C#), client and view-model tests
 ├── apps/macos/         # Desktop app (SwiftUI), Swift package
 ├── api/                # OpenAPI 3.1 contract of the /v1 API
+├── docs/               # Desktop apps guide, troubleshooting
 │
 ├── Linux/              # Linux packaging (systemd service)
 │   ├── build_release.py
@@ -123,7 +160,7 @@ MC_Manager/
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Linux
 
@@ -148,7 +185,7 @@ sudo apt install ./mcmanager_<version>_all.deb
 # Fedora
 sudo dnf install ./mcmanager-<version>-1.noarch.rpm
 
-sudo mcmanager-setup        # installs the service for your user
+sudo mcmanager-setup <user>   # installs the service for that user
 mc deploy
 ```
 
@@ -170,7 +207,7 @@ Or download `MCManager-macOS.zip` from the latest release. The daemon is a per-u
 
 ### Windows
 
-Right-click `install.bat` → **Run as administrator**, then open a new terminal:
+Run `MCManager-Setup.exe` from the latest release (no Python needed; Windows SmartScreen may ask for confirmation because the installer is not code-signed yet). Or extract `MCManager.zip` and right-click `install.bat` → **Run as administrator** (needs Python 3.10+). Then open a new terminal:
 
 ```
 mc deploy
@@ -228,7 +265,7 @@ swift run MCManagerApp
 
 ---
 
-## 🖥️ CLI Commands
+## CLI Commands
 
 > Linux, Windows and macOS share the same command surface (exceptions: `mc freeze` of a sleeping server and cgroup/swap figures are unavailable on Windows). Every command accepts an optional target (a server name, a registry number, or nothing to use the active server). See the platform guides for the authoritative, up-to-date reference.
 
@@ -275,7 +312,7 @@ swift run MCManagerApp
 
 ---
 
-## ⚙️ How It Works
+## How It Works
 
 A background **daemon** runs continuously and checks the current time every 30 seconds:
 
@@ -301,7 +338,7 @@ A background **daemon** runs continuously and checks the current time every 30 s
 
 ---
 
-## 💬 Discord Webhooks
+## Discord Webhooks
 
 MC Manager sends rich Discord embeds on four events:
 
@@ -317,7 +354,7 @@ Webhooks are silenced during maintenance mode by design (no players connected).
 
 ---
 
-## 🔧 Platform Differences
+## Platform Differences
 
 | Feature | Linux | Windows | macOS |
 |---|---|---|---|
@@ -350,7 +387,7 @@ Webhooks are silenced during maintenance mode by design (no players connected).
 
 ---
 
-## 📋 Requirements
+## Requirements
 
 ### Linux
 - [Python 3.10+](https://www.python.org/downloads/)
@@ -373,6 +410,6 @@ Webhooks are silenced during maintenance mode by design (no players connected).
 
 ---
 
-## 📄 License
+## License
 
 Mozilla Public License 2.0 (MPL-2.0) — free to use, including commercially; if you distribute a modified version of MC Manager's files, those files must stay under the MPL-2.0 and their source must be available. See [LICENSE](LICENSE). Versions up to 2.5.0 were released under the MIT license.
