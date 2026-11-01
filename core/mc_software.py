@@ -335,6 +335,11 @@ def install(folder, loader, mc_version, loader_version=None, java="java", progre
                 return result(False, "installer_failed", loader=loader, mc_version=mc_version, detail=detail)
             script = plat.server_script_name()
             if not os.path.exists(os.path.join(folder, script)):
+                legacy = sorted(f for f in os.listdir(folder) if loader == "Forge" and f.startswith("forge-")
+                                and f.endswith(".jar") and "installer" not in f)
+                if legacy:
+                    return result(True, "installed", loader=loader, mc_version=mc_version, jar_name=legacy[-1],
+                                  loader_version=loader_version)
                 return result(False, "installer_failed", loader=loader, mc_version=mc_version, detail=f"no {script}")
             return result(True, "installed", loader=loader, mc_version=mc_version, jar_name=script,
                           loader_version=loader_version)
