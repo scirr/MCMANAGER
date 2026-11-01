@@ -1024,7 +1024,10 @@ def start_server(config, send_webhook=True):
         launch_args = ["bash", jar_name, "nogui"]
         logging.info(f"Forge/NeoForge launch via script: {jar_name}")
     else:
-        launch_args = [java_exe] + java_flags.split() + [
+        flags = java_flags.split()
+        if isinstance(config.get("java_major"), int) and config["java_major"] < 16:
+            flags = [f for f in flags if f != "--add-modules=jdk.incubator.vector"]
+        launch_args = [java_exe] + flags + [
             f"-Xms{ram}", f"-Xmx{ram}",
             "-jar", os.path.join(dossier, jar_name),
         ]
