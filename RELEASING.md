@@ -9,7 +9,7 @@ marked *latest*.
 
 ## Quick path
 
-1. Bump `VERSION` in both `mc_lang.py` files and add `release-notes/vX.Y.Z.md`
+1. Bump `VERSION` in `core/mc_lang.py` and add `release-notes/vX.Y.Z.md`
    (steps 1 and 2 below), merged into `main`.
 2. **Actions → Release → Run workflow** (branch `main`).
 
@@ -36,7 +36,7 @@ pip install cryptography
 python tools/sign_release.py --generate
 ```
 
-Put the printed public key in both `mc_update.py` files and the private key
+Put the printed public key in `RELEASE_PUBLIC_KEY` (`core/mc_update.py`) and the private key
 in the secret. Installations that still carry the old public key refuse
 updates signed with the new one: they must be updated once by hand
 (download the release ZIP and run the installer).
@@ -49,7 +49,7 @@ updates signed with the new one: they must be updated once by hand
 
 | File | Field | Example |
 |---|---|---|
-| `core/mc_lang.py` | `VERSION` | `"2.7.0"` |
+| `core/mc_lang.py` | `VERSION` | `"3.1.0"` |
 
 Bug fix → bump the last digit. New feature → bump the middle one.
 
@@ -78,13 +78,13 @@ succeeded (and refuses to start if the tag already exists).
 Alternative, from a terminal:
 
 ```bash
-git tag v2.7.0
-git push origin v2.7.0
+git tag v3.1.0
+git push origin v3.1.0
 ```
 
 Either way, the release workflow:
 
-1. checks that the tag, both `VERSION` values and `release-notes/<tag>.md` agree;
+1. checks that the tag, `VERSION` and `release-notes/<tag>.md` agree (a pushed tag must match `VERSION`; a manual run must be on `main` and refuses an existing tag);
 2. runs the Linux and Windows test suites;
 3. builds everything with `.github/workflows/build.yml`, the same jobs CI runs on
    every push (nothing is published there):
@@ -96,11 +96,11 @@ Either way, the release workflow:
      and SHA-256 in `packaging/windows/build_installer.py`), installed, checked and
      uninstalled silently on the runner;
    - macOS: `MCManager-macOS.zip` and `MCManager-App-macOS.zip` (universal
-     `MCManager.app`, unsigned), started from the unzipped bundle;
+     `MCManager.app`, unsigned and not notarized), started from the unzipped bundle;
 4. writes `SHA256SUMS` over every `.zip`, `.deb`, `.rpm` and `.exe` and signs it
    (`SHA256SUMS.sig`) with `RELEASE_SIGNING_KEY`, after checking the key matches
    the public key in the code;
-5. records a build provenance attestation for all of them;
+5. records a build provenance attestation for every package and for `SHA256SUMS`;
 6. publishes the release with the notes, marked *latest* (when run by hand,
    this step creates the tag).
 
@@ -121,7 +121,7 @@ A failure at any step publishes nothing.
 
 ## The rules that matter
 
-**The tag and both `VERSION` values must describe the same version.** The
+**The tag and `VERSION` must describe the same version.** The
 workflow refuses to publish otherwise. `mc update` compares the release tag
 with the installed `VERSION`: a mismatch would announce an update forever.
 
@@ -145,7 +145,7 @@ Commits without a tag are tested by CI but notify nobody and touch no release.
 
 | Symptom | Cause |
 |---|---|
-| Workflow: `VERSION is X, the release is vY` | Bump both `mc_lang.py` files (and, for a pushed tag, move it: `git tag -f`, `git push -f origin vY`). |
+| Workflow: `VERSION is X, the release is vY` | Bump `VERSION` in `core/mc_lang.py` (and, for a pushed tag, move it: `git tag -f`, `git push -f origin vY`). |
 | Workflow: `vY already exists` | That version is published: bump `VERSION` first. |
 | Workflow: `Run this workflow on main` | Pick `main` in the *Run workflow* branch menu. |
 | Workflow: `release-notes/vY.md is missing` | Add the notes file to `main`. |

@@ -1,10 +1,11 @@
 # MC Manager API v1 - contract
 
-Describes MC Manager 2.11.0: 76 paths, 96 operations (`info.version` 1.0.0).
+Describes MC Manager 3.0.0: 76 paths, 96 operations (`info.version` 1.0.0, stable).
 
 `openapi.json` is the OpenAPI 3.1 description of the HTTP API served by the MC Manager
-daemon. It is written before the server: the implementation has to match it, and a test
-compares the two once the routes exist.
+daemon on Linux, Windows and macOS. The contract comes first: the daemon builds its routing
+table from it, and `test_httpapi.py` and `test_openapi.py` fail when the implementation and
+the contract disagree.
 
 ## Files
 
@@ -99,8 +100,7 @@ stream), `query_players` and `parse_player_list` (`listOnlinePlayers`), `read_fr
 and `server_snapshot` (`getServer`, `listServers`), `sleep_info` (`getSleepSettings`), `task_find`
 (`runTask`).
 
-Operations with no `mc_api` function yet (they call lower-level modules, listed in `x-mcm-source`):
-create a server, schedule, Java, configuration by key, update, metrics, pairing, devices, jobs, audit. A daemon-side operation layer has to be added for them.
+Operations that call lower-level modules directly (create a server, schedule, Java, configuration by key, update, pairing, devices, jobs, audit...) list them in `x-mcm-source` (`mc_config`, `mc_java`, `mc_update`, `mc_doctor`, `mc_deploy`...).
 
 ## Known gaps between the contract and the current JSON output
 
@@ -116,9 +116,9 @@ The `--json` outputs match the contract; `test_openapi.py` runs them and compare
 - `mc backup` as a CLI command answers synchronously with `BackupCreated`; through the API it is a job whose
   `result` is that object.
 
-## Local implementation (3.0 beta)
+## Implementation
 
-The daemon serves the contract on a local listener only: `run/api.sock` (0600) on Linux, `127.0.0.1:<port>`
+The daemon serves the contract locally on `run/api.sock` (0600) on Linux and macOS, `127.0.0.1:<port>`
 with a bearer token in `run/api.token` on Windows. `mc api status|enable|disable` shows or switches it
 (`api_local` in `api.json`, enabled by default). The remote operations (`remote` tag) are served by a second
 listener (TLS 1.3, bearer token per device, roles), off until `mc remote enable`. `test_httpapi.py` fails when an operation has no handler or a handler is not in the contract.

@@ -16,13 +16,22 @@ disclosing it.
 
 ## Supported versions
 
-Only the latest release receives security fixes. Update with `mc update`.
+| Version | Supported |
+|---|---|
+| 3.0.x | Yes |
+| 2.11.x | Yes |
+| Older | No: update with `mc update` |
+
+Update with `mc update` (or your package manager for the `.deb` and `.rpm`).
 
 ## Scope
 
 In scope:
 
 - the `mc` command, the service (daemon) and the installers;
+- the local API and the remote access (pairing, device tokens and roles, pinned
+  TLS certificate, audit log);
+- the desktop applications;
 - the update mechanism: signature and hash verification, rollback;
 - the sleep-mode listener exposed on the game port;
 - files MC Manager writes (permissions, secrets such as the RCON password
@@ -35,7 +44,7 @@ Out of scope: vulnerabilities in Minecraft itself, in server software
 
 - Releases are built and published by GitHub Actions, never from a personal
   computer, with a build provenance attestation.
-- `SHA256SUMS` lists the hashes of both packages and is signed with Ed25519
+- `SHA256SUMS` lists the hashes of every `.zip`, `.deb`, `.rpm` and `.exe` of the release and is signed with Ed25519
   (`SHA256SUMS.sig`). The private key exists only as a GitHub Actions secret;
   the public key is built into MC Manager.
 - `mc update` installs nothing unless the signature and the hash both match,
