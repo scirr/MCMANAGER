@@ -46,6 +46,15 @@ class DirectLaunch(unittest.TestCase):
     def config(self, jar="run.sh"):
         return {"jar_name": jar, "ram_allocation": "4G", "java_flags": "-XX:+UseG1GC"}
 
+    def test_vector_module_only_for_java_16_and_up(self):
+        self.use()
+        for major, expected in ((8, False), (11, False), (17, True), (21, True)):
+            cfg = {"jar_name": "server.jar", "java_major": major,
+                   "java_flags": "--add-modules=jdk.incubator.vector -XX:+UseG1GC"}
+            args, _ = mc_core.build_launch_args(cfg, "java", self.dir)
+            self.assertEqual("--add-modules=jdk.incubator.vector" in args, expected, major)
+            self.assertIn("-XX:+UseG1GC", args)
+
     def test_linux_runs_java_on_unix_args(self):
         self.use()
         self.forge()
