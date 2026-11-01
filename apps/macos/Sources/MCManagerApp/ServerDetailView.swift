@@ -69,6 +69,7 @@ struct ServerDetailView: View {
             action(tr("Start"), "play.fill", enabled: model.canStart) { await model.start() }
             action(tr("Stop"), "stop.fill", enabled: model.canStop) { await model.stop() }
             action(tr("Restart"), "arrow.triangle.2.circlepath", enabled: model.canRestart) { await model.restart() }
+            if model.canWake { action(tr("Wake"), "sun.max.fill", enabled: true) { await model.wake() } }
             action(tr("Resume"), "playpause.fill", enabled: model.canResume) { await model.resume() }
             if model.isBusy { ProgressView().controlSize(.small) }
         }

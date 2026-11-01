@@ -45,6 +45,7 @@ public final class ServerDetailViewModel {
     public var canStart: Bool { !isBusy && Self.startable.contains(state) }
     public var canStop: Bool { !isBusy && Self.stoppable.contains(state) }
     public var canRestart: Bool { !isBusy && state == "running" }
+    public var canWake: Bool { !isBusy && state == "sleeping" }
     public var canResume: Bool { !isBusy && state == "maintenance" }
 
     public func refresh() async {
@@ -60,6 +61,8 @@ public final class ServerDetailViewModel {
     public func start() async { await act { _ = try await self.client.start(self.name) } }
 
     public func stop() async { await act { _ = try await self.client.stop(self.name, request: nil) } }
+
+    public func wake() async { await act { _ = try await self.client.wake(self.name) } }
 
     public func resume() async { await act { _ = try await self.client.resume(self.name) } }
 

@@ -292,6 +292,16 @@
         }
       }
     },
+    "Wake": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réveiller"
+          }
+        }
+      }
+    },
     "Restart": {
       "localizations": {
         "fr": {

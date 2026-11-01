@@ -102,6 +102,24 @@ public class ViewModelTests
         await vm.RefreshAsync();
         Assert.True(vm.CanResume);
         Assert.False(vm.CanStart);
+        Assert.False(vm.CanWake);
+
+        client.State = "sleeping";
+        await vm.RefreshAsync();
+        Assert.True(vm.CanWake);
+        Assert.False(vm.CanResume);
+    }
+
+    [Fact]
+    public async Task Detail_wake_calls_the_api_then_refreshes()
+    {
+        var client = new FakeClient { State = "sleeping" };
+        var vm = new ServerDetailViewModel(client, new ErrorReporter(), "survie");
+        await vm.RefreshAsync();
+        await vm.WakeAsync();
+        Assert.Contains("wake survie", client.Calls);
+        Assert.Equal("running", vm.State);
+        Assert.False(vm.CanWake);
     }
 
     [Fact]

@@ -6,6 +6,7 @@ public protocol McClientProtocol: Sendable {
     func start(_ name: String) async throws -> OperationResult
     func stop(_ name: String, request: StopRequest?) async throws -> OperationResult
     func restart(_ name: String) async throws -> Job
+    func wake(_ name: String) async throws -> OperationResult
     func resume(_ name: String) async throws -> OperationResult
     func sendCommand(_ name: String, command: String) async throws -> OperationResult
     func streamConsole(_ name: String, tail: Int) -> AsyncThrowingStream<ConsoleEvent, Error>
@@ -143,6 +144,10 @@ public struct McClient: McClientProtocol {
 
     public func restart(_ name: String) async throws -> Job {
         try await call("POST", Self.serverPath(name) + "/restart")
+    }
+
+    public func wake(_ name: String) async throws -> OperationResult {
+        try await call("POST", Self.serverPath(name) + "/wake")
     }
 
     public func resume(_ name: String) async throws -> OperationResult {

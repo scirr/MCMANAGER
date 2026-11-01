@@ -42,10 +42,10 @@ On Linux the welcome page asks which MC Manager to control (**This machine** or 
 
 ### Server actions
 
-**Start**, **Stop** and **Restart** apply to the selected server and are enabled only when they make sense for its state. Differences:
+**Start**, **Stop** and **Restart** apply to the selected server and are enabled only when they make sense for its state. Two more actions appear on all three systems:
 
-- **Resume** (Windows, macOS) appears enabled while the server is in Maintenance; it leaves maintenance like `mc resume`. On Linux, change the mode in Settings.
-- **Wake** (Linux) appears on a sleeping server.
+- **Resume** (Windows, macOS, Linux) appears enabled while the server is in Maintenance; it leaves maintenance like `mc resume`.
+- **Wake** (Windows, macOS, Linux) appears on a sleeping server.
 
 While an action runs, the buttons show "In progress...". A toast or message confirms the result ("Server started", "Server stopped", "Server restarted").
 

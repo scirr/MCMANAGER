@@ -138,6 +138,9 @@ class PlayersTab(Adw.PreferencesPage):
             self.model.message = None
 
 
+CONDITIONAL_ACTIONS = {"wake": "sleeping", "resume": "maintenance"}
+
+
 class BackupsTab(Adw.PreferencesPage):
     def __init__(self, client, name, toast):
         super().__init__()
@@ -255,7 +258,7 @@ class ServerDetailPage(Adw.NavigationPage):
         allowed = self.model.can(state)
         for action, button in self.buttons.items():
             button.set_sensitive(allowed[action])
-            button.set_visible(action != "wake" or state == "sleeping")
+            button.set_visible(action not in CONDITIONAL_ACTIONS or state == CONDITIONAL_ACTIONS[action])
         self.spinner.set_spinning(bool(self.model.busy))
         self.players.show(row)
         for message in (self.model.error, self.model.message):

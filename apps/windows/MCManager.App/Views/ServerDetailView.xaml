@@ -29,6 +29,9 @@
             <Button x:Name="RestartButton" x:Uid="RestartButton" Command="{x:Bind ViewModel.RestartCommand, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.CanRestart, Mode=OneWay}">
                 <SymbolIcon Symbol="Sync" />
             </Button>
+            <Button x:Name="WakeButton" x:Uid="WakeButton" Command="{x:Bind ViewModel.WakeCommand, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.CanWake, Mode=OneWay}" Visibility="{x:Bind ViewModel.CanWake, Mode=OneWay}">
+                <SymbolIcon Symbol="Play" />
+            </Button>
             <Button x:Name="ResumeButton" x:Uid="ResumeButton" Command="{x:Bind ViewModel.ResumeCommand, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.CanResume, Mode=OneWay}">
                 <SymbolIcon Symbol="Forward" />
             </Button>

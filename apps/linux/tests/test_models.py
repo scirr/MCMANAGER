@@ -248,6 +248,7 @@ class TestServerDetail(ModelCase):
         self.assertEqual({k for k, v in model.can("running").items() if v}, {"stop", "restart"})
         self.assertEqual({k for k, v in model.can("stopped").items() if v}, {"start"})
         self.assertEqual({k for k, v in model.can("sleeping").items() if v}, {"wake"})
+        self.assertEqual({k for k, v in model.can("maintenance").items() if v}, {"resume"})
 
 
 class TestConsole(ModelCase):

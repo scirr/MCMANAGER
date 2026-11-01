@@ -53,6 +53,9 @@ public sealed class McClient : IMcClient, IDisposable
     public Task<Job> RestartServerAsync(string server, CancellationToken ct = default)
         => SendAsync(HttpMethod.Post, ServerPath(server) + "/restart", null, McJson.Default.Job, ct);
 
+    public Task<OperationResult> WakeServerAsync(string server, CancellationToken ct = default)
+        => SendAsync(HttpMethod.Post, ServerPath(server) + "/wake", null, McJson.Default.OperationResult, ct);
+
     public Task<OperationResult> ResumeServerAsync(string server, CancellationToken ct = default)
         => SendAsync(HttpMethod.Post, ServerPath(server) + "/resume", null, McJson.Default.OperationResult, ct);
 

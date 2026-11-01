@@ -40,6 +40,11 @@ class TestAgainstLocalApi(unittest.TestCase):
             status, document = self.client.action("a", "start")
         self.assertEqual((status, document["code"]), (200, "started"))
 
+    def test_resume_action_returns_the_result(self):
+        with mock.patch.object(mc_api, "resume", return_value=mc_api.result(True, "resumed", server="a")):
+            status, document = self.client.action("a", "resume")
+        self.assertEqual((status, document["code"]), (200, "resumed"))
+
     def test_failed_action_raises_with_the_code(self):
         failure = mc_api.result(False, "server_running", server="a")
         with mock.patch.object(mc_api, "start", return_value=failure):
