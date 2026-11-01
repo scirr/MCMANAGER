@@ -9,7 +9,7 @@ public sealed partial class CreateServerViewModel : TabViewModel
 {
     public static readonly IReadOnlyList<string> Loaders = new[]
     {
-        "Paper", "Purpur", "Spigot", "Folia", "Fabric", "Forge", "NeoForge", "Vanilla", "Velocity",
+        "Paper", "Purpur", "Spigot", "Folia", "Fabric", "Quilt", "Forge", "NeoForge", "Vanilla", "Velocity", "Waterfall", "BungeeCord",
     };
 
     public const int LastStep = 2;

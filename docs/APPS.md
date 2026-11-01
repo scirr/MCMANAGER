@@ -118,7 +118,7 @@ Changes to the port, memory or Java apply at the next restart.
 
 Use **New server** (the plus button of the server list). Windows and macOS use a three-step wizard (name and software, resources, summary and EULA); Linux shows one form.
 
-1. **Name and software.** Server name (empty with a modpack: the modpack name), **Server software**, Minecraft version (empty: latest). Windows and macOS offer Paper, Purpur, Spigot, Folia, Fabric, Forge, NeoForge, Vanilla and Velocity; Linux also lists Quilt, Waterfall and BungeeCord. For a **modpack**, enter its name or address and use **Look up the modpack**: the app shows what it found (Modrinth, CurseForge, FTB; CurseForge needs an API key, set under Settings, Secrets). The software and version then come from the pack.
+1. **Name and software.** Server name (empty with a modpack: the modpack name), **Server software**, Minecraft version (empty: latest). All three apps offer Vanilla, Paper, Purpur, Spigot, Folia, Fabric, Quilt, Forge, NeoForge and the Velocity, Waterfall and BungeeCord proxies. For a **modpack**, enter its name or address and use **Look up the modpack**: the app shows what it found (Modrinth, CurseForge, FTB; CurseForge needs an API key, set under Settings, Secrets). The software and version then come from the pack.
 2. **Resources.** Memory (for example `4G`), port and RCON port (empty: automatic).
 3. **EULA.** Tick **I accept the Minecraft EULA** (required). Then **Create the server**.
 

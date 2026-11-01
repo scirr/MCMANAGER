@@ -4,7 +4,7 @@ import Observation
 @MainActor
 @Observable
 public final class CreateServerViewModel {
-    public static let loaders = ["Paper", "Purpur", "Spigot", "Folia", "Fabric", "Forge", "NeoForge", "Vanilla", "Velocity"]
+    public static let loaders = ["Paper", "Purpur", "Spigot", "Folia", "Fabric", "Quilt", "Forge", "NeoForge", "Vanilla", "Velocity", "Waterfall", "BungeeCord"]
     public static let lastStep = 2
 
     public private(set) var step = 0
