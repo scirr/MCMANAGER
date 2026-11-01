@@ -36,7 +36,7 @@ public sealed partial class NotificationPrefs : ObservableObject
     private bool _join;
 
     private static bool Saved(IReadOnlyDictionary<string, bool>? saved, string kind)
-        => saved is null || !saved.TryGetValue(kind, out var value) || value;
+        => saved is not null && saved.TryGetValue(kind, out var value) ? value : kind != "join";
 
     partial void OnCrashChanged(bool value) => Persist();
 

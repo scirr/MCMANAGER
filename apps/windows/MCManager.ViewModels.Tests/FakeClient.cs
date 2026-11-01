@@ -341,6 +341,7 @@ internal sealed class FakeClient : IMcClient
 
     public List<AlertChannel> Alerts { get; } = new();
     public AlertAddRequest? AlertRequest { get; private set; }
+    public AlertTested AlertTestResult { get; set; } = new() { Ok = true };
     public Dictionary<string, string> InstalledJava { get; } = new();
     public RemoteStatus Remote { get; set; } = new() { Ok = true, Enabled = false, Fingerprint = "AB:CD" };
     public List<DeviceEntry> Devices { get; } = new();
@@ -379,7 +380,7 @@ internal sealed class FakeClient : IMcClient
     public Task<AlertTested> TestAlertChannelsAsync(string server, string? channel = null, CancellationToken ct = default)
     {
         Record($"alert-test {channel}".TrimEnd());
-        return Task.FromResult(new AlertTested { Ok = true });
+        return Task.FromResult(AlertTestResult);
     }
 
     public Task<OperationResult> RemoveAlertChannelAsync(string server, string channel, CancellationToken ct = default)

@@ -15,6 +15,7 @@ ALERT_EVENTS = ("start", "stop", "crash", "crash_loop", "backup_failed", "update
 ROLES = ("viewer", "operator", "admin")
 JAVA_MAJORS = ("8", "11", "17", "21", "25")
 NOTIFY_KINDS = ("crash", "backup_failed", "join")
+NOTIFY_OFF_BY_DEFAULT = ("join",)
 NOTIFY_ALERTS = {"crash": ("crash", "crash_loop"), "backup_failed": ("backup_failed",)}
 
 
@@ -327,7 +328,7 @@ class NotificationPrefs(Observable):
         super().__init__()
         self.save = save
         saved = (load() if load else None) or {}
-        self.enabled = {kind: bool(saved.get(kind, True)) for kind in NOTIFY_KINDS}
+        self.enabled = {kind: bool(saved.get(kind, kind not in NOTIFY_OFF_BY_DEFAULT)) for kind in NOTIFY_KINDS}
 
     def set(self, kind, value):
         if kind not in self.enabled or self.enabled[kind] == bool(value):

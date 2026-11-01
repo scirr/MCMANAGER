@@ -215,7 +215,14 @@ public sealed partial class AlertsViewModel : TabViewModel
 
     public async Task TestAsync(string? channel)
     {
-        if (await WriteAsync(async () => await Api.TestAlertChannelsAsync(Server, channel)))
+        if (await WriteAsync(async () =>
+        {
+            var tested = await Api.TestAlertChannelsAsync(Server, channel);
+            if (!tested.Ok)
+            {
+                throw new ApiException(tested.Code.Length == 0 ? "alert_test_failed" : tested.Code, tested.Failed ?? "", 200);
+            }
+        }))
         {
             LastDone = "test";
         }

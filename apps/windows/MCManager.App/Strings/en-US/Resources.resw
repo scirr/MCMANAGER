@@ -506,6 +506,7 @@
   <data name="Error_channel_not_found" xml:space="preserve"><value>Channel not found</value></data>
   <data name="Error_no_channel" xml:space="preserve"><value>This server has no alert channel</value></data>
   <data name="Error_alert_test_failed" xml:space="preserve"><value>The test message could not be delivered</value></data>
+  <data name="AlertTestFailedFor" xml:space="preserve"><value>The test failed for: {0}</value></data>
   <data name="Error_router_port_conflict" xml:space="preserve"><value>This port is already used by a server</value></data>
   <data name="Error_router_usage" xml:space="preserve"><value>Invalid router option</value></data>
   <data name="Error_tls_unavailable" xml:space="preserve"><value>Encryption is not available on this machine</value></data>

@@ -75,6 +75,11 @@ internal static class Strings
     public static string LastResult(string? result)
         => string.IsNullOrEmpty(result) ? "" : result == "ok" ? Get("TaskLastOk") : string.Format(Get("TaskLastFailed"), Get("Error_" + result, result));
 
+    public static string Error(string code, string message)
+        => code == "alert_test_failed" && message.Length > 0 && message != code
+            ? string.Format(Get("AlertTestFailedFor"), message)
+            : Get("Error_" + code, message);
+
     public static string Setting(string? key) => Keyed("Setting_", key);
 
     public static string SecretState(bool secret, bool isSet)

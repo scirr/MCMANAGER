@@ -55,6 +55,21 @@ public class HostTests
     }
 
     [Fact]
+    public async Task Alerts_test_reports_the_channels_that_failed()
+    {
+        var client = new FakeClient { AlertTestResult = new AlertTested { Ok = false, Code = "alert_test_failed", Failed = "ntfy-1" } };
+        var errors = new ErrorReporter();
+        var vm = new AlertsViewModel(client, errors, "survie");
+
+        await vm.TestAsync(null);
+
+        Assert.True(errors.IsOpen);
+        Assert.Equal("alert_test_failed", errors.Code);
+        Assert.Equal("ntfy-1", errors.Message);
+        Assert.NotEqual("test", vm.LastDone);
+    }
+
+    [Fact]
     public async Task Alerts_add_refuses_a_bad_port_without_calling_the_api()
     {
         var client = new FakeClient();
@@ -438,7 +453,7 @@ public class HostTests
         Assert.Null(new MainViewModel(null, new ErrorReporter()).Host);
     }
 
-    private static NotificationPrefs All() => new();
+    private static NotificationPrefs All() => new(new Dictionary<string, bool> { ["join"] = true });
 
     [Fact]
     public void Notifications_map_crash_backup_failure_and_joins()
@@ -465,6 +480,15 @@ public class HostTests
         Assert.Null(prefs.NoticeFor("not json"));
         Assert.Null(prefs.NoticeFor(""));
         Assert.Null(prefs.NoticeFor("[1]"));
+    }
+
+    [Fact]
+    public void Notifications_for_joins_are_off_until_turned_on()
+    {
+        var prefs = new NotificationPrefs();
+        Assert.True(prefs.Crash);
+        Assert.True(prefs.BackupFailed);
+        Assert.False(prefs.Join);
     }
 
     [Fact]

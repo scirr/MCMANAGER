@@ -25,7 +25,7 @@ public final class NotificationPrefs {
         self.defaults = defaults
         self.key = key
         let saved = defaults.dictionary(forKey: key) as? [String: Bool] ?? [:]
-        for kind in Self.kinds { enabled[kind] = saved[kind] ?? true }
+        for kind in Self.kinds { enabled[kind] = saved[kind] ?? (kind != "join") }
     }
 
     public func isEnabled(_ kind: String) -> Bool { enabled[kind] ?? false }

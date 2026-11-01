@@ -128,8 +128,8 @@ class TestViews(unittest.TestCase):
         self.assertTrue(tabs["router"].pending.get_visible())
         self.assertTrue(tabs["update"].apply_button.get_visible())
         self.assertEqual(len(tabs["doctor"].rows), 1)
-        tabs["notifications"].switches["join"].set_active(False)
-        self.assertFalse(prefs.enabled["join"])
+        tabs["notifications"].switches["join"].set_active(True)
+        self.assertTrue(prefs.enabled["join"])
         for tab in tabs.values():
             if hasattr(tab, "model"):
                 tab.model.read_only = True

@@ -253,6 +253,10 @@ class TestNotifications(HostCase):
         self.assertEqual(notification_for(event, self.prefs), ("join-a", "Player connected on a", "Steve, Alex"))
         self.assertIsNone(notification_for({"type": "players", "server": "a", "joined": []}, self.prefs))
 
+    def test_joins_are_off_until_turned_on(self):
+        prefs = NotificationPrefs()
+        self.assertEqual(prefs.enabled, {"crash": True, "backup_failed": True, "join": False})
+
     def test_disabling_a_kind_silences_it(self):
         self.prefs.set("crash", False)
         self.assertIsNone(notification_for({"type": "alert", "server": "a", "event": "crash"}, self.prefs))

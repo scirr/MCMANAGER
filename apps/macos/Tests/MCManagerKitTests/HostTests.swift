@@ -398,6 +398,7 @@ final class HostTests: XCTestCase {
 
     func testNoticesFollowThePreferences() {
         let prefs = prefs()
+        prefs.set("join", true)
         let crash = event("alert", #"{"type":"alert","server":"a","event":"crash","detail":"exit 1"}"#)
         let loop = event("alert", #"{"type":"alert","server":"a","event":"crash_loop"}"#)
         let failed = event("alert", #"{"type":"alert","server":"a","event":"backup_failed"}"#)
@@ -421,12 +422,14 @@ final class HostTests: XCTestCase {
         let suite = "mcmanager-test-" + UUID().uuidString
         let defaults = UserDefaults(suiteName: suite)!
         let first = NotificationPrefs(defaults: defaults)
-        XCTAssertTrue(first.isEnabled("join"))
-        first.set("join", false)
+        XCTAssertFalse(first.isEnabled("join"))
+        XCTAssertTrue(first.isEnabled("crash"))
+        first.set("join", true)
+        first.set("crash", false)
         first.set("unknown", true)
         let second = NotificationPrefs(defaults: defaults)
-        XCTAssertFalse(second.isEnabled("join"))
-        XCTAssertTrue(second.isEnabled("crash"))
+        XCTAssertTrue(second.isEnabled("join"))
+        XCTAssertFalse(second.isEnabled("crash"))
         XCTAssertFalse(second.isEnabled("unknown"))
     }
 
