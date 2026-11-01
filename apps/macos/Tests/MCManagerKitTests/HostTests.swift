@@ -441,7 +441,9 @@ final class HostTests: XCTestCase {
             "event: players\ndata: {\"type\":\"players\",\"server\":\"a\",\"joined\":[\"Alex\"]}\n\n",
         ])
         var received: [AppNotice] = []
-        let watcher = EventWatcher(client: client, prefs: prefs()) { received.append($0) }
+        let prefs = prefs()
+        prefs.set("join", true)
+        let watcher = EventWatcher(client: client, prefs: prefs) { received.append($0) }
         await watcher.consume()
         XCTAssertEqual(received.map(\.kind), ["crash", "join"])
         XCTAssertEqual(received[1].detail, "Alex")
@@ -450,7 +452,9 @@ final class HostTests: XCTestCase {
     func testWatcherSurvivesAFailingStream() async {
         let (_, _, client) = make()
         var received: [AppNotice] = []
-        let watcher = EventWatcher(client: client, prefs: prefs()) { received.append($0) }
+        let prefs = prefs()
+        prefs.set("join", true)
+        let watcher = EventWatcher(client: client, prefs: prefs) { received.append($0) }
         await watcher.consume()
         XCTAssertTrue(received.isEmpty)
     }
