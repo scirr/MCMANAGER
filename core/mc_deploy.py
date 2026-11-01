@@ -308,6 +308,7 @@ def neoforge_version_prefix(mc_version):
     return f"{major}.{minor}."
 
 def deploy_neoforge(server_dir, mc_version):
+    deploy_neoforge.last_result = None
     pr("step", T["step_neoforge"])
     neo_base = neoforge_version_prefix(mc_version)
     data = fetch_json(
@@ -316,6 +317,9 @@ def deploy_neoforge(server_dir, mc_version):
     )
     if not data or "version" not in data:
         pr("err", T["neoforge_not_available"].format(ver=mc_version))
+        import mc_software
+        deploy_neoforge.last_result = mc_software.result(False, "loader_unavailable", loader="NeoForge",
+                                                         mc_version=mc_version)
         return None
     neo_ver = data["version"]
     installer_name = f"neoforge-{neo_ver}-installer.jar"
