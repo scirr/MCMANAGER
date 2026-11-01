@@ -40,9 +40,13 @@ Details for each app are in [Desktop apps](#desktop-app-linux) below.
 
 This README is a high-level overview only. For installation steps and the complete, up-to-date command reference for your platform, see:
 
-- 🪟 **[Windows guide](Windows/README_Windows.md)** — multi-server management, `mc deploy`/`mc add`/`mc configure`, full command reference
-- 🐧 **[Linux guide](Linux/README_Linux.md)** — installation, configuration, command reference
-- 🍎 **[macOS guide](macOS/README_macOS.md)** — LaunchAgent install, configuration, command reference
+- **[Windows guide](Windows/README_Windows.md)** — multi-server management, `mc deploy`/`mc add`/`mc configure`, full command reference
+- **[Linux guide](Linux/README_Linux.md)** — installation, configuration, command reference
+- **[macOS guide](macOS/README_macOS.md)** — LaunchAgent install, configuration, what differs from Linux
+- **[Desktop apps guide](docs/APPS.md)** — every tab of the Windows, Linux and macOS apps, pairing with a remote machine
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** — reading `mc doctor`, servers that do not start, players who cannot connect
+- **[HTTP API](api/README.md)** — the OpenAPI contract of the local and remote API
+- **[Changelog](CHANGELOG.md)**, **[Security](SECURITY.md)**, **[Contributing](CONTRIBUTING.md)**
 
 ---
 
@@ -135,6 +139,7 @@ MC_Manager/
 ├── apps/windows/       # Desktop app (WinUI 3, C#), client and view-model tests
 ├── apps/macos/         # Desktop app (SwiftUI), Swift package
 ├── api/                # OpenAPI 3.1 contract of the /v1 API
+├── docs/               # Desktop apps guide, troubleshooting
 │
 ├── Linux/              # Linux packaging (systemd service)
 │   ├── build_release.py
