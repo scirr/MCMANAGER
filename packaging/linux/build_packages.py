@@ -181,6 +181,19 @@ def _write(path, data, mode):
     os.chmod(path, mode)
 
 
+def _stage_app(stage, data):
+    import io
+    with zipfile.ZipFile(io.BytesIO(data)) as app:
+        for name in app.namelist():
+            parts = name.split("/")
+            if name.endswith("/") or ".." in parts:
+                continue
+            if parts[0] == "mcmanager_app":
+                _write(os.path.join(stage, APP_DIR.lstrip("/"), "app", *parts), app.read(name), 0o644)
+            elif len(parts) == 2 and parts[0] == "data" and parts[1] in APP_DATA_DIRS:
+                _write(os.path.join(stage, APP_DATA_DIRS[parts[1]], parts[1]), app.read(name), 0o644)
+
+
 def stage_tree(stage, zip_path, kind):
     """Lays out the files of the package under `stage` (as the target root)."""
     with zipfile.ZipFile(zip_path) as zf:
@@ -188,15 +201,13 @@ def stage_tree(stage, zip_path, kind):
             parts = member.split("/")
             if member.startswith("/") or ".." in parts or not parts[-1]:
                 continue
-            if len(parts) == 2:
+            if len(parts) == 2 and parts[1] == "mcmanager-app":
+                _stage_app(stage, zf.read(member))
+            elif len(parts) == 2:
                 if parts[1] in NOT_SHIPPED:
                     continue
                 mode = 0o755 if parts[1] in EXECUTABLE_APP_FILES else 0o644
                 _write(os.path.join(stage, APP_DIR.lstrip("/"), parts[1]), zf.read(member), mode)
-            elif len(parts) >= 4 and parts[1] == "app" and parts[2] == "mcmanager_app":
-                _write(os.path.join(stage, APP_DIR.lstrip("/"), *parts[1:]), zf.read(member), 0o644)
-            elif len(parts) == 4 and parts[1:3] == ["app", "data"] and parts[3] in APP_DATA_DIRS:
-                _write(os.path.join(stage, APP_DATA_DIRS[parts[3]], parts[3]), zf.read(member), 0o644)
     _write(os.path.join(stage, APP_DIR.lstrip("/"), "installed-by-package"), MARKERS[kind] + "\n", 0o644)
     _write(os.path.join(stage, "usr/bin/mc"), COMMAND_SCRIPT, 0o755)
     _write(os.path.join(stage, "usr/bin", APP_COMMAND), APP_COMMAND_SCRIPT, 0o755)

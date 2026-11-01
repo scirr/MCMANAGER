@@ -21,10 +21,6 @@ DIST_DIR = os.path.join(HERE, "..", "dist")
 CORE_DIR = os.path.join(HERE, "..", "core")
 API_DIR = os.path.join(HERE, "..", "api")
 APP_DIR = os.path.join(HERE, "..", "apps", "linux")
-APP_LAUNCHER = """#!/bin/sh
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
-exec python3 -m mcmanager_app "$@"
-"""
 
 # Files shipped in the package. language.txt is intentionally NOT shipped so the
 # first launch prompts for the language.
@@ -88,14 +84,20 @@ def source_path(fname):
     return os.path.join(CORE_DIR, fname)
 
 
+APP_MAIN = "import sys\nfrom mcmanager_app.__main__ import main\nsys.exit(main())\n"
+
+
 def add_desktop_app(pkg):
-    app = os.path.join(pkg, "app")
-    shutil.copytree(os.path.join(APP_DIR, "mcmanager_app"), os.path.join(app, "mcmanager_app"),
-                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
-    shutil.copytree(os.path.join(APP_DIR, "data"), os.path.join(app, "data"))
-    launcher = os.path.join(app, "mcmanager-app")
-    with open(launcher, "w", encoding="utf-8", newline="\n") as f:
-        f.write(APP_LAUNCHER)
+    """The app is one file at the package root: an older `mc update` copies every
+    top-level entry as a file and fails on a folder."""
+    import zipapp
+    with tempfile.TemporaryDirectory() as stage:
+        shutil.copytree(os.path.join(APP_DIR, "mcmanager_app"), os.path.join(stage, "mcmanager_app"),
+                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+        shutil.copytree(os.path.join(APP_DIR, "data"), os.path.join(stage, "data"))
+        with open(os.path.join(stage, "__main__.py"), "w", encoding="utf-8", newline="\n") as f:
+            f.write(APP_MAIN)
+        zipapp.create_archive(stage, os.path.join(pkg, "mcmanager-app"), interpreter="/usr/bin/env python3")
 
 
 def build_zip(zip_name="MCManager-Linux.zip", dist_dir=DIST_DIR):

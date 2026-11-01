@@ -76,9 +76,9 @@ jobs:
       - name: Start the desktop app from MCManager-Linux.zip
         run: |
           mkdir unzip && unzip -q dist/MCManager-Linux.zip -d unzip
-          test -x unzip/MCManager/app/mcmanager-app
+          test -x unzip/MCManager/mcmanager-app
           status=0
-          PATH=/usr/bin:$PATH xvfb-run -a timeout 8 unzip/MCManager/app/mcmanager-app 2>zip.log || status=$?
+          PATH=/usr/bin:$PATH xvfb-run -a timeout 8 unzip/MCManager/mcmanager-app 2>zip.log || status=$?
           cat zip.log
           test "$status" -eq 124
           ! grep -q Traceback zip.log

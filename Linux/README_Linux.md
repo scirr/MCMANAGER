@@ -18,7 +18,7 @@ Automatic Minecraft server management tool for Linux (Fedora and other systemd d
 
 ## Desktop app
 
-The `.deb`/`.rpm` packages install the GTK 4 app (`mcmanager-app`, menu entry "MC Manager"); GTK, libadwaita and PyGObject are recommended packages, never required. With the zip, the app is in `app/` (`./app/mcmanager-app`, needs `python3-gi`, `gir1.2-gtk-4.0`, `gir1.2-adw-1` or the Fedora equivalents `python3-gobject`, `gtk4`, `libadwaita`).
+The `.deb`/`.rpm` packages install the GTK 4 app (`mcmanager-app`, menu entry "MC Manager"); GTK, libadwaita and PyGObject are recommended packages, never required. With the zip, the app is the single file `mcmanager-app` (`./mcmanager-app`, needs `python3-gi`, `gir1.2-gtk-4.0`, `gir1.2-adw-1` or the Fedora equivalents `python3-gobject`, `gtk4`, `libadwaita`).
 
 ## Installation
 

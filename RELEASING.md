@@ -88,7 +88,7 @@ Either way, the release workflow:
 2. runs the Linux and Windows test suites;
 3. builds everything with `.github/workflows/build.yml`, the same jobs CI runs on
    every push (nothing is published there):
-   - Linux: `MCManager-Linux.zip` (with the desktop app in `app/`), the `.deb` and
+   - Linux: `MCManager-Linux.zip` (with the desktop app as the single file `mcmanager-app`), the `.deb` and
      the `.rpm`, installed and removed in CI (Ubuntu for the `.deb`, Fedora for the
      `.rpm`) and the app started under Xvfb;
    - Windows: `MCManager.zip`, the WinUI app (Release, x64, self-contained) and

@@ -29,6 +29,26 @@ class PackagingTestCase(unittest.TestCase):
         cls._tmp.cleanup()
 
 
+class FlatPackageTests(PackagingTestCase):
+    def test_every_top_level_entry_is_a_file(self):
+        import zipfile
+        with zipfile.ZipFile(self.zip) as zf:
+            names = [n for n in zf.namelist() if n.count("/") > 1 or n.endswith("/")]
+            self.assertEqual(names, [])
+            self.assertIn("MCManager/mcmanager-app", zf.namelist())
+            zf.extractall(self.tmp)
+        out = os.path.join(self.tmp, "installed")
+        os.makedirs(out)
+        src = os.path.join(self.tmp, "MCManager")
+        for name in os.listdir(src):
+            shutil.copy2(os.path.join(src, name), os.path.join(out, name))
+        self.assertTrue(os.path.isfile(os.path.join(out, "mc_api.py")))
+
+    def test_update_replaces_the_app(self):
+        import mc_update
+        self.assertTrue(mc_update.PROGRAM_PATTERN.match("mcmanager-app"))
+
+
 @unittest.skipIf(sys.platform != "linux", "Linux packaging")
 class ControlTests(unittest.TestCase):
     def test_version_matches_the_application(self):
