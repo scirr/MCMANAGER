@@ -138,6 +138,7 @@ jobs:
             exit 1
           }
           if (-not (Test-Path "$out\MCManager.exe")) { throw "MCManager.exe was not published" }
+          if (-not (Test-Path "$out\MCManager.pri")) { throw "MCManager.pri was not published (the app would crash at startup)" }
           Get-ChildItem $out | Select-Object -First 40 | Format-Table Name, Length
       - name: Install Inno Setup
         shell: pwsh
@@ -190,6 +191,13 @@ jobs:
             Start-Sleep -Seconds 2
           }
           if (-not $answered) { Fail "the daemon API does not answer" $out }
+          $app = Start-Process -FilePath "$root\app\MCManager.exe" -WorkingDirectory "$root\app" -PassThru
+          Start-Sleep -Seconds 10
+          if ($app.HasExited) {
+            $events = Get-WinEvent -LogName Application -MaxEvents 30 -ErrorAction SilentlyContinue | Where-Object { $_.Message -match 'MCManager' } | Select-Object -First 3 | ForEach-Object { $_.Message }
+            Fail "the desktop app exited at startup (code $($app.ExitCode))" ($events -join "`n---`n")
+          }
+          Stop-Process -Id $app.Id -Force
           New-Item -ItemType Directory -Force "$env:ProgramData\MCManager\Servers\keep-me" | Out-Null
           $uninstallLog = Join-Path $env:RUNNER_TEMP 'uninstall.log'
           & "$root\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART "/LOG=$uninstallLog"
