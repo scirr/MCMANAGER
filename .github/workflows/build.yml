@@ -138,7 +138,12 @@ jobs:
             exit 1
           }
           if (-not (Test-Path "$out\MCManager.exe")) { throw "MCManager.exe was not published" }
-          if (-not (Test-Path "$out\MCManager.pri")) { throw "MCManager.pri was not published (the app would crash at startup)" }
+          if (-not (Test-Path "$out\MCManager.pri")) {
+            $pri = (Get-ChildItem $out -Recurse -Filter *.pri | ForEach-Object { $_.FullName.Substring($out.Length) }) -join ', '
+            $built = (Get-ChildItem apps\windows\MCManager.App\bin, apps\windows\MCManager.App\obj -Recurse -Filter *.pri -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName.Substring($PWD.Path.Length) }) -join ', '
+            Write-Output "::error::MCManager.pri was not published (the app would crash at startup). Published: $pri. Built: $built"
+            exit 1
+          }
           Get-ChildItem $out | Select-Object -First 40 | Format-Table Name, Length
       - name: Install Inno Setup
         shell: pwsh
