@@ -196,6 +196,27 @@ jobs:
             Start-Sleep -Seconds 2
           }
           if (-not $answered) { Fail "the daemon API does not answer" $out }
+          # The desktop app runs without elevation: read api.token and call the API as a standard user, like ApiLocator does.
+          $probe = Join-Path $env:PUBLIC 'mc-probe.ps1'
+          $result = Join-Path $env:PUBLIC 'mc-probe.txt'
+          Set-Content $probe @"
+          try {
+            `$t = Get-Content '$root\core\run\api.token' -Raw -ErrorAction Stop | ConvertFrom-Json
+            `$r = Invoke-RestMethod -Uri "http://127.0.0.1:`$(`$t.port)/v1/servers" -Headers @{ Authorization = "Bearer `$(`$t.token)" }
+            'ok' | Set-Content '$result'
+          } catch { ('fail: ' + `$_.Exception.Message) | Set-Content '$result' }
+          "@
+          $password = 'Mc1!' + [guid]::NewGuid().ToString('N')
+          net user mcprobe $password /add | Out-Null
+          $credential = [pscredential]::new('mcprobe', (ConvertTo-SecureString $password -AsPlainText -Force))
+          Start-Process powershell -Credential $credential -LoadUserProfile -WorkingDirectory $env:PUBLIC -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',$probe -Wait
+          $probeOut = if (Test-Path $result) { (Get-Content $result -Raw).Trim() } else { '(no result)' }
+          net user mcprobe /delete | Out-Null
+          Write-Output "standard user probe: $probeOut"; icacls "$root\core\run\api.token"
+          if ($probeOut -ne 'ok') {
+            $acl = (icacls "$root\core\run\api.token" 2>&1 | Out-String)
+            Fail "a standard user cannot reach the daemon (the desktop app shows 'daemon not found')" ($probeOut + "`n" + $acl)
+          }
           $app = Start-Process -FilePath "$root\app\MCManager.exe" -WorkingDirectory "$root\app" -PassThru
           Start-Sleep -Seconds 10
           if ($app.HasExited) {
