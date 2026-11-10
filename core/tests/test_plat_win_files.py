@@ -45,16 +45,6 @@ class TestSecure(unittest.TestCase):
             files.secure_file("x", also=("SYSTEM",))
         self.assertEqual(run.call_args[0][0][-2:], ["/grant:r", "SYSTEM:F"])
 
-    def test_desktop_users_get_access(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            listing = os.path.join(tmp, "desktop_users.txt")
-            with open(listing, "w", encoding="utf-8-sig") as f:
-                f.write("José Müller\n\n")
-            with env(USERNAME="SYSTEM"), mock.patch.object(files, "DESKTOP_USERS_FILE", listing), \
-                    mock.patch.object(files.common, "run", return_value=(0, "", "")) as run:
-                files.secure_dir("C:\\run")
-        self.assertEqual(run.call_args[0][0][-4:], ["/grant:r", "SYSTEM:(OI)(CI)F", "/grant:r", "José Müller:(OI)(CI)F"])
-
     def test_failure_is_false(self):
         with env(USERNAME="cris"), mock.patch.object(files.common, "run", return_value=(5, "", "Access is denied.")):
             self.assertFalse(files.secure_file("x"))

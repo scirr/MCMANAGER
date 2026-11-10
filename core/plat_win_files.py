@@ -32,21 +32,9 @@ def is_elevated():
         return False
 
 
-# The service runs as SYSTEM; the installer lists here who runs the desktop app and the mc command.
-DESKTOP_USERS_FILE = ntpath.join(os.path.dirname(os.path.abspath(__file__)), "desktop_users.txt")
-
-
-def desktop_users():
-    try:
-        with open(DESKTOP_USERS_FILE, encoding="utf-8-sig") as f:
-            return [line.strip() for line in f if line.strip()]
-    except OSError:
-        return []
-
-
 def _grant(path, spec, also):
     cmd = ["icacls", path, "/inheritance:r", "/grant:r", f"{current_user()}:{spec}"]
-    for principal in (*also, *desktop_users()):
+    for principal in also:
         cmd += ["/grant:r", f"{principal}:{spec}"]
     rc, _out, _err = common.run(cmd)
     return rc == 0

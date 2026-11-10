@@ -66,6 +66,8 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
 [Run]
 Filename: "{app}\python\python.exe"; Parameters: """{app}\core\mc_config.py"" --install-only"; WorkingDir: "{app}\core"; Flags: runhidden waituntilterminated
 Filename: "{app}\python\python.exe"; Parameters: """{app}\core\mc_config.py"" --install-daemon"; WorkingDir: "{app}\core"; Flags: runhidden waituntilterminated
+; The app launched at the end of Setup finds the daemon through api.token: wait up to 30 s for the daemon to write it.
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -Command ""for ($i = 0; $i -lt 60 -and -not (Test-Path '{app}\core\run\api.token'); $i++) {{ Start-Sleep -Milliseconds 500 }"""; Flags: runhidden waituntilterminated
 Filename: "{app}\app\MCManager.exe"; Description: "{cm:LaunchProgram,MC Manager}"; WorkingDir: "{app}\app"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
@@ -108,32 +110,12 @@ begin
   Exec(Icacls, '"' + Path + '" /grant *S-1-5-32-545:M', '', SW_HIDE, ewWaitUntilTerminated, Code);
 end;
 
-// The service runs as SYSTEM and locks run\ to itself: it also lets in the users listed here.
-// shortcut: lists the account that ran Setup (elevated with another admin's password, that admin), add others by hand.
-procedure WriteDesktopUser;
-var
-  Path, User: String;
-  Users: TArrayOfString;
-  I: Integer;
-begin
-  Path := ExpandConstant('{app}\core\desktop_users.txt');
-  User := GetUserNameString;
-  if LoadStringsFromFile(Path, Users) then
-    for I := 0 to GetArrayLength(Users) - 1 do
-      if CompareText(Trim(Users[I]), User) = 0 then
-        Exit;
-  SetArrayLength(Users, 1);
-  Users[0] := User;
-  SaveStringsToUTF8File(Path, Users, True);
-end;
-
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then
   begin
     StopService;
     WriteLanguage;
-    WriteDesktopUser;
     SetEnvironmentVariable('MCMANAGER_DATA_DIR', ExpandConstant('{commonappdata}\MCManager'));
   end;
 end;

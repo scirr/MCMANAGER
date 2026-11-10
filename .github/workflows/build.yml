@@ -170,6 +170,7 @@ jobs:
           $setup = Start-Process -FilePath dist\MCManager-Setup.exe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/LANG=fr','/LOG=install.log' -Wait -PassThru
           if ($setup.ExitCode -ne 0) { Fail "installer exit code $($setup.ExitCode)" (Tail install.log) }
           $root = Join-Path $env:ProgramFiles 'MCManager'
+          if (-not (Test-Path "$root\core\run\api.token")) { Fail "api.token is missing when Setup ends (the app launched by Setup shows 'daemon not found')" (Tail install.log) }
           foreach ($p in 'python\python.exe', 'core\mc_cli.py', 'app\MCManager.exe', 'core\language.txt') {
             if (-not (Test-Path (Join-Path $root $p))) { Fail "missing after install: $p" (Tail install.log) }
           }
@@ -196,12 +197,10 @@ jobs:
             Start-Sleep -Seconds 2
           }
           if (-not $answered) { Fail "the daemon API does not answer" $out }
-          # The service runs as SYSTEM; the desktop app runs as the installing user, unelevated, and must read api.token.
+          # The desktop app runs unelevated: run\ is users-modify (installer), the SYSTEM daemon must not lock api.token.
           $acl = icacls "$root\core\run\api.token" 2>&1 | Out-String
-          $users = Get-Content "$root\core\desktop_users.txt" -ErrorAction SilentlyContinue
-          Write-Output "::notice title=api.token ACL::$(($acl + "`ndesktop_users.txt: $users") -replace "`r", '' -replace "`n", '%0A')"
-          if (-not ($users | Where-Object { $_.Trim() -eq $env:USERNAME })) { Fail "desktop_users.txt does not list the installing user $env:USERNAME" ($users -join "`n") }
-          if ($acl -notmatch "\\$([regex]::Escape($env:USERNAME)):\(") { Fail "the installing user cannot read api.token (the desktop app shows 'daemon not found')" $acl }
+          Write-Output "::notice title=api.token ACL::$(($acl -replace "`r", '') -replace "`n", '%0A')"
+          if ($acl -notmatch 'BUILTIN\\Users:\([^)]*\)?\((F|M|RX|R)\)') { Fail "standard users cannot read api.token (the desktop app shows 'daemon not found')" $acl }
           $app = Start-Process -FilePath "$root\app\MCManager.exe" -WorkingDirectory "$root\app" -PassThru
           Start-Sleep -Seconds 10
           if ($app.HasExited) {
