@@ -518,6 +518,20 @@ def find_java(config=None):
                 return exe
     return "java"
 
+def _ensure_server_java(config):
+    import mc_java
+    mc_version = config.get("mc_version") or guess_loader_and_version(config)[1]
+    if not mc_version:
+        return
+    res = mc_java.ensure_for_server(config, mc_version)
+    if not res["ok"]:
+        logging.warning(f"Java {mc_version}: {res.get('code')}, using the system Java")
+        return
+    try:
+        mc_config.save_config(config)
+    except Exception:
+        pass
+
 def check_java(config=None):
     java_exe = find_java(config)
     if java_exe == "java" and not shutil.which("java"):
@@ -851,6 +865,10 @@ def start_server(config, send_webhook=True):
         mc_servers.update_cached_ports(dossier, port=config.get("port"), rcon_port=config.get("rcon_port"))
     except Exception:
         pass
+
+    # A 2.x server has no runtime of its own: the system Java (the service's PATH) may be too old.
+    if config.get("java") != "system" and not config.get("java_path"):
+        _ensure_server_java(config)
 
     java_ok, java_detail = check_java(config)
     if not java_ok:
