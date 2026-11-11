@@ -35,6 +35,7 @@ def is_elevated():
 # SYSTEM (the daemon service) and Administrators (the mc command) must keep reaching
 # files the other one wrote; by SID because names are localised.
 _ALWAYS = ("*S-1-5-18", "*S-1-5-32-544")
+USERS_SID = "*S-1-5-32-545"
 
 
 def _grant(path, spec, also):
@@ -117,6 +118,8 @@ def write_private_file(path, text, mode=0o600):
         f.write(text)
     if mode == 0o600:
         secure_file(tmp)
+    elif mode & 0o004 and secure_file(tmp):
+        common.run(["icacls", tmp, "/grant", f"{USERS_SID}:R"])
     atomic_replace(tmp, path)
 
 

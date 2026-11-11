@@ -164,6 +164,16 @@ class TestWritePrivate(unittest.TestCase):
             sec.assert_called_once()
             self.assertEqual(os.listdir(d), ["config.json"])
 
+    def test_world_readable_mode_lets_standard_users_read(self):
+        # api.token: the unelevated desktop app must read what the SYSTEM service wrote.
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "api.token")
+            with mock.patch.object(files, "secure_file", return_value=True) as sec, \
+                    mock.patch.object(files.common, "run", return_value=(0, "", "")) as run:
+                files.write_private_file(path, "{}", 0o644)
+            sec.assert_called_once()
+            self.assertEqual(run.call_args[0][0][2:], ["/grant", "*S-1-5-32-545:R"])
+
 
 class TestMisc(unittest.TestCase):
     def test_archive_kind(self):

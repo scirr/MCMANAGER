@@ -40,8 +40,10 @@ rcon_wait() {
     out=$(mc rcon list 2>&1) && echo "$out" | grep -q players && { echo "$out"; return 0; }
     sleep 5
   done
-  logs=$(find "$HOME/MCManager" "$app" -name latest.log 2>/dev/null | head -2 | while read -r f; do echo "--- $f"; tail -20 "$f"; done)
+  logs=$(find "$HOME/MCManager" "$app" "$HOME/Library" \( -name latest.log -o -name daemon.log \) 2>/dev/null | head -3 | while read -r f; do echo "--- $f"; tail -20 "$f"; done)
   fail "RCON did not answer within 300s" "$out
+--- mc start:
+$start_out
 $logs"
 }
 
@@ -52,7 +54,7 @@ for loader in Vanilla Fabric; do
   out=$(mc deploy --name "$name" --loader "$loader" --version 1.21.1 --port "$port" --rcon-port $((port+1)) --ram 1G --accept-eula --yes 2>&1) || fail "deploy $loader failed" "$(printf '%s' "$out" | tail -25)"
   echo "$out" | tail -5
   mc use "$name" >/dev/null 2>&1
-  out=$(mc start 2>&1) || fail "start failed" "$out"
+  start_out=$(mc start 2>&1) || fail "start failed" "$start_out"
   rcon_wait
   out=$(mc doctor 2>&1); code=$?
   echo "$out" | tail -20

@@ -522,8 +522,10 @@ def _ensure_server_java(config):
     import mc_java
     mc_version = config.get("mc_version") or guess_loader_and_version(config)[1]
     if not mc_version:
+        logging.info("Java: Minecraft version unknown, using the system Java")
         return
     res = mc_java.ensure_for_server(config, mc_version)
+    logging.info(f"Java for {mc_version}: {res.get('code')} {config.get('java_path')}")
     if not res["ok"]:
         logging.warning(f"Java {mc_version}: {res.get('code')}, using the system Java")
         return
@@ -869,6 +871,8 @@ def start_server(config, send_webhook=True):
     # A 2.x server has no runtime of its own: the system Java (the service's PATH) may be too old.
     if config.get("java") != "system" and not config.get("java_path"):
         _ensure_server_java(config)
+    else:
+        logging.info(f"Java: java={config.get('java')!r} java_path={config.get('java_path')!r}")
 
     java_ok, java_detail = check_java(config)
     if not java_ok:

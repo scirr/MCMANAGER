@@ -878,8 +878,11 @@ class LocalApi:
         else:
             self.server = TcpServer(("127.0.0.1", 0), self.app)
             port = self.server.server_address[1]
+            # The Windows desktop app runs unelevated while the service runs as SYSTEM.
+            # shortcut: any local user can read the token there, restrict to a dedicated group in 3.0.3.
             plat.write_private_file(os.path.join(folder, TOKEN_NAME),
-                                    json.dumps({"port": port, "token": self.token}))
+                                    json.dumps({"port": port, "token": self.token}),
+                                    0o644 if plat.os_name() == "Windows" else 0o600)
 
     def launch(self):
         import mc_core
