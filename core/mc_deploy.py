@@ -264,7 +264,16 @@ def deploy_vanilla(server_dir, mc_version):
 # ─── Fabric ──────────────────────────────────────────────────────────────────
 
 def deploy_fabric(server_dir, mc_version):
+    import mc_software
+    deploy_fabric.last_result = None
     pr("step", T["step_fabric"])
+    ok, code = mc_software.available("Fabric", mc_version)
+    if not ok:
+        res = mc_software.result(False, code, loader="Fabric", mc_version=mc_version)
+        deploy_fabric.last_result = res
+        import mc_cli
+        pr("err", T["software_failed"].format(loader="Fabric", ver=mc_version, detail=mc_cli.render(res)))
+        return None
     loaders = fetch_json("https://meta.fabricmc.net/v2/versions/loader")
     installers = fetch_json("https://meta.fabricmc.net/v2/versions/installer")
     if not loaders or not installers:
@@ -299,6 +308,7 @@ def neoforge_version_prefix(mc_version):
     return f"{major}.{minor}."
 
 def deploy_neoforge(server_dir, mc_version):
+    deploy_neoforge.last_result = None
     pr("step", T["step_neoforge"])
     neo_base = neoforge_version_prefix(mc_version)
     data = fetch_json(
@@ -307,6 +317,9 @@ def deploy_neoforge(server_dir, mc_version):
     )
     if not data or "version" not in data:
         pr("err", T["neoforge_not_available"].format(ver=mc_version))
+        import mc_software
+        deploy_neoforge.last_result = mc_software.result(False, "loader_unavailable", loader="NeoForge",
+                                                         mc_version=mc_version)
         return None
     neo_ver = data["version"]
     installer_name = f"neoforge-{neo_ver}-installer.jar"

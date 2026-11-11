@@ -79,6 +79,19 @@ class TestInstallForge(unittest.TestCase):
         self.assertEqual(urls, ["https://maven.minecraftforge.net/net/minecraftforge/forge/"
                                 "1.21.1-52.1.0/forge-1.21.1-52.1.0-installer.jar"])
 
+    def test_legacy_forge_without_run_script_launches_its_jar(self):
+        def fake_installer(args, folder, timeout):
+            open(os.path.join(folder, "forge-1.21.1-52.1.0.jar"), "w").close()
+            return True, ""
+
+        with mock.patch.object(mc_http, "get_json", side_effect=self._json), \
+             mock.patch.object(mc_http, "get_text", return_value=METADATA), \
+             mock.patch.object(mc_http, "download", side_effect=lambda a, d, *x, **k: open(d, "wb").close()), \
+             mock.patch.object(mc_software, "_run_installer", side_effect=fake_installer):
+            res = mc_software.install(self.folder, "Forge", "1.21.1")
+        self.assertTrue(res["ok"], res)
+        self.assertEqual(res["jar_name"], "forge-1.21.1-52.1.0.jar")
+
     def test_network_error_is_reported_not_hidden(self):
         with mock.patch.object(mc_http, "get_json", side_effect=self._json), \
              mock.patch.object(mc_http, "get_text",

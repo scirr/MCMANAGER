@@ -9,6 +9,7 @@ import sys
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.dirname(__file__))
@@ -80,3 +81,24 @@ class DetectDefaultJarTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestFabricUnavailable(unittest.TestCase):
+
+    def test_unsupported_version_is_refused_with_a_code(self):
+        import mc_deploy
+        import mc_software
+        with mock.patch.object(mc_software, "available", return_value=(False, "loader_unavailable")), \
+                mock.patch.object(mc_deploy, "fetch_json") as fetch, mock.patch.object(mc_deploy, "pr"):
+            self.assertIsNone(mc_deploy.deploy_fabric(tempfile.mkdtemp(), "1.12.2"))
+        fetch.assert_not_called()
+        self.assertEqual(mc_deploy.deploy_fabric.last_result["code"], "loader_unavailable")
+
+
+class TestNeoForgeUnavailable(unittest.TestCase):
+
+    def test_missing_version_reports_loader_unavailable(self):
+        import mc_deploy
+        with mock.patch.object(mc_deploy, "fetch_json", return_value=None), mock.patch.object(mc_deploy, "pr"):
+            self.assertIsNone(mc_deploy.deploy_neoforge(tempfile.mkdtemp(), "1.20.1"))
+        self.assertEqual(mc_deploy.deploy_neoforge.last_result["code"], "loader_unavailable")
