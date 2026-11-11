@@ -32,9 +32,17 @@ def is_elevated():
         return False
 
 
+# SYSTEM (the daemon service) and Administrators (the mc command) must keep reaching
+# files the other one wrote; by SID because names are localised.
+_ALWAYS = ("*S-1-5-18", "*S-1-5-32-544")
+
+
 def _grant(path, spec, also):
-    cmd = ["icacls", path, "/inheritance:r", "/grant:r", f"{current_user()}:{spec}"]
-    for principal in also:
+    user = current_user()
+    # Under SYSTEM the name is the machine account (PC$), which icacls cannot map.
+    principals = ([] if user.endswith("$") else [user]) + list(_ALWAYS) + list(also)
+    cmd = ["icacls", path, "/inheritance:r"]
+    for principal in principals:
         cmd += ["/grant:r", f"{principal}:{spec}"]
     rc, _out, _err = common.run(cmd)
     return rc == 0

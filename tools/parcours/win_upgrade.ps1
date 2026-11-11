@@ -42,7 +42,15 @@ $reg = Get-Content "$old\servers.json" -Raw -ErrorAction SilentlyContinue
 if (-not $reg -or $reg -notmatch 'pv248') { Fail 'the 2.4.8 deploy did not register the server' ($out -split "`n" | Select-Object -Last 25 | Out-String) }
 Write-Output $reg
 Start-And-Check $oldMc '2.4.8 server' 25580
-Stop-And-Check $oldMc 25580
+# 2.4.8 is published and cannot change: if its mc stop leaves the server up, kill it and say so.
+$out = & $oldMc @('stop') 2>&1 | Out-String
+Write-Output $out
+foreach ($i in 1..30) { if (-not (Test-Port 25580)) { break }; Start-Sleep -Seconds 3 }
+if (Test-Port 25580) {
+  Write-Output "::warning title=Parcours v2.4.8::mc stop left the server running, killing it ($($out -replace "`r?`n", ' '))"
+  Get-NetTCPConnection -LocalPort 25580 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+  Wait-Stopped 25580 30
+}
 End-Step
 
 Begin '3.0 over 2.4.8'

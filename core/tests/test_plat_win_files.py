@@ -31,13 +31,23 @@ class TestSecure(unittest.TestCase):
                 mock.patch.object(files.common, "run", return_value=(0, "", "")) as run:
             self.assertTrue(files.secure_file(path))
         self.assertEqual(run.call_args[0][0], [
-            "icacls", path, "/inheritance:r", "/grant:r", "PC\\José Müller:F"])
+            "icacls", path, "/inheritance:r", "/grant:r", "PC\\José Müller:F",
+            "/grant:r", "*S-1-5-18:F", "/grant:r", "*S-1-5-32-544:F"])
+
+    def test_system_and_admins_keep_access_under_the_service(self):
+        with env(USERDOMAIN="WORKGROUP", USERNAME="PC$"), \
+                mock.patch.object(files.common, "run", return_value=(0, "", "")) as run:
+            files.secure_file("C:\\ProgramData\\MCManager\\servers.json")
+        cmd = run.call_args[0][0]
+        self.assertNotIn("WORKGROUP\\PC$:F", cmd)
+        self.assertEqual(cmd[3:], ["/grant:r", "*S-1-5-18:F", "/grant:r", "*S-1-5-32-544:F"])
 
     def test_dir_inherits_to_children(self):
         with env(USERDOMAIN="PC", USERNAME="cris"), \
                 mock.patch.object(files.common, "run", return_value=(0, "", "")) as run:
             self.assertTrue(files.secure_dir("C:\\Mon Dossier"))
-        self.assertEqual(run.call_args[0][0][-1], "PC\\cris:(OI)(CI)F")
+        self.assertIn("PC\\cris:(OI)(CI)F", run.call_args[0][0])
+        self.assertIn("*S-1-5-18:(OI)(CI)F", run.call_args[0][0])
 
     def test_extra_principal(self):
         with env(USERNAME="cris"), \
