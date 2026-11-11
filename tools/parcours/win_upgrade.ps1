@@ -2,6 +2,7 @@ param([string]$Setup)
 . "$PSScriptRoot\lib.ps1"
 
 $old = 'C:\mcm248'
+$script:Roots = @($old)
 $oldMc = { param($a) & python "$old\mc_cli.py" @a }.GetNewClosure()
 $answers = "pv248`n`n`n1`n1.21.1`n25580`ny`nrcon-pass-248`n25581`n`nn`n"
 
@@ -40,13 +41,14 @@ Write-Output $out
 $reg = Get-Content "$old\servers.json" -Raw -ErrorAction SilentlyContinue
 if (-not $reg -or $reg -notmatch 'pv248') { Fail 'the 2.4.8 deploy did not register the server' ($out -split "`n" | Select-Object -Last 25 | Out-String) }
 Write-Output $reg
-Start-And-Check $oldMc '2.4.8 server'
-Stop-And-Check $oldMc
+Start-And-Check $oldMc '2.4.8 server' 25580
+Stop-And-Check $oldMc 25580
 End-Step
 
 Begin '3.0 over 2.4.8'
 $log = Install-Setup $Setup $null
 $root = Join-Path $env:ProgramFiles 'MCManager'
+$script:Roots = @($root, $old)
 $mc = { param($a) & "$root\python\python.exe" "$root\core\mc_cli.py" @a }.GetNewClosure()
 Wait-Service $log
 $out = & $mc @('status', '--json') 2>&1 | Out-String
@@ -55,9 +57,9 @@ if ($out -notmatch 'pv248') {
   $dbg = "MCMANAGER_DATA_DIR=$env:MCMANAGER_DATA_DIR`n" + (Tail "$old\servers.json" 20) + "`n" + (Get-ChildItem "$env:ProgramData\MCManager" -Recurse -Depth 1 -ErrorAction SilentlyContinue | ForEach-Object FullName | Out-String)
   Fail 'the server created with 2.4.8 is not in the 3.0 registry' ($out + "`n" + $dbg)
 }
-Start-And-Check $mc '3.0 server'
+Start-And-Check $mc '3.0 server' 25580
 Wait-Service $log
-Stop-And-Check $mc
+Stop-And-Check $mc 25580
 End-Step
 
 Begin '3.0 uninstall'

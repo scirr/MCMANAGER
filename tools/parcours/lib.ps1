@@ -19,53 +19,58 @@ function Refresh-Env {
   if ($v) { $env:MCMANAGER_DATA_DIR = $v } else { Remove-Item Env:MCMANAGER_DATA_DIR -ErrorAction SilentlyContinue }
 }
 
+$script:StartOut = ''
+$script:Roots = @()
+
 function Server-Logs {
   $parts = @()
-  $roots = @("$env:ProgramData\MCManager\Servers")
-  if ($env:MCMANAGER_DATA_DIR) { $roots += (Join-Path $env:MCMANAGER_DATA_DIR 'Servers') }
+  $roots = @("$env:ProgramData\MCManager") + $script:Roots
+  if ($env:MCMANAGER_DATA_DIR) { $roots += $env:MCMANAGER_DATA_DIR }
   foreach ($r in $roots) {
-    Get-ChildItem -Path $r -Filter latest.log -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+    Get-ChildItem -LiteralPath $r -Include latest.log, daemon.log -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
       $parts += "--- $($_.FullName)`n" + (Tail $_.FullName 20)
     }
   }
-  $parts -join "`n"
+  "--- mc start:`n$script:StartOut`n" + ($parts -join "`n")
 }
 
-function Wait-Rcon([scriptblock]$Mc, [int]$Seconds = 300) {
+# The game port, not RCON: the 2.4.8 CLI has no rcon command.
+function Test-Port([int]$Port) {
+  $c = New-Object Net.Sockets.TcpClient
+  try { $c.Connect('127.0.0.1', $Port); return $true } catch { return $false } finally { $c.Close() }
+}
+
+function Wait-Port([int]$Port, [int]$Seconds = 300) {
   $deadline = (Get-Date).AddSeconds($Seconds)
-  $out = ''
   while ((Get-Date) -lt $deadline) {
-    $out = & $Mc @('rcon', 'list') 2>&1 | Out-String
-    if ($LASTEXITCODE -eq 0 -and $out -match 'players') { return $out }
+    if (Test-Port $Port) { return }
     Start-Sleep -Seconds 5
   }
-  Fail "RCON did not answer within ${Seconds}s" ($out + "`n" + (Server-Logs))
+  Fail "port $Port did not open within ${Seconds}s" (Server-Logs)
 }
 
-function Wait-Stopped([scriptblock]$Mc, [int]$Seconds = 90) {
+function Wait-Stopped([int]$Port, [int]$Seconds = 90) {
   $deadline = (Get-Date).AddSeconds($Seconds)
   while ((Get-Date) -lt $deadline) {
-    $out = & $Mc @('rcon', 'list') 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0) { return }
+    if (-not (Test-Port $Port)) { return }
     Start-Sleep -Seconds 3
   }
-  Fail "the server is still answering RCON ${Seconds}s after mc stop" (Server-Logs)
+  Fail "port $Port is still open ${Seconds}s after mc stop" (Server-Logs)
 }
 
-function Start-And-Check([scriptblock]$Mc, [string]$what) {
-  $out = & $Mc @('rcon', 'list') 2>&1 | Out-String
-  if ($LASTEXITCODE -ne 0) {
-    $out = & $Mc @('start') 2>&1 | Out-String
-    Write-Output $out
+function Start-And-Check([scriptblock]$Mc, [string]$what, [int]$Port) {
+  if (-not (Test-Port $Port)) {
+    $script:StartOut = & $Mc @('start') 2>&1 | Out-String
+    Write-Output $script:StartOut
   }
-  $r = Wait-Rcon $Mc
-  Write-Output "$what answers RCON: $r"
+  Wait-Port $Port
+  Write-Output "$what listens on port $Port"
 }
 
-function Stop-And-Check([scriptblock]$Mc) {
+function Stop-And-Check([scriptblock]$Mc, [int]$Port) {
   $out = & $Mc @('stop') 2>&1 | Out-String
   Write-Output $out
-  Wait-Stopped $Mc
+  Wait-Stopped $Port
 }
 
 function Uninstall-Core([string]$root) {

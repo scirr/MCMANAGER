@@ -6,6 +6,7 @@ Begin 'fresh 3.0 install'
 $log = Install-Setup $Setup $dir
 if (-not (Test-Path -LiteralPath "$dir\core\mc_cli.py")) { Fail "not installed in $dir" (Tail $log 25) }
 Wait-Service $log
+$script:Roots = @($dir)
 $mc = { param($a) & "$dir\python\python.exe" "$dir\core\mc_cli.py" @a }.GetNewClosure()
 $out = cmd /c "mc version 2>&1" | Out-String
 if ($LASTEXITCODE -ne 0) { Fail 'the global mc command failed' $out }
@@ -17,8 +18,8 @@ foreach ($t in @(@('Paper', 'pap', 25590), @('Fabric', 'fab', 25592))) {
   Write-Output $out
   if ($LASTEXITCODE -ne 0) { Fail "deploy $($t[0]) exit code $LASTEXITCODE" ($out -split "`n" | Select-Object -Last 25 | Out-String) }
   & $mc @('use', "t-$($t[1])") 2>&1 | Out-Null
-  Start-And-Check $mc $t[0]
-  Stop-And-Check $mc
+  Start-And-Check $mc $t[0] $t[2]
+  Stop-And-Check $mc $t[2]
   End-Step
 }
 
