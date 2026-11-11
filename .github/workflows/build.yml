@@ -200,7 +200,7 @@ jobs:
           # The desktop app runs unelevated: run\ is users-modify (installer), the SYSTEM daemon must not lock api.token.
           $acl = icacls "$root\core\run\api.token" 2>&1 | Out-String
           Write-Output "::notice title=api.token ACL::$(($acl -replace "`r", '') -replace "`n", '%0A')"
-          if ($acl -notmatch 'BUILTIN\\Users:\([^)]*\)?\((F|M|RX|R)\)') { Fail "standard users cannot read api.token (the desktop app shows 'daemon not found')" $acl }
+          if ($acl -notmatch 'BUILTIN\\Users:(\([^)]*\))*\((F|M|RX|R)\)') { Fail "standard users cannot read api.token (the desktop app shows 'daemon not found')" $acl }
           $app = Start-Process -FilePath "$root\app\MCManager.exe" -WorkingDirectory "$root\app" -PassThru
           Start-Sleep -Seconds 10
           if ($app.HasExited) {
