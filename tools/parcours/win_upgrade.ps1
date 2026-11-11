@@ -55,6 +55,8 @@ End-Step
 
 Begin '3.0 over 2.4.8'
 $log = Install-Setup $Setup $null
+# Documented step (Windows/README_Windows.md): the installer does not read a zip-install registry.
+Copy-Item "$old\servers.json" "$env:ProgramData\MCManager\servers.json" -Force
 $root = Join-Path $env:ProgramFiles 'MCManager'
 $script:Roots = @($root, $old)
 $mc = { param($a) & "$root\python\python.exe" "$root\core\mc_cli.py" @a }.GetNewClosure()
