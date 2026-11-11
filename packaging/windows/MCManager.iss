@@ -66,6 +66,8 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
 [Run]
 Filename: "{app}\python\python.exe"; Parameters: """{app}\core\mc_config.py"" --install-only"; WorkingDir: "{app}\core"; Flags: runhidden waituntilterminated
 Filename: "{app}\python\python.exe"; Parameters: """{app}\core\mc_config.py"" --install-daemon"; WorkingDir: "{app}\core"; Flags: runhidden waituntilterminated
+; The app launched at the end of Setup finds the daemon through api.token: wait up to 30 s for the daemon to write it.
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -Command ""for ($i = 0; $i -lt 60 -and -not (Test-Path '{app}\core\run\api.token'); $i++) {{ Start-Sleep -Milliseconds 500 }"""; Flags: runhidden waituntilterminated
 Filename: "{app}\app\MCManager.exe"; Description: "{cm:LaunchProgram,MC Manager}"; WorkingDir: "{app}\app"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
