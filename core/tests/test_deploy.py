@@ -79,9 +79,6 @@ class DetectDefaultJarTests(unittest.TestCase):
         self.assertEqual(mc_config.detect_default_jar(self.d), "fabric-server-launch.jar")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class TestFabricUnavailable(unittest.TestCase):
 
@@ -102,3 +99,7 @@ class TestNeoForgeUnavailable(unittest.TestCase):
         with mock.patch.object(mc_deploy, "fetch_json", return_value=None), mock.patch.object(mc_deploy, "pr"):
             self.assertIsNone(mc_deploy.deploy_neoforge(tempfile.mkdtemp(), "1.20.1"))
         self.assertEqual(mc_deploy.deploy_neoforge.last_result["code"], "loader_unavailable")
+
+
+if __name__ == "__main__":
+    unittest.main()
