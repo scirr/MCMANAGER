@@ -62,6 +62,9 @@ open_folder = _files.open_folder
 atomic_replace = _files.atomic_replace
 is_elevated = _files.is_elevated
 current_user = _files.current_user
+shared_read_sids = _files.shared_read_sids
+ensure_shared_read_group = _files.ensure_shared_read_group
+add_to_shared_read_group = _files.add_to_shared_read_group
 java_archive_kind = _files.java_archive_kind
 
 

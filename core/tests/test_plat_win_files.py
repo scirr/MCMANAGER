@@ -164,15 +164,42 @@ class TestWritePrivate(unittest.TestCase):
             sec.assert_called_once()
             self.assertEqual(os.listdir(d), ["config.json"])
 
-    def test_world_readable_mode_lets_standard_users_read(self):
+    def test_world_readable_mode_shares_with_group_by_sid(self):
         # api.token: the unelevated desktop app must read what the SYSTEM service wrote.
+        # Only the local group and its members get R, granted by SID, never all Users.
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "api.token")
             with mock.patch.object(files, "secure_file", return_value=True) as sec, \
+                    mock.patch.object(files.common, "run_powershell",
+                                      return_value=(0, "S-1-5-21-1-2-3\r\nnoise\r\nS-1-5-21-1-2-4\r\n", "")), \
                     mock.patch.object(files.common, "run", return_value=(0, "", "")) as run:
                 files.write_private_file(path, "{}", 0o644)
             sec.assert_called_once()
-            self.assertEqual(run.call_args[0][0][2:], ["/grant", "*S-1-5-32-545:R"])
+            self.assertEqual(run.call_args[0][0],
+                             ["icacls", f"{path}.{os.getpid()}.tmp",
+                              "/grant:r", "*S-1-5-21-1-2-3:R",
+                              "/grant:r", "*S-1-5-21-1-2-4:R"])
+
+    def test_world_readable_mode_without_sids_stays_private(self):
+        with tempfile.TemporaryDirectory() as d:
+            with mock.patch.object(files, "secure_file", return_value=True), \
+                    mock.patch.object(files.common, "run_powershell", return_value=(1, "", "")), \
+                    mock.patch.object(files.common, "run") as run:
+                files.write_private_file(os.path.join(d, "api.token"), "{}", 0o644)
+        run.assert_not_called()
+
+
+class TestSharedReadGroup(unittest.TestCase):
+    def test_add_skips_the_machine_account(self):
+        with mock.patch.object(files.common, "run") as run:
+            self.assertFalse(files.add_to_shared_read_group("PC$"))
+        run.assert_not_called()
+
+    def test_add_uses_net_localgroup(self):
+        with mock.patch.object(files.common, "run", return_value=(0, "", "")) as run:
+            self.assertTrue(files.add_to_shared_read_group("PC\\cris"))
+        self.assertEqual(run.call_args[0][0][:3], ["net", "localgroup", files.SHARED_READ_GROUP])
+        self.assertEqual(run.call_args[0][0][3:], ["PC\\cris", "/add"])
 
 
 class TestMisc(unittest.TestCase):

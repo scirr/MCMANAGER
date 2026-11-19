@@ -797,6 +797,11 @@ def install_daemon_service(user=None):
     ok, detail = plat.service_install(user)
     if detail == "polkit":
         print(f"\033[92m[{T['icon_ok']}]\033[0m {T['polkit_ok'].format(user=user or plat.current_user())}")
+    if ok and plat.os_name() == "Windows":
+        # The service writes api.token as SYSTEM; the installing user joins the group
+        # allowed to read it, so the desktop app works right after Setup.
+        plat.ensure_shared_read_group()
+        plat.add_to_shared_read_group(plat.current_user())
     if ok:
         print(f"\033[92m[{T['icon_ok']}]\033[0m {T['daemon_inst_ok'].format(name=SERVICE_NAME)}")
         print(f"\033[92m[{T['icon_ok']}]\033[0m {T['daemon_inst_silent']}")

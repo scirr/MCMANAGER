@@ -34,6 +34,8 @@ mc deploy
 
 > The installer downloads NSSM, installs the `MCManagerDaemon` Windows service and the `mc` command in `C:\Windows\System32\`. `mc deploy` downloads and configures a fresh Minecraft server — see [Three ways to get a server](#three-ways-to-get-a-server-deploy--add--configure) below. You can repeat this to manage multiple servers.
 
+> Installation also adds your Windows account to the local `MCManagerUsers` group, the only one (besides administrators) allowed to read the daemon's `api.token`. To let another account use MC Manager on this machine, run from an administrator terminal `net localgroup MCManagerUsers <name> /add`, then `mc daemon restart`.
+
 ---
 
 ## Getting started

@@ -1,4 +1,5 @@
 import getpass
+import logging
 import ntpath
 import os
 import time
@@ -35,7 +36,11 @@ def is_elevated():
 # SYSTEM (the daemon service) and Administrators (the mc command) must keep reaching
 # files the other one wrote; by SID because names are localised.
 _ALWAYS = ("*S-1-5-18", "*S-1-5-32-544")
-USERS_SID = "*S-1-5-32-545"
+
+# Accounts allowed to read what the SYSTEM daemon shares with the desktop users
+# (api.token, the IPC files). Every member SID is granted on the file itself, so
+# adding a user to the group needs no relogin, only a daemon restart.
+SHARED_READ_GROUP = "MCManagerUsers"
 
 
 def _grant(path, spec, also):
@@ -51,6 +56,37 @@ def _grant(path, spec, also):
 
 def secure_file(path, also=()):
     return _grant(path, "F", also)
+
+
+def shared_read_sids():
+    # By SID, not name: names are localised and the group SID is machine-specific,
+    # so it is resolved at runtime; icacls cannot map names under SYSTEM anyway.
+    script = (
+        f"New-LocalGroup -Name '{SHARED_READ_GROUP}' -ErrorAction SilentlyContinue;"
+        f"$g = Get-LocalGroup -Name '{SHARED_READ_GROUP}' -ErrorAction SilentlyContinue;"
+        f"if ($g) {{ $g.SID.Value;"
+        f" Get-LocalGroupMember -Name '{SHARED_READ_GROUP}' -ErrorAction SilentlyContinue"
+        " | ForEach-Object { $_.SID.Value } }"
+    )
+    rc, out, _err = common.run_powershell(script)
+    if rc != 0:
+        return []
+    return [f"*{line.strip()}" for line in out.splitlines()
+            if line.strip().startswith("S-1-")]
+
+
+def ensure_shared_read_group():
+    # False means "not elevated"; "already exists" is fine, the daemon resolves it.
+    rc, _out, _err = common.run(["net", "localgroup", SHARED_READ_GROUP, "/add"])
+    return rc == 0
+
+
+def add_to_shared_read_group(user):
+    # The machine account (PC$) of the service cannot be granted anything.
+    if user.endswith("$"):
+        return False
+    rc, _out, _err = common.run(["net", "localgroup", SHARED_READ_GROUP, user, "/add"])
+    return rc == 0
 
 
 def secure_dir(path, also=(), owner_of=None):
@@ -119,7 +155,17 @@ def write_private_file(path, text, mode=0o600):
     if mode == 0o600:
         secure_file(tmp)
     elif mode & 0o004 and secure_file(tmp):
-        common.run(["icacls", tmp, "/grant", f"{USERS_SID}:R"])
+        sids = shared_read_sids()
+        if sids:
+            cmd = ["icacls", tmp]
+            for sid in sids:
+                cmd += ["/grant:r", f"{sid}:R"]
+            if common.run(cmd)[0] != 0:
+                logging.warning("%s stays private: icacls failed to grant %s",
+                                os.path.basename(path), SHARED_READ_GROUP)
+        else:
+            logging.warning("%s stays private: no member in %s (install the daemon as administrator)",
+                            os.path.basename(path), SHARED_READ_GROUP)
     atomic_replace(tmp, path)
 
 

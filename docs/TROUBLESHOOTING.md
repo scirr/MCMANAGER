@@ -141,7 +141,7 @@ mc api enable                 # it is on by default; this turns it back on
 mc daemon restart
 ```
 
-If you moved or renamed the MC Manager folder, tell the app where the run folder is with the environment variable `MCMANAGER_RUN_DIR` (the `run/` folder of the install) before launching it. Linux Flatpak: it can only see `/opt/mcmanager/run`, so use it with a `.deb` or `.rpm` install, or connect to the machine as a remote.
+If you moved or renamed the MC Manager folder, tell the app where the run folder is with the environment variable `MCMANAGER_RUN_DIR` (the `run/` folder of the install) before launching it. Linux Flatpak: it can only see `/opt/mcmanager/run`, so use it with a `.deb` or `.rpm` install, or connect to the machine as a remote. Windows: the account must be a member of the local `MCManagerUsers` group (the installer adds the installing account) — check with `net localgroup MCManagerUsers`, add one from an administrator terminal with `net localgroup MCManagerUsers <name> /add`, then `mc daemon restart`.
 
 ---
 

@@ -197,10 +197,18 @@ jobs:
             Start-Sleep -Seconds 2
           }
           if (-not $answered) { Fail "the daemon API does not answer" $out }
-          # The desktop app runs unelevated: run\ is users-modify (installer), the SYSTEM daemon must not lock api.token.
+          # 3.0.3: only the local MCManagerUsers group (and its members) may read api.token.
+          # SIDs, not names, so the check works in every Windows language.
           $acl = icacls "$root\core\run\api.token" 2>&1 | Out-String
           Write-Output "::notice title=api.token ACL::$(($acl -replace "`r", '') -replace "`n", '%0A')"
-          if ($acl -notmatch 'BUILTIN\\Users:(\([^)]*\))*\((F|M|RX|R)\)') { Fail "standard users cannot read api.token (the desktop app shows 'daemon not found')" $acl }
+          $sids = (Get-Acl "$root\core\run\api.token").Access | ForEach-Object {
+            try { $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value } catch { "$($_.IdentityReference)" }
+          }
+          $open = $sids | Where-Object { $_ -eq 'S-1-5-32-545' -or $_ -eq 'S-1-1-0' }
+          if ($open) { Fail "api.token is still open to all Users or Everyone (SIDs: $($open -join ', '))" $acl }
+          $group = Get-LocalGroup -Name MCManagerUsers -ErrorAction SilentlyContinue
+          if (-not $group) { Fail "the MCManagerUsers local group is missing" $acl }
+          if ($sids -notcontains $group.SID.Value) { Fail "api.token is not readable by the MCManagerUsers group (the desktop app shows 'daemon not found')" $acl }
           $app = Start-Process -FilePath "$root\app\MCManager.exe" -WorkingDirectory "$root\app" -PassThru
           Start-Sleep -Seconds 10
           if ($app.HasExited) {
