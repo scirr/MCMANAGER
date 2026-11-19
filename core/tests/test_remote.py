@@ -443,13 +443,21 @@ class TestAuthentication(RemoteCase):
         self.assertEqual(admin.request("DELETE", f"/v1/devices/{phone.device_id}")[0], 200)
         response.fp.raw._sock.settimeout(5) if hasattr(response.fp, "raw") and hasattr(response.fp.raw, "_sock") else None
         deadline = time.time() + 5
-        data = b""
+        closed = False
         while time.time() < deadline:
-            line = response.fp.readline()
-            if not line:
+            try:
+                line = response.fp.readline()
+            except TimeoutError:
+                raise
+            except OSError:
+                # The remote close can surface as a socket error (ssl under Windows
+                # raises FileNotFoundError) instead of a clean EOF; both prove the close.
+                closed = True
                 break
-            data += line
-        self.assertEqual(response.fp.readline(), b"")
+            if not line:
+                closed = True
+                break
+        self.assertTrue(closed, "the stream was still open 5 s after the device was revoked")
         conn.close()
 
     def test_cli_can_list_and_revoke_devices(self):
